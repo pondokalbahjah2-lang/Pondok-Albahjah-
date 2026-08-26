@@ -1,0 +1,12 @@
+{
+  "name": "Portal Pejuang Al-Bahjah Cabang Cirebon 1",
+  "description": "Sistem Manajemen Pejuang Divisi Kepondokan Yayasan Al-Bahjah Cabang Cirebon 1 dengan iOS Liquid Glass UI/UX, Absensi Foto & GPS, Rekap Izin & Cuti, Slip Ubar, dan Kalender Hijriyah.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "publickey-credentials-get"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

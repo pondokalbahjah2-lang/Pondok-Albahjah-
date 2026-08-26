@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "attendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pejuangId", "order": "ASCENDING" },
+        { "fieldPath": "tanggal", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "exitPermissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pejuangId", "order": "ASCENDING" },
+        { "fieldPath": "tanggalKeluar", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leaveRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pejuangId", "order": "ASCENDING" },
+        { "fieldPath": "tanggalPengajuan", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

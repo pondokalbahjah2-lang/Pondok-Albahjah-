@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User profile and credentials",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "amanah": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["username", "name", "role", "subDivisi", "amanah"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily attendance logs",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "distanceFromPondok": { "type": "number" },
+        "status": { "type": "string" },
+        "isWithinRadius": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "required": ["pejuangId", "pejuangName", "subDivisi", "date", "time", "status"]
+    },
+    "ExitPermissionRecord": {
+      "title": "ExitPermissionRecord",
+      "description": "Exit permissions",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "alasan": { "type": "string" },
+        "tanggalKeluar": { "type": "string" },
+        "tanggalIzinSampai": { "type": "string" },
+        "tanggalKembaliReal": { "type": "string" },
+        "jamKeluar": { "type": "string" },
+        "jamHarusKembali": { "type": "string" },
+        "jamKembaliReal": { "type": "string" },
+        "status": { "type": "string" },
+        "keteranganKeterlambatan": { "type": "string" }
+      },
+      "required": ["pejuangId", "tanggalKeluar", "status"]
+    },
+    "LeaveRequestRecord": {
+      "title": "LeaveRequestRecord",
+      "description": "Leave requests",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "alasan": { "type": "string" },
+        "tanggalMulai": { "type": "string" },
+        "tanggalSelesai": { "type": "string" },
+        "totalHari": { "type": "number" },
+        "status": { "type": "string" },
+        "tanggalPengajuan": { "type": "string" },
+        "catatanAdmin": { "type": "string" }
+      },
+      "required": ["pejuangId", "tanggalMulai", "status"]
+    },
+    "WarningLetterRecord": {
+      "title": "WarningLetterRecord",
+      "description": "Warning letters",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "type": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "alasan": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" }
+      },
+      "required": ["pejuangId", "type", "tanggal"]
+    },
+    "SlipUbarRecord": {
+      "title": "SlipUbarRecord",
+      "description": "Salary slips",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "periode": { "type": "string" },
+        "tanggalUpload": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string" }
+      },
+      "required": ["pejuangId", "periode", "fileUrl"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserAccount",
+      "description": "User profiles"
+    },
+    "attendance/{docId}": {
+      "schema": "AttendanceRecord",
+      "description": "Attendance records"
+    },
+    "exitPermissions/{docId}": {
+      "schema": "ExitPermissionRecord",
+      "description": "Exit permissions"
+    },
+    "leaveRequests/{docId}": {
+      "schema": "LeaveRequestRecord",
+      "description": "Leave requests"
+    },
+    "warningLetters/{docId}": {
+      "schema": "WarningLetterRecord",
+      "description": "Warning letters"
+    },
+    "slipUbar/{docId}": {
+      "schema": "SlipUbarRecord",
+      "description": "Salary slips"
+    }
+  }
+}
