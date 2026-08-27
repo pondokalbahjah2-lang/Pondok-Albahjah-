@@ -49,6 +49,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [notes, setNotes] = useState('');
   const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang'>('Hadir');
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 10;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -795,13 +796,25 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
         {/* History Attendance Log Table */}
         <div className="lg:col-span-2 p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
             <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100">
               Riwayat & Log Presensi Kehadiran
             </h2>
-            <span className="text-xs text-slate-500">
-              Total {myAttendance.length} Entri
-            </span>
+            <div className="flex items-center space-x-3">
+              <input
+                type="text"
+                placeholder="Cari nama atau tanggal..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full md:w-48 py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="text-xs text-slate-500 whitespace-nowrap">
+                Total {myAttendance.length} Entri
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -824,7 +837,12 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  myAttendance.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec) => (
+                  myAttendance
+                  .filter(rec => 
+                    rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    rec.date.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec) => (
                     <tr
                       key={rec.id}
                       className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"

@@ -140,6 +140,7 @@ export interface GeneralSettings {
   izinKeluarApprovers?: string[];
   cutiApprovers?: string[];
   jenisCutiList?: { id: string; name: string; maxDays: number; }[];
+  broadcastMessage?: string;
 }
 
 export interface LocationSettings {

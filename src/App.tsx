@@ -608,6 +608,7 @@ export default function App() {
                 izinKeluarApprovers={generalSettings.izinKeluarApprovers}
                 cutiApprovers={generalSettings.cutiApprovers}
                 jenisCutiList={generalSettings.jenisCutiList}
+                broadcastMessage={generalSettings.broadcastMessage}
                 onSaveGeneralSettings={handleSaveGeneralSettings}
                 currentUser={currentUser}
                 accounts={accounts}
@@ -626,17 +627,17 @@ export default function App() {
                   const exToKeep = exitPermissions.filter(e => !e.tanggalKeluar.startsWith(month));
                   const exToDelete = exitPermissions.filter(e => e.tanggalKeluar.startsWith(month));
 
-                  const lvToKeep = leaveRequests.filter(l => !l.tanggalMulai.startsWith(month));
-                  const lvToDelete = leaveRequests.filter(l => l.tanggalMulai.startsWith(month));
+                  // const lvToKeep = leaveRequests.filter(l => !l.tanggalMulai.startsWith(month));
+                  const lvToDelete: any[] = []; // leaveRequests.filter(l => l.tanggalMulai.startsWith(month));
                   
-                  const slToKeep = slipUbarList.filter(s => !s.tanggalUpload.startsWith(month));
-                  const slToDelete = slipUbarList.filter(s => s.tanggalUpload.startsWith(month));
+                  // const slToKeep = slipUbarList.filter(s => !s.tanggalUpload.startsWith(month));
+                  const slToDelete: any[] = []; // slipUbarList.filter(s => s.tanggalUpload.startsWith(month));
 
                   // Optimistic update
                   setAttendance(attToKeep);
                   setExitPermissions(exToKeep);
-                  setLeaveRequests(lvToKeep);
-                  setSlipUbarList(slToKeep);
+                  // setLeaveRequests(lvToKeep);
+                  // setSlipUbarList(slToKeep);
 
                   // Delete from Firestore in batches (max 500 per batch)
                   try {
