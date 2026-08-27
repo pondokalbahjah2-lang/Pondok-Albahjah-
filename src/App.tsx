@@ -44,6 +44,44 @@ export default function App() {
 
   
 
+
+  // GLOBAL PUBLIC SYNC HOOK (No Auth Required)
+  useEffect(() => {
+    // Sync General Settings
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        setGeneralSettings(docSnap.data() as GeneralSettings);
+      }
+    }, (err) => console.log('Settings read err'));
+
+    // Sync Manhajiyyah Clauses
+    let firstManhajLoad = true;
+    const unsubManhaj = onSnapshot(collection(db, 'manhajiyyahClauses'), (snap) => {
+      if (!firstManhajLoad && currentUser?.role !== 'Admin') {
+         snap.docChanges().forEach(change => {
+           if (change.type === 'added' || change.type === 'modified') {
+             const newData = change.doc.data();
+             const msg = change.type === 'added' 
+               ? `Pasal Manhajiyyah Baru Ditambahkan: ${newData.bab} - ${newData.title}`
+               : `Pasal Manhajiyyah Diperbarui: ${newData.title}`;
+             
+             if (Notification.permission === 'granted') {
+                new Notification('Pembaruan Manhajiyyah', { body: msg });
+             }
+             alert(msg);
+           }
+         });
+      }
+      setManhajiyyahClauses(snap.docs.map(d => d.data() as ManhajiyyahClause));
+      firstManhajLoad = false;
+    }, (err) => console.log('Manhajiyyah read err'));
+
+    return () => {
+      unsubGeneral();
+      unsubManhaj();
+    };
+  }, [currentUser?.role]); // re-bind when role changes so the notification logic uses correct role
+
   // FIREBASE SYNC HOOK
   useEffect(() => {
     console.log('App: useEffect for Firebase Sync triggered. Current user:', currentUser?.id);
@@ -212,13 +250,6 @@ export default function App() {
           }
         }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/location'));
 
-
-        // Sync General Settings
-        const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-          if (docSnap.exists()) {
-            setGeneralSettings(docSnap.data() as GeneralSettings);
-          }
-        }, (err) => console.log('Settings read err'));
 
         // Sync Manhajiyyah Clauses
         let firstManhajLoad = true;

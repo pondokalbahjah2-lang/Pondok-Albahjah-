@@ -80,9 +80,13 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [shiftFilter, setShiftFilter] = useState('');
+  const [divisiFilter, setDivisiFilter] = useState('Semua');
 
+  const uniqueDivisions = Array.from(new Set(accounts.filter(a => a.subDivisi).map(a => a.subDivisi)));
+  const filteredAccountsForReport = accounts.filter(a => divisiFilter === 'Semua' || a.subDivisi === divisiFilter);
   const pejuangAccounts = accounts.filter((a) => {
     if (a.role !== 'Pejuang') return false;
+    if (divisiFilter !== 'Semua' && a.subDivisi !== divisiFilter) return false;
     
     // Filter by name (searchQuery)
     if (searchQuery && !a.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -243,8 +247,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const reportDataMasuk: any[] = [];
     const reportDataPulang: any[] = [];
 
-    // Use accounts instead of pejuangAccounts to include Admin
-    accounts.forEach((p, idx) => {
+    // Use filteredAccountsForReport to apply Divisi filter
+    filteredAccountsForReport.forEach((p, idx) => {
       // Find user schedule
       const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -389,7 +393,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const bodyMasuk: any[] = [];
     const bodyPulang: any[] = [];
 
-    accounts.forEach((p, idx) => {
+    filteredAccountsForReport.forEach((p, idx) => {
       const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const hariMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -658,6 +662,16 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                 className="w-full sm:w-1/3 p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500"
               />
               
+              <select
+                value={divisiFilter}
+                onChange={(e) => setDivisiFilter(e.target.value)}
+                className="w-full sm:w-1/3 p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="Semua">Semua Divisi</option>
+                {uniqueDivisions.map((div, i) => (
+                  <option key={i} value={div}>{div}</option>
+                ))}
+              </select>
               <select
                 value={shiftFilter}
                 onChange={(e) => setShiftFilter(e.target.value)}
