@@ -70,24 +70,28 @@ export const LoginView: React.FC<LoginViewProps> = ({
         if (userDoc.exists()) {
           matchedUser = userDoc.data() as UserAccount;
         } else {
-          // Re-create user document if it's missing but auth succeeded
-          matchedUser = {
-            id: cred.user.uid,
-            username: email.split('@')[0],
-            password,
-            name: email.split('@')[0],
-            role: email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu') ? 'Admin' : 'Pejuang',
-            subDivisi: 'Manajemen Kepondokan',
-            amanah: 'Staff',
-            email,
-            phone: '081234567890',
-          };
-          if (email.includes('abdusalam') || email.includes('salamabdu')) {
-             matchedUser.name = 'Abdu Salam';
-             matchedUser.username = 'Abdu Salam';
-             matchedUser.amanah = 'Sekretaris Pondok Pesantren Al-Bahjah Cabang Cirebon 1';
+          // Hanya izinkan auto-create jika email adalah email admin, untuk setup awal
+          if (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu')) {
+            matchedUser = {
+              id: cred.user.uid,
+              username: email.split('@')[0],
+              password,
+              name: email.split('@')[0],
+              role: 'Admin',
+              subDivisi: 'Manajemen Kepondokan',
+              amanah: 'Staff',
+              email,
+              phone: '081234567890',
+            };
+            if (email.includes('abdusalam') || email.includes('salamabdu')) {
+               matchedUser.name = 'Abdu Salam';
+               matchedUser.username = 'Abdu Salam';
+               matchedUser.amanah = 'Sekretaris Pondok Pesantren Al-Bahjah Cabang Cirebon 1';
+            }
+            await setDoc(doc(db, 'users', cred.user.uid), matchedUser);
+          } else {
+            throw new Error('Akun Anda belum terdaftar secara lengkap di sistem database. Silakan hubungi Admin.');
           }
-          await setDoc(doc(db, 'users', cred.user.uid), matchedUser);
         }
       } catch (err: any) {
         console.warn('Firebase Auth Failed:', err.code, err.message);

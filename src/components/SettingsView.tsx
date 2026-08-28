@@ -468,6 +468,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       alert('Mohon lengkapi Username dan Nama Pejuang.');
       return;
     }
+    
+    // Check for duplicates
+    if (accounts.some(a => a.username.toLowerCase() === newUsername.trim().toLowerCase())) {
+      alert('Username ini sudah terdaftar. Silakan gunakan username lain.');
+      return;
+    }
+    if (accounts.some(a => a.name.toLowerCase() === newName.trim().toLowerCase())) {
+      alert('Nama Pejuang ini sudah terdaftar. Jangan sampai ada nama pejuang yang double.');
+      return;
+    }
 
     const email = newEmail.trim() || `${newUsername.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@albahjah.or.id`;
     let uid = `usr-${Date.now()}`;
