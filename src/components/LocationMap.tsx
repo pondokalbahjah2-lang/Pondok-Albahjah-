@@ -50,20 +50,22 @@ export const LocationMap = ({
   userLng, 
   pondokLat, 
   pondokLng, 
-  radius 
+  radius,
+  height = "h-40"
 }: { 
   userLat: number, 
   userLng: number, 
   pondokLat: number, 
   pondokLng: number, 
-  radius: number 
+  radius: number,
+  height?: string
 }) => {
   const apiKey = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   // Fallback to simple iframe if no API key is provided yet
   if (!apiKey) {
     return (
-      <div className="w-full h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0 bg-slate-200 dark:bg-slate-700">
+      <div className={`w-full ${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0 bg-slate-200 dark:bg-slate-700`}>
         <iframe 
           width="100%" 
           height="100%" 
@@ -79,7 +81,7 @@ export const LocationMap = ({
   const pondokPos = { lat: pondokLat, lng: pondokLng };
 
   return (
-    <div className="w-full h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0">
+    <div className={`w-full ${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0`}>
       <APIProvider apiKey={apiKey}>
         <Map 
           defaultZoom={16} 

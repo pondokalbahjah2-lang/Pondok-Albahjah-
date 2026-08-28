@@ -117,20 +117,13 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     };
   }, [isScanningQR, isCameraOpen]);
 
-  const handleGetLocation = () => {
-    setIsLocating(true);
-    setLocError('');
 
+  useEffect(() => {
+    let watchId: number;
     if ('geolocation' in navigator) {
-      const getPos = (options: PositionOptions) => {
-        return new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, options);
-        });
-      };
-
-      getPos({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
-        .catch(() => getPos({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }))
-        .then((pos) => {
+      setIsLocating(true);
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setCurrentLat(lat);
@@ -144,22 +137,60 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
           );
           setDistanceMeters(dist);
           setIsLocating(false);
-        })
-        .catch((err) => {
+          setLocError('');
+        },
+        (err) => {
           console.warn('Geolocation error:', err);
           let errMsg = 'Gagal mengambil lokasi.';
           if (err.code === err.PERMISSION_DENIED) errMsg = 'Izin akses lokasi (GPS) ditolak oleh browser. Mohon izinkan akses lokasi atau coba buka app di tab baru.';
           if (err.code === err.POSITION_UNAVAILABLE) errMsg = 'Informasi lokasi tidak tersedia saat ini. Pastikan GPS perangkat menyala.';
           if (err.code === err.TIMEOUT) errMsg = 'Waktu permintaan lokasi habis (timeout). Coba lagi di area terbuka.';
-          
           setLocError(errMsg);
           setIsLocating(false);
-        });
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
     } else {
       setLocError('Browser Anda tidak mendukung Geolocation.');
-      setIsLocating(false);
+    }
+
+    return () => {
+      if (watchId !== undefined && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [locationSettings.latitude, locationSettings.longitude]);
+
+  // Keep the old handler but just have it retry fetching the latest explicitly if they click refresh
+  const handleGetLocation = () => {
+    setIsLocating(true);
+    setLocError('');
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCurrentLat(lat);
+          setCurrentLng(lng);
+
+          const dist = calculateDistanceMeters(
+            lat,
+            lng,
+            locationSettings.latitude,
+            locationSettings.longitude
+          );
+          setDistanceMeters(dist);
+          setIsLocating(false);
+        },
+        (err) => {
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
     }
   };
+
 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
@@ -960,15 +991,14 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                 <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
               </button>
             </div>
-            <div className="w-full h-80 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-200 dark:bg-slate-800 relative">
-              <iframe 
-                width="100%" 
-                height="100%" 
-                style={{ border: 0 }} 
-                src={`https://maps.google.com/maps?q=${selectedMapRecord.latitude},${selectedMapRecord.longitude}&z=16&output=embed`}
-                title="Peta Lokasi GPS"
-              />
-            </div>
+            <LocationMap 
+              userLat={selectedMapRecord.latitude}
+              userLng={selectedMapRecord.longitude}
+              pondokLat={locationSettings.latitude}
+              pondokLng={locationSettings.longitude}
+              radius={locationSettings.radiusMaxMeters}
+              height="h-80"
+            />
             <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
               <span className="font-bold">Koordinat:</span> {selectedMapRecord.latitude}, {selectedMapRecord.longitude} <br/>
               <span className="font-bold">Jarak dari Pondok:</span> {selectedMapRecord.distanceFromPondok} meter

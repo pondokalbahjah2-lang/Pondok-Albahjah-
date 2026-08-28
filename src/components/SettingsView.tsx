@@ -1361,7 +1361,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-center space-x-2">
               <input
                 type="text"
-                placeholder="Cari nama atau username..."
+                placeholder="Cari nama, username, atau ID..."
                 value={pejuangSearchQuery}
                 onChange={(e) => {
                   setPejuangSearchQuery(e.target.value);
@@ -1393,7 +1393,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {accounts
-                  .filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()))
+                  .filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.id.toLowerCase().includes(pejuangSearchQuery.toLowerCase()))
                   .slice((pejuangCurrentPage - 1) * pejuangItemsPerPage, pejuangCurrentPage * pejuangItemsPerPage)
                   .map((acc) => (
                   <tr key={acc.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
@@ -1436,10 +1436,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           
           {/* Pagination Controls */}
-          {Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage) > 1 && (
+          {Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.id.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage) > 1 && (
             <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
               <span className="text-xs text-slate-500">
-                Halaman {pejuangCurrentPage} dari {Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage)}
+                Halaman {pejuangCurrentPage} dari {Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.id.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage)}
               </span>
               <div className="flex space-x-2">
                 <button
@@ -1450,8 +1450,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   Sebelumnya
                 </button>
                 <button
-                  onClick={() => setPejuangCurrentPage(prev => Math.min(Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage), prev + 1))}
-                  disabled={pejuangCurrentPage === Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage)}
+                  onClick={() => setPejuangCurrentPage(prev => Math.min(Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.id.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage), prev + 1))}
+                  disabled={pejuangCurrentPage === Math.ceil(accounts.filter(acc => acc.name.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.username.toLowerCase().includes(pejuangSearchQuery.toLowerCase()) || acc.id.toLowerCase().includes(pejuangSearchQuery.toLowerCase())).length / pejuangItemsPerPage)}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700"
                 >
                   Selanjutnya

@@ -6,6 +6,7 @@ import {
   LineChart as RechartsLineChart, Line
 } from 'recharts';
 import {
+  X,
   Users,
   Clock,
   HeartPulse,
@@ -31,6 +32,7 @@ import {
   AttendanceRecord,
   ExitPermissionRecord,
   LeaveRequestRecord,
+  WarningLetterRecord,
 } from '../types';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { AdminQRGenerator } from './AdminQRGenerator';
@@ -41,6 +43,7 @@ interface DashboardViewProps {
   attendance: AttendanceRecord[];
   exitPermissions: ExitPermissionRecord[];
   leaveRequests: LeaveRequestRecord[];
+  warningLetters: WarningLetterRecord[];
   onNavigate: (tab: string) => void;
 }
 
@@ -50,9 +53,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   attendance,
   exitPermissions,
   leaveRequests,
+  warningLetters,
   onNavigate,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeWarning, setActiveWarning] = useState<WarningLetterRecord | null>(null);
+
+  React.useEffect(() => {
+    if (currentUser.role === 'Pejuang') {
+      const myWarnings = warningLetters.filter(w => w.pejuangId === currentUser.id);
+      if (myWarnings.length > 0) {
+        // Sort descending
+        myWarnings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const latest = myWarnings[0];
+        const isDismissed = localStorage.getItem(`dismissedWarning_${latest.id}`);
+        if (!isDismissed) {
+          setActiveWarning(latest);
+        }
+      }
+    }
+  }, [warningLetters, currentUser]);
+
+  const dismissWarning = () => {
+    if (activeWarning) {
+      localStorage.setItem(`dismissedWarning_${activeWarning.id}`, 'true');
+      setActiveWarning(null);
+    }
+  };
+
   const [selectedSubDivisi, setSelectedSubDivisi] = useState('Semua');
 
   const pejuangList = React.useMemo(() => accounts.filter((a) => a.role === 'Pejuang'), [accounts]);
@@ -195,6 +223,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return data;
   }, [attendance, currentUser.id]);
 
+
+  // Today's Attendance Statistics
+  const todayStats = React.useMemo(() => {
+    const todayStr = getLocalDateString(new Date());
+    const pejuangs = accounts.filter(a => a.role === 'Pejuang');
+    const totalPejuang = pejuangs.length;
+    
+    const todayAttendance = attendance.filter(a => a.date === todayStr);
+    const hadir = todayAttendance.filter(a => a.status === 'Hadir').length;
+    const terlambat = todayAttendance.filter(a => a.status === 'Terlambat').length;
+    // To find out who hasn't clocked in, we check who isn't in todayAttendance
+    const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
+    const belumAbsen = pejuangs.filter(p => !attendeesIds.has(p.id)).length;
+    
+    return { total: totalPejuang, hadir, terlambat, belumAbsen };
+  }, [accounts, attendance]);
+
+  // 30 Days Trend Percentage Calculation
+  const monthlyKehadiranPercentage = React.useMemo(() => {
+    const data = [];
+    const today = new Date();
+    const activePejuangs = accounts.filter(a => a.role === 'Pejuang').length;
+    if (activePejuangs === 0) return []; // avoid division by zero
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = getLocalDateString(d);
+      const dayName = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      
+      const dayRecords = attendance.filter(a => a.date === dateStr && (a.status === 'Hadir' || a.status === 'Terlambat'));
+      // Using unique pejuang count who attended that day
+      const uniqueAttendees = new Set(dayRecords.map(a => a.pejuangId)).size;
+      const percentage = Math.round((uniqueAttendees / activePejuangs) * 100);
+      
+      data.push({
+        name: dayName,
+        persentase: percentage,
+      });
+    }
+    return data;
+  }, [attendance, accounts]);
+
   // 6 Months Trend Real Data Calculation
   const monthsArr = [];
   const trendData = [];
@@ -279,6 +350,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
+
+      {/* Warning Letter Popup */}
+      {activeWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl relative border-t-8 border-rose-500 animate-in fade-in zoom-in duration-300">
+            <button onClick={dismissWarning} className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+              <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Peringatan Baru!</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              Anda menerima <strong>Surat Teguran</strong> baru dari Admin pada tanggal {activeWarning.date}.
+            </p>
+            <div className="bg-rose-50 dark:bg-rose-900/10 p-4 rounded-2xl border border-rose-100 dark:border-rose-900/30 mb-6">
+              <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Tingkat Teguran:</h4>
+              <p className="text-sm text-slate-800 dark:text-slate-200 mb-3">{activeWarning.warningLevel}</p>
+              
+              <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Alasan/Pelanggaran:</h4>
+              <p className="text-sm text-slate-800 dark:text-slate-200">{activeWarning.reason}</p>
+            </div>
+            <button 
+              onClick={dismissWarning}
+              className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-md transition-all"
+            >
+              Saya Mengerti
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Welcome & Pasal Header */}
       <header className="flex flex-col md:flex-row md:justify-between md:items-center bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm gap-4">
         <div className="flex items-center space-x-4">
@@ -697,6 +802,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+            
+        {/* Line Chart: 30 Days Attendance Percentage Trend */}
+        <div className="md:col-span-2 p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <LineChartIcon className="w-5 h-5 text-indigo-500" />
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Tren Persentase Kehadiran (30 Hari Terakhir)</h3>
+          </div>
+          <div className="flex-1 min-h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsLineChart
+                data={monthlyKehadiranPercentage}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={20} />
+                <YAxis 
+                  tick={{ fontSize: 10 }} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  domain={[0, 100]} 
+                  tickFormatter={(val) => `${val}%`} 
+                />
+                <RechartsTooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value) => [`${value}%`, 'Tingkat Kehadiran']}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                <Line type="monotone" dataKey="persentase" name="Tingkat Kehadiran (%)" stroke="#6366f1" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
             {/* Current User Weekly Attendance Consistency Trend */}
       <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col">

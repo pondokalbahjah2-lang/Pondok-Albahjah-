@@ -558,6 +558,7 @@ export default function App() {
                 attendance={attendance}
                 exitPermissions={exitPermissions}
                 leaveRequests={leaveRequests}
+                warningLetters={warningLetters}
                 onNavigate={setActiveTab}
               />
             )}
