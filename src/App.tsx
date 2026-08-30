@@ -564,6 +564,7 @@ export default function App() {
                 leaveRequests={leaveRequests}
                 warningLetters={warningLetters}
                 manhajiyyahClauses={manhajiyyahClauses}
+                broadcastMessage={generalSettings.broadcastMessage}
                 onNavigate={setActiveTab}
               />
             )}

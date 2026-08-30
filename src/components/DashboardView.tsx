@@ -47,6 +47,7 @@ interface DashboardViewProps {
   leaveRequests: LeaveRequestRecord[];
   warningLetters: WarningLetterRecord[];
   manhajiyyahClauses: ManhajiyyahClause[];
+  broadcastMessage?: string;
   onNavigate: (tab: string) => void;
 }
 
@@ -58,6 +59,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   leaveRequests,
   warningLetters,
   manhajiyyahClauses,
+  broadcastMessage,
   onNavigate,
 }) => {
   const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
@@ -230,6 +232,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return data;
   }, [attendance, currentUser.id]);
 
+
+  // Weekly Stats for current user
+  // Today's specific attendance for current user
+  const myTodayRecord = React.useMemo(() => {
+    if (currentUser.role !== 'Pejuang') return null;
+    const todayStr = getLocalDateString(new Date());
+    return attendance.find(a => a.pejuangId === currentUser.id && a.date === todayStr) || null;
+  }, [attendance, currentUser.id, currentUser.role]);
+
+  const myWeeklyStats = React.useMemo(() => {
+    const today = new Date();
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+    
+    let totalHadir = 0;
+    let totalIzin = 0;
+    let totalCuti = 0;
+
+    // Filter attendance in last 7 days
+    attendance.forEach(a => {
+      if (a.pejuangId === currentUser.id) {
+        const d = new Date(a.date);
+        if (d >= lastWeek && d <= today) {
+          if (a.status === 'Hadir' || a.status === 'Terlambat') {
+            totalHadir++;
+          }
+        }
+      }
+    });
+
+    // Filter izin in last 7 days
+    exitPermissions.forEach(e => {
+      if (e.pejuangId === currentUser.id && e.status === 'Disetujui') {
+        const d = new Date(e.tanggalKeluar);
+        if (d >= lastWeek && d <= today) {
+          totalIzin++;
+        }
+      }
+    });
+
+    // Filter cuti in last 7 days
+    leaveRequests.forEach(l => {
+      if (l.pejuangId === currentUser.id && l.status === 'Disetujui') {
+        const d = new Date(l.tanggalMulai);
+        const end = new Date(l.tanggalSelesai);
+        if (end >= lastWeek && d <= today) {
+          totalCuti++;
+        }
+      }
+    });
+
+    return { totalHadir, totalIzin, totalCuti };
+  }, [attendance, exitPermissions, leaveRequests, currentUser.id]);
 
   // Today's Attendance Statistics
   const todayStats = React.useMemo(() => {
@@ -445,6 +500,88 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Saya Mengerti
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Broadcast Message */}
+      {broadcastMessage && (
+        <div className="bg-emerald-500 text-white rounded-2xl p-4 shadow-md flex items-start gap-3 relative animate-in slide-in-from-top-4">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-sm">Pengumuman dari Admin</h4>
+            <p className="text-xs mt-1">{broadcastMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Stats for Pejuang */}
+      {currentUser.role === 'Pejuang' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/30 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Jam Masuk (Hari Ini)</p>
+                  <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">
+                    {myTodayRecord ? myTodayRecord.time : '--:--'} WIB
+                  </h4>
+                </div>
+              </div>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${myTodayRecord ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
+                {myTodayRecord ? (myTodayRecord.status === 'Terlambat' ? 'Terlambat' : 'Sudah Absen') : 'Belum Absen'}
+              </span>
+            </div>
+            
+            <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-rose-100 dark:border-rose-900/30 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">Jam Pulang (Hari Ini)</p>
+                  <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">
+                    {myTodayRecord && myTodayRecord.timePulang ? myTodayRecord.timePulang : '--:--'} WIB
+                  </h4>
+                </div>
+              </div>
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${myTodayRecord && myTodayRecord.timePulang ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
+                {myTodayRecord && myTodayRecord.timePulang ? 'Selesai' : 'Belum Pulang'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">Hadir (7 Hari)</p>
+              <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">{myWeeklyStats.totalHadir} Hari</h4>
+            </div>
+          </div>
+          <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">Izin (7 Hari)</p>
+              <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">{myWeeklyStats.totalIzin} Kali</h4>
+            </div>
+          </div>
+          <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+              <Palmtree className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">Cuti (7 Hari)</p>
+              <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">{myWeeklyStats.totalCuti} Pengajuan</h4>
+            </div>
+          </div>
+        </div>
         </div>
       )}
 

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+const fs = require('fs');
+let code = fs.readFileSync('src/components/LocationMap.tsx', 'utf8');
 
-
+// 1. Add MapPolyline
+const polylineCode = `
 const MapPolyline = ({ path }: { path: google.maps.LatLngLiteral[] }) => {
   const map = useMap();
   const [polyline, setPolyline] = useState<google.maps.Polyline | null>(null);
@@ -30,90 +31,17 @@ const MapPolyline = ({ path }: { path: google.maps.LatLngLiteral[] }) => {
 
   return null;
 };
+`;
 
-const MapCircle = ({ center, radius }: { center: google.maps.LatLngLiteral; radius: number }) => {
-  const map = useMap();
-  const [circle, setCircle] = useState<google.maps.Circle | null>(null);
+code = code.replace('const MapCircle', polylineCode + '\nconst MapCircle');
 
-  useEffect(() => {
-    if (!map) return;
-    const newCircle = new window.google.maps.Circle({
-      strokeColor: '#22c55e', 
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: '#22c55e',
-      fillOpacity: 0.35,
-      map,
-      center,
-      radius,
-    });
-    setCircle(newCircle);
-    return () => {
-      newCircle.setMap(null);
-    };
-  }, [map]);
+// 2. Add satellite toggle state and logic
+const locMapRegex = /(export const LocationMap = [\s\S]*?\(\) => \{)/;
+code = code.replace(locMapRegex, `$1\n  const [mapType, setMapType] = useState('roadmap');\n`);
 
-  useEffect(() => {
-    if (circle) {
-      circle.setCenter(center);
-      circle.setRadius(radius);
-    }
-  }, [circle, center, radius]);
-
-  return null;
-};
-
-function MapBounds({ userPos, pondokPos }: { userPos: {lat: number, lng: number}, pondokPos: {lat: number, lng: number} }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!map) return;
-    const bounds = new window.google.maps.LatLngBounds();
-    bounds.extend(userPos);
-    bounds.extend(pondokPos);
-    map.fitBounds(bounds, 20);
-  }, [userPos, pondokPos, map]);
-  return null;
-}
-
-export const LocationMap = ({ 
-  userLat, 
-  userLng, 
-  pondokLat, 
-  pondokLng, 
-  radius,
-  height = "h-40"
-}: { 
-  userLat: number, 
-  userLng: number, 
-  pondokLat: number, 
-  pondokLng: number, 
-  radius: number,
-  height?: string
-}) => {
-  const [mapType, setMapType] = useState('roadmap');
-  const apiKey = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY || '';
-
-  // Fallback to simple iframe if no API key is provided yet
-  if (!apiKey) {
-    return (
-      <div className={`w-full ${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0 bg-slate-200 dark:bg-slate-700`}>
-        <iframe 
-          width="100%" 
-          height="100%" 
-          style={{ border: 0 }} 
-          src={`https://maps.google.com/maps?q=${userLat},${userLng}&z=16&output=embed`}
-          title="Peta Lokasi GPS Anda"
-        />
-      </div>
-    );
-  }
-
-  const userPos = { lat: userLat, lng: userLng };
-  const pondokPos = { lat: pondokLat, lng: pondokLng };
-
-  return (
-    <div className={`w-full ${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0`}>
-      <APIProvider apiKey={apiKey}>
+// 3. Add Polyline to Map and toggle button
+const mapReturnRegex = /(<APIProvider apiKey=\{apiKey\}>)[\s\S]*?(<\/APIProvider>)/;
+const mapCode = `<APIProvider apiKey={apiKey}>
         <div className="absolute top-2 right-2 z-10">
           <button
             type="button"
@@ -150,7 +78,8 @@ export const LocationMap = ({
           <MapPolyline path={[userPos, pondokPos]} />
           <MapBounds userPos={userPos} pondokPos={pondokPos} />
         </Map>
-      </APIProvider>
-    </div>
-  );
-};
+      </APIProvider>`;
+
+code = code.replace(mapReturnRegex, mapCode);
+fs.writeFileSync('src/components/LocationMap.tsx', code);
+console.log('LocationMap patched');
