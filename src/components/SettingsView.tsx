@@ -361,6 +361,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newRole, setNewRole] = useState<'Admin' | 'Pejuang'>('Pejuang');
   const [newSubDivisi, setNewSubDivisi] = useState('SMPIQu');
   const [newAmanah, setNewAmanah] = useState('Musyrif SMPIQu');
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [newNipy, setNewNipy] = useState('');
   const [pejuangSearchQuery, setPejuangSearchQuery] = useState('');
   const [pejuangCurrentPage, setPejuangCurrentPage] = useState(1);
   const pejuangItemsPerPage = 10;
@@ -462,6 +465,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   // Add new Pejuang Account
+  
+  const handleEditUserSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUserId) return;
+    if (!newUsername.trim() || !newName.trim()) {
+      alert('Mohon lengkapi Username dan Nama Pejuang.');
+      return;
+    }
+
+    const email = newEmail.trim() || `${newUsername.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@albahjah.or.id`;
+    
+    const updatedAccounts = accounts.map(a => {
+      if (a.id === editingUserId) {
+        return {
+          ...a,
+          username: newUsername.trim(),
+          password: newPassword,
+          name: newName.trim(),
+          role: newRole,
+          subDivisi: newSubDivisi,
+          amanah: newAmanah,
+          nipy: newNipy,
+          email: email
+        };
+      }
+      return a;
+    });
+
+    onSaveAccounts(updatedAccounts);
+    setShowEditUserModal(false);
+    setEditingUserId(null);
+    alert('Data Pejuang berhasil diperbarui.');
+  };
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUsername.trim() || !newName.trim()) {
@@ -1398,6 +1435,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <th className="py-2.5 px-3">Role</th>
                   <th className="py-2.5 px-3">Sub Divisi</th>
                   <th className="py-2.5 px-3">Amanah</th>
+                  <th className="py-2.5 px-3">NIPY</th>
                   <th className="py-2.5 px-3 text-right">Aksi</th>
                 </tr>
               </thead>
@@ -1430,7 +1468,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <td className="py-3 px-3 text-slate-600 dark:text-slate-300">
                       {acc.amanah}
                     </td>
+                    <td className="py-3 px-3 text-slate-600 dark:text-slate-300 font-mono text-[10px]">
+                      {acc.nipy || '-'}
+                    </td>
                     <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => {
+                          setEditingUserId(acc.id);
+                          setNewUsername(acc.username);
+                          setNewEmail(acc.email || '');
+                          setNewPassword(acc.password || '');
+                          setNewName(acc.name);
+                          setNewRole(acc.role);
+                          setNewSubDivisi(acc.subDivisi);
+                          setNewAmanah(acc.amanah);
+                          setNewNipy(acc.nipy || '');
+                          setShowEditUserModal(true);
+                        }}
+                        className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 mr-2"
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => handleDeleteUser(acc.id)}
                         className="p-1.5 rounded-xl bg-rose-500/10 text-rose-600 hover:bg-rose-500/20"
@@ -1662,6 +1721,129 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
                 >
                   Simpan Pejuang
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Pejuang */}
+      {showEditUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-lg w-full shadow-2xl text-slate-800 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center space-x-2">
+                <Edit className="w-4 h-4 text-emerald-600" />
+                <span>Edit Data Pejuang</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditUserModal(false)}
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleEditUserSave} className="space-y-4 my-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nama Lengkap Pejuang</label>
+                  <input
+                    type="text"
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">NIPY</label>
+                  <input
+                    type="text"
+                    value={newNipy}
+                    onChange={(e) => setNewNipy(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Username Login</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Kata Sandi (Password)</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Hak Akses (Role)</label>
+                  <select
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value as 'Admin' | 'Pejuang')}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                  >
+                    <option value="Pejuang">Pejuang</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Sub Divisi</label>
+                  <input
+                    type="text"
+                    required
+                    value={newSubDivisi}
+                    onChange={(e) => setNewSubDivisi(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Amanah / Tugas Utama</label>
+                <input
+                  type="text"
+                  required
+                  value={newAmanah}
+                  onChange={(e) => setNewAmanah(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditUserModal(false)}
+                  className="py-2.5 px-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
+                >
+                  Simpan Perubahan
                 </button>
               </div>
             </form>

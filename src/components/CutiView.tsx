@@ -24,6 +24,7 @@ interface CutiViewProps {
   appLogoUrl?: string;
   cutiApprovers?: string[];
   jenisCutiList?: { id: string; name: string; maxDays: number; }[];
+  onSaveAccounts?: (accounts: UserAccount[]) => void;
 }
 
 const DEFAULT_JENIS_CUTI = [
@@ -45,7 +46,8 @@ export const CutiView: React.FC<CutiViewProps> = ({
   kepalaPondokName,
   appLogoUrl,
   cutiApprovers = [],
-  jenisCutiList = DEFAULT_JENIS_CUTI
+  jenisCutiList = DEFAULT_JENIS_CUTI,
+  onSaveAccounts,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -132,6 +134,14 @@ export const CutiView: React.FC<CutiViewProps> = ({
 
     if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
     onSaveLeaveRequests([newRecord, ...leaveRequests]);
+    
+    // Auto-update NIPY
+    if (nipy && targetUser.nipy !== nipy) {
+      if (onSaveAccounts) {
+        const updatedAccounts = accounts.map(a => a.id === targetUser.id ? { ...a, nipy } : a);
+        onSaveAccounts(updatedAccounts);
+      }
+    }
     setShowAddModal(false);
     setAlasan('');
     alert('Pengajuan cuti berhasil dikirim dan menunggu persetujuan.');

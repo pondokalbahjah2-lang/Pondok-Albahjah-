@@ -378,17 +378,21 @@ export default function App() {
     const deleted = accounts.filter(a => !accs.find(ac => ac.id === a.id));
 
     setAccounts(accs);
-        if (currentUser?.role === 'Admin') {
-      try {
-        for (const a of addedOrUpdated) await setDoc(doc(db, 'users', a.id), a);
+    try {
+      for (const a of addedOrUpdated) {
+        if (currentUser?.role === 'Admin' || currentUser?.id === a.id) {
+          await setDoc(doc(db, 'users', a.id), a);
+        }
+      }
+      if (currentUser?.role === 'Admin') {
         for (const a of deleted) {
            await deleteDoc(doc(db, 'users', a.id));
         }
         if (addedOrUpdated.length > 0 || deleted.length > 0) {
           logAudit('DATA_CHANGE', `Admin updated accounts: ${addedOrUpdated.map(u => u.name).join(', ')} | Deleted: ${deleted.map(u => u.name).join(', ')}`, currentUser);
         }
-      } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'users'); }
-    }
+      }
+    } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'users'); }
   };
 
   const handleSaveAttendance = async (atts: typeof attendance) => {
@@ -595,6 +599,7 @@ export default function App() {
                 appLogoUrl={generalSettings.appLogoUrl}
                 cutiApprovers={generalSettings.cutiApprovers}
                 jenisCutiList={generalSettings.jenisCutiList}
+                onSaveAccounts={handleSaveAccounts}
               />
             )}
             {activeTab === 'ubar' && (
