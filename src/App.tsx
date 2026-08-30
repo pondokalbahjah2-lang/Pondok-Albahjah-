@@ -12,6 +12,7 @@ import { SuratTeguranView } from './components/SuratTeguranView';
 import { KalenderView } from './components/KalenderView';
 import { LaporanView } from './components/LaporanView';
 import { SettingsView } from './components/SettingsView';
+import { OnboardingModal } from './components/OnboardingModal';
 import { db, auth, handleFirestoreError, OperationType } from './utils/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, getDocs, limit, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -37,6 +38,7 @@ export default function App() {
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   
   const [showDesyncBanner, setShowDesyncBanner] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -353,6 +355,14 @@ export default function App() {
     setCurrentUser(user);
         setActiveTab(user.role === 'Admin' ? 'dashboard' : 'absensi');
     logAudit('LOGIN', 'User logged in successfully', user);
+    
+    // Check onboarding
+    if (user.role === 'Pejuang') {
+      const hasSeen = localStorage.getItem(`onboarding_seen_${user.id}`);
+      if (!hasSeen) {
+        setShowOnboarding(true);
+      }
+    }
   };
 
   const handleLogout = () => {

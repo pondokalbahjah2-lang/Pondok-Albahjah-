@@ -79,6 +79,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
 
   const pendingIzinCountUser = currentUser.role !== 'Admin' ? exitPermissions.filter(e => e.pejuangId === currentUser.id && e.status === 'Menunggu').length : 0;
   const userNavigationItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'absensi', label: 'Absensi GPS', icon: MapPin },
     { id: 'izin', label: 'Izin Keluar', icon: CalendarCheck, badge: pendingIzinCountUser },
     { id: 'cuti', label: 'Pengajuan Cuti', icon: Calendar, badge: pendingCutiCount },

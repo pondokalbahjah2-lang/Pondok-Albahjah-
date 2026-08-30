@@ -25,7 +25,8 @@ import {
   PieChart as PieChartIcon,
   BarChart3 as BarChartIcon,
   LineChart as LineChartIcon,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Activity
 } from 'lucide-react';
 import {
   UserAccount,
@@ -242,6 +243,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (currentUser.role !== 'Pejuang') return null;
     const todayStr = getLocalDateString(new Date());
     return attendance.find(a => a.pejuangId === currentUser.id && a.date === todayStr) || null;
+  }, [attendance, currentUser.id, currentUser.role]);
+
+  const recentActivities = React.useMemo(() => {
+    if (currentUser.role !== 'Pejuang') return [];
+    const activities = [];
+
+    // 1. Absensi
+    attendance.filter(a => a.pejuangId === currentUser.id).forEach(a => {
+      activities.push({
+        id: `abs-${a.id}`,
+        type: 'absensi',
+        title: `Absensi: ${a.status}`,
+        description: `Waktu: ${a.time} ${a.timePulang ? '- ' + a.timePulang : ''}`,
+        timestamp: new Date(`${a.date}T${a.time}:00`).getTime() || 0,
+        dateStr: a.date,
+        icon: 'map-pin'
+      });
+    });
+
+    // 2. Izin Keluar
+    exitPermissions.filter(e => e.pejuangId === currentUser.id).forEach(e => {
+      activities.push({
+        id: `izin-${e.id}`,
+        type: 'izin',
+        title: 'Izin Keluar',
+        description: `Status: ${e.status} | Alasan: ${e.alasan}`,
+        timestamp: new Date(e.tanggalKeluar).getTime() || 0,
+        dateStr: e.tanggalKeluar.split('T')[0] || '',
+        icon: 'calendar-check'
+      });
+    });
+
+    // 3. Cuti
+    leaveRequests.filter(l => l.pejuangId === currentUser.id).forEach(l => {
+      activities.push({
+        id: `cuti-${l.id}`,
+        type: 'cuti',
+        title: `Cuti: ${l.jenisCuti}`,
+        description: `Status: ${l.status} | ${l.tanggalMulai} s/d ${l.tanggalSelesai}`,
+        timestamp: new Date(l.tanggalPengajuan).getTime() || 0,
+        dateStr: l.tanggalPengajuan.split('T')[0] || '',
+        icon: 'calendar'
+      });
+    });
+
+    // Sort by timestamp descending
+    return activities.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5); // Take top 5
+  }, [attendance, exitPermissions, leaveRequests, currentUser]);
+
+  const my14DaysChartData = React.useMemo(() => {
+    if (currentUser.role !== 'Pejuang') return [];
+    const data = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = getLocalDateString(d);
+      
+      let dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      if (dayName === 'Min') dayName = 'Ahd';
+
+      const rec = attendance.find(a => a.pejuangId === currentUser.id && a.date === dateStr);
+      let statusVal = 0; // 0: None, 1: Hadir/Terlambat, 2: Izin, 3: Cuti
+      if (rec) {
+        if (rec.status === 'Hadir' || rec.status === 'Terlambat') statusVal = 1;
+        else if (rec.status === 'Izin') statusVal = 2;
+        else if (rec.status === 'Cuti') statusVal = 3;
+      }
+      
+      data.push({
+        name: `${dayName} ${d.getDate()}`,
+        date: dateStr,
+        statusVal,
+        statusLabel: rec ? rec.status : 'Belum/Libur',
+      });
+    }
+    return data;
   }, [attendance, currentUser.id, currentUser.role]);
 
   const myLeaveStats = React.useMemo(() => {
@@ -527,6 +604,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Saya Mengerti
             </button>
           </div>
+        
+        {/* Recent Activity */}
+        <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm mt-4">
+          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-slate-500" />
+            Aktivitas Terkini
+          </h3>
+          <div className="space-y-4">
+            {recentActivities.length > 0 ? (
+              recentActivities.map(act => (
+                <div key={act.id} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${act.type === 'absensi' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : act.type === 'izin' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30'}`}>
+                      {act.type === 'absensi' && <MapPin className="w-4 h-4" />}
+                      {act.type === 'izin' && <CalendarIcon className="w-4 h-4" />}
+                      {act.type === 'cuti' && <CalendarIcon className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 w-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                  </div>
+                  <div className="pb-4">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{act.title}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{act.description}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">{new Date(act.timestamp).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-500 italic text-center py-4">Belum ada aktivitas.</p>
+            )}
+          </div>
+        </div>
         </div>
       )}
 
@@ -610,6 +718,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span className={`text-xs font-bold px-2 py-1 rounded-full ${myTodayRecord && myTodayRecord.timePulang ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
                 {myTodayRecord && myTodayRecord.timePulang ? 'Selesai' : 'Belum Pulang'}
               </span>
+            </div>
+          </div>
+
+                    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-indigo-100 dark:border-indigo-900/30 shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChartIcon className="w-5 h-5 text-indigo-500" />
+              <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Konsistensi Kehadiran (14 Hari Terakhir)</h3>
+            </div>
+            <div className="flex-1 min-h-[200px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={my14DaysChartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <RechartsTooltip
+                    cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value, name, props) => [props.payload.statusLabel, 'Status']}
+                  />
+                  <Bar dataKey="statusVal" name="Kehadiran" radius={[4, 4, 0, 0]} barSize={20}>
+                    {my14DaysChartData.map((entry, index) => {
+                      let color = '#94a3b8'; // default grey
+                      if (entry.statusVal === 1) color = '#10b981'; // green (Hadir)
+                      else if (entry.statusVal === 2) color = '#f59e0b'; // orange (Izin)
+                      else if (entry.statusVal === 3) color = '#a855f7'; // purple (Cuti)
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Bar>
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 mt-2">
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="text-[10px] text-slate-500">Hadir</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span><span className="text-[10px] text-slate-500">Izin</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span><span className="text-[10px] text-slate-500">Cuti</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400"></span><span className="text-[10px] text-slate-500">Libur/Kosong</span></div>
             </div>
           </div>
 
@@ -730,7 +876,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* Attendance Summary Circular Progress */}
+      {/* ADMIN ONLY SECTIONS */}
+      {currentUser.role === 'Admin' && (
+        <div className="space-y-6">
+          {/* Attendance Summary Circular Progress */}
       <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Tingkat Kehadiran Harian</h3>
@@ -1291,6 +1440,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+      </div>
+      )}
     </div>
   );
 };

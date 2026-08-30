@@ -1,43 +1,31 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/components/AbsensiView.tsx', 'utf8');
+let code = fs.readFileSync('src/components/AbsensiView.tsx', 'utf8');
 
-const oldLogic = `    const newRecord: AttendanceRecord = {
-      id: \`att-\${Date.now()}\`,
-      pejuangId: currentUser.id,
-      pejuangName: currentUser.name,
-      subDivisi: currentUser.subDivisi,
-      date: dateStr,
-      time: timeStr,
-      photoUrl: photoPreview,
-      latitude: currentLat || 0,
-      longitude: currentLng || 0,
-      distanceFromPondok: distanceMeters || 0,
-      status: finalStatus,
-      isWithinRadius: isWithinRadius,
-      notes: notes || \`Absensi melalui sistem web app (\${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})\`,
-    };`;
+// 1. Add accuracy state
+code = code.replace(
+  'const [distanceMeters, setDistanceMeters] = useState<number | null>(null);',
+  'const [distanceMeters, setDistanceMeters] = useState<number | null>(null);\n  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);'
+);
 
-const newLogic = `    const newRecord: AttendanceRecord = {
-      id: \`att-\${Date.now()}\`,
-      pejuangId: currentUser.id,
-      pejuangName: currentUser.name,
-      subDivisi: currentUser.subDivisi,
-      date: dateStr,
-      time: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : timeStr),
-      timePulang: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : undefined),
-      photoUrl: photoPreview,
-      latitude: currentLat || 0,
-      longitude: currentLng || 0,
-      distanceFromPondok: distanceMeters || 0,
-      status: finalStatus,
-      isWithinRadius: isWithinRadius,
-      notes: notes || \`Absensi melalui sistem web app (\${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})\`,
-    };`;
+// 2. Set accuracy in watchPosition
+code = code.replace(
+  /setCurrentLng\(lng\);/g,
+  'setCurrentLng(lng);\n          setAccuracyMeters(pos.coords.accuracy);'
+);
 
-if (content.includes(oldLogic)) {
-  content = content.replace(oldLogic, newLogic);
-  fs.writeFileSync('src/components/AbsensiView.tsx', content);
-  console.log("AbsensiView updated successfully.");
-} else {
-  console.log("oldLogic not found in AbsensiView.tsx");
-}
+// 3. Display accuracy in UI
+const uiAnchor = `<p className="text-xs text-slate-500 mt-1">
+              Jarak dari titik Pondok: <strong className="text-slate-800 dark:text-slate-200">{Math.round(distanceMeters)} meter</strong> (Maks: {locationSettings.radiusMaxMeters}m)
+            </p>`;
+const uiReplacement = `<p className="text-xs text-slate-500 mt-1">
+              Jarak dari titik Pondok: <strong className="text-slate-800 dark:text-slate-200">{Math.round(distanceMeters)} meter</strong> (Maks: {locationSettings.radiusMaxMeters}m)
+            </p>
+            {accuracyMeters !== null && (
+              <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Akurasi GPS: ± {Math.round(accuracyMeters)} meter
+              </p>
+            )}`;
+code = code.replace(uiAnchor, uiReplacement);
+
+fs.writeFileSync('src/components/AbsensiView.tsx', code);
+console.log('AbsensiView patched.');

@@ -43,6 +43,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
+  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locError, setLocError] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
@@ -128,6 +129,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
           const lng = pos.coords.longitude;
           setCurrentLat(lat);
           setCurrentLng(lng);
+          setAccuracyMeters(pos.coords.accuracy);
 
           const dist = calculateDistanceMeters(
             lat,
@@ -173,6 +175,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
           const lng = pos.coords.longitude;
           setCurrentLat(lat);
           setCurrentLng(lng);
+          setAccuracyMeters(pos.coords.accuracy);
 
           const dist = calculateDistanceMeters(
             lat,
