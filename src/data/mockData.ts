@@ -11,9 +11,9 @@ import {
 } from '../types';
 
 export const INITIAL_LOCATION_SETTINGS: LocationSettings = {
-  latitude: -6.7321,
-  longitude: 108.5521,
-  radiusMaxMeters: 150,
+  latitude: -6.7643194,
+  longitude: 108.4879201,
+  radiusMaxMeters: 200,
   addressName: 'Pondok Pesantren Al-Bahjah Cabang Cirebon 1, Sengkuang, Sendang, Cirebon',
 };
 
@@ -212,7 +212,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi SMPIQu',
     jamMasuk: '04:30',
     jamPulang: '21:00',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
   },
   {
     id: 'sch-2',
@@ -221,7 +221,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi SMAIQu',
     jamMasuk: '04:30',
     jamPulang: '21:00',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
   },
   {
     id: 'sch-3',
@@ -230,7 +230,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi Kepondokan Banat',
     jamMasuk: '04:15',
     jamPulang: '21:30',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
   },
   {
     id: 'sch-4',

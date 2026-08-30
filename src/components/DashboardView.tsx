@@ -48,6 +48,7 @@ interface DashboardViewProps {
   warningLetters: WarningLetterRecord[];
   manhajiyyahClauses: ManhajiyyahClause[];
   broadcastMessage?: string;
+  jenisCutiList?: { id: string; name: string; maxDays: number; }[];
   onNavigate: (tab: string) => void;
 }
 
@@ -60,6 +61,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   warningLetters,
   manhajiyyahClauses,
   broadcastMessage,
+  jenisCutiList = [],
   onNavigate,
 }) => {
   const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
@@ -213,7 +215,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      let dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      if (dayName === 'Min') dayName = 'Ahd';
       
       const dayRecords = attendance.filter(a => a.pejuangId === currentUser.id && a.date === dateStr);
       let statusValue = 0; // 0 = No Record/Sakit/Libur, 1 = Terlambat, 2 = Hadir
@@ -240,6 +243,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const todayStr = getLocalDateString(new Date());
     return attendance.find(a => a.pejuangId === currentUser.id && a.date === todayStr) || null;
   }, [attendance, currentUser.id, currentUser.role]);
+
+  const myLeaveStats = React.useMemo(() => {
+    if (currentUser.role !== 'Pejuang') return { totalUsed: 0, sisa: 12 };
+    
+    // Default max cuti tahunan
+    let maxCutiTahunan = 12;
+    const cutiTahunanSetting = jenisCutiList.find(j => j.name === 'Cuti Tahunan');
+    if (cutiTahunanSetting) {
+      maxCutiTahunan = cutiTahunanSetting.maxDays;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const annualLeaves = leaveRequests.filter(l => 
+      l.pejuangId === currentUser.id && 
+      l.jenisCuti === 'Cuti Tahunan' && 
+      l.status === 'Disetujui' &&
+      l.tanggalMulai.startsWith(currentYear.toString())
+    );
+
+    const totalUsed = annualLeaves.reduce((acc, curr) => acc + curr.totalHari, 0);
+    const sisa = Math.max(0, maxCutiTahunan - totalUsed);
+
+    return { totalUsed, sisa, max: maxCutiTahunan };
+  }, [leaveRequests, currentUser, jenisCutiList]);
 
   const myWeeklyStats = React.useMemo(() => {
     const today = new Date();
@@ -517,6 +544,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Weekly Stats for Pejuang */}
       {currentUser.role === 'Pejuang' && (
         <div className="space-y-4">
+          {/* Cuti Tahunan Widget */}
+          <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <Palmtree className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-500 font-bold uppercase">Saldo Cuti Tahunan ({new Date().getFullYear()})</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <h4 className="text-xl font-black text-slate-800 dark:text-slate-100">{myLeaveStats.sisa} Hari</h4>
+                  <span className="text-xs font-semibold text-slate-500">Tersisa dari {myLeaveStats.max}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 md:justify-end">
+              <div className="flex flex-col items-end">
+                <p className="text-[10px] text-slate-500 font-bold uppercase">Terpakai</p>
+                <h4 className="text-sm font-black text-slate-700 dark:text-slate-300">{myLeaveStats.totalUsed} Hari</h4>
+              </div>
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+              {myLeaveStats.sisa <= 3 ? (
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300 animate-pulse">
+                  Hampir Habis!
+                </span>
+              ) : (
+                <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                  Aman
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/30 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">

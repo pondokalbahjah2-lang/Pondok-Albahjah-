@@ -205,7 +205,7 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
         <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
           {/* Day of Week Headers */}
           <div className="grid grid-cols-7 gap-1 text-center font-bold text-[11px] text-emerald-700 dark:text-emerald-400 uppercase py-2 border-b border-slate-200 dark:border-slate-800">
-            <div>Minggu</div>
+            <div>Ahad</div>
             <div>Senin</div>
             <div>Selasa</div>
             <div>Rabu</div>
@@ -309,7 +309,7 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
-                  })}
+                  }).replace('Minggu', 'Ahad')}
                 </div>
                 <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300 mt-1">
                   {getHijriDate(selectedDayDate).formatted}
