@@ -559,6 +559,7 @@ export default function App() {
                 exitPermissions={exitPermissions}
                 leaveRequests={leaveRequests}
                 warningLetters={warningLetters}
+                manhajiyyahClauses={manhajiyyahClauses}
                 onNavigate={setActiveTab}
               />
             )}

@@ -1,74 +1,104 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/components/DashboardView.tsx', 'utf8');
+let code = fs.readFileSync('src/components/DashboardView.tsx', 'utf8');
 
-// 1. Add 30-day percentage calculation
-const dataCalcStr = `  // 30 Days Trend Percentage Calculation
-  const monthlyKehadiranPercentage = React.useMemo(() => {
-    const data = [];
-    const today = new Date();
-    const activePejuangs = accounts.filter(a => a.role === 'Pejuang').length;
-    if (activePejuangs === 0) return []; // avoid division by zero
+const importOld = `  WarningLetterRecord,
+} from '../types';
+import { PrayerTimesWidget } from './PrayerTimesWidget';`;
+const importNew = `  WarningLetterRecord,
+  ManhajiyyahClause
+} from '../types';
+import { getDailyClauseIndex } from '../utils/hijriCalendar';
+import { PrayerTimesWidget } from './PrayerTimesWidget';`;
 
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-      
-      const dayRecords = attendance.filter(a => a.date === dateStr && (a.status === 'Hadir' || a.status === 'Terlambat'));
-      // Using unique pejuang count who attended that day
-      const uniqueAttendees = new Set(dayRecords.map(a => a.pejuangId)).size;
-      const percentage = Math.round((uniqueAttendees / activePejuangs) * 100);
-      
-      data.push({
-        name: dayName,
-        persentase: percentage,
-      });
-    }
-    return data;
-  }, [attendance, accounts]);`;
+if (code.includes(importOld)) {
+  code = code.replace(importOld, importNew);
+} else {
+  console.log('importOld not found');
+}
 
-content = content.replace("  // 6 Months Trend Real Data Calculation", dataCalcStr + "\n\n  // 6 Months Trend Real Data Calculation");
+const interfaceOld = `interface DashboardViewProps {
+  currentUser: UserAccount;
+  accounts: UserAccount[];
+  attendance: AttendanceRecord[];
+  exitPermissions: ExitPermissionRecord[];
+  leaveRequests: LeaveRequestRecord[];
+  warningLetters: WarningLetterRecord[];
+  onNavigate: (tab: string) => void;
+}`;
+const interfaceNew = `interface DashboardViewProps {
+  currentUser: UserAccount;
+  accounts: UserAccount[];
+  attendance: AttendanceRecord[];
+  exitPermissions: ExitPermissionRecord[];
+  leaveRequests: LeaveRequestRecord[];
+  warningLetters: WarningLetterRecord[];
+  manhajiyyahClauses: ManhajiyyahClause[];
+  onNavigate: (tab: string) => void;
+}`;
 
-// 2. Add chart UI
-const chartUI = `
-        {/* Line Chart: 30 Days Attendance Percentage Trend */}
-        <div className="md:col-span-2 p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <LineChartIcon className="w-5 h-5 text-indigo-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Tren Persentase Kehadiran (30 Hari Terakhir)</h3>
-          </div>
-          <div className="flex-1 min-h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart
-                data={monthlyKehadiranPercentage}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} minTickGap={20} />
-                <YAxis 
-                  tick={{ fontSize: 10 }} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  domain={[0, 100]} 
-                  tickFormatter={(val) => \`\${val}%\`} 
-                />
-                <RechartsTooltip
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value) => [\`\${value}%\`, 'Tingkat Kehadiran']}
-                />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                <Line type="monotone" dataKey="persentase" name="Tingkat Kehadiran (%)" stroke="#6366f1" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
-              </RechartsLineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+if (code.includes(interfaceOld)) {
+  code = code.replace(interfaceOld, interfaceNew);
+} else {
+  console.log('interfaceOld not found');
+}
+
+const componentOld = `export const DashboardView: React.FC<DashboardViewProps> = ({
+  currentUser,
+  accounts,
+  attendance,
+  exitPermissions,
+  leaveRequests,
+  warningLetters,
+  onNavigate,
+}) => {`;
+const componentNew = `export const DashboardView: React.FC<DashboardViewProps> = ({
+  currentUser,
+  accounts,
+  attendance,
+  exitPermissions,
+  leaveRequests,
+  warningLetters,
+  manhajiyyahClauses,
+  onNavigate,
+}) => {
+  const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
+  const clauseToday = manhajiyyahClauses ? (manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0]) : null;
 `;
 
-// Insert the chart in the grid where the other charts are (after Bar Chart for Leave & Exit)
-content = content.replace(
-  "{/* Current User Weekly Attendance Consistency Trend */}",
-  chartUI + "\n            {/* Current User Weekly Attendance Consistency Trend */}"
-);
+if (code.includes(componentOld)) {
+  code = code.replace(componentOld, componentNew);
+} else {
+  console.log('componentOld not found');
+}
 
-fs.writeFileSync('src/components/DashboardView.tsx', content);
+const headerOld = `          <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 rounded-lg p-2 max-w-md">
+            <div className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">
+              Pasal Manhajiyyah Hari Ini:
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Pasal {new Date().getDate() % 10 || 1}: Tetap istiqomah dalam melayani ummat dengan ikhlas dan sabar.
+            </p>
+          </div>`;
+const headerNew = `          <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/50 rounded-lg p-2 max-w-md">
+            <div className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">
+              Pasal Manhajiyyah Hari Ini:
+            </div>
+            {clauseToday ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400 line-clamp-2" title={clauseToday.content}>
+                <strong>Pasal {clauseToday.pasalNumber}: {clauseToday.title}</strong> - "{clauseToday.content}"
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Memuat Pasal Manhajiyyah...
+              </p>
+            )}
+          </div>`;
+
+if (code.includes(headerOld)) {
+  code = code.replace(headerOld, headerNew);
+} else {
+  console.log('headerOld not found');
+}
+
+fs.writeFileSync('src/components/DashboardView.tsx', code);
+console.log('DashboardView patched');

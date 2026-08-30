@@ -33,7 +33,9 @@ import {
   ExitPermissionRecord,
   LeaveRequestRecord,
   WarningLetterRecord,
+  ManhajiyyahClause
 } from '../types';
+import { getDailyClauseIndex } from '../utils/hijriCalendar';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { AdminQRGenerator } from './AdminQRGenerator';
 
@@ -44,6 +46,7 @@ interface DashboardViewProps {
   exitPermissions: ExitPermissionRecord[];
   leaveRequests: LeaveRequestRecord[];
   warningLetters: WarningLetterRecord[];
+  manhajiyyahClauses: ManhajiyyahClause[];
   onNavigate: (tab: string) => void;
 }
 
@@ -54,8 +57,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   exitPermissions,
   leaveRequests,
   warningLetters,
+  manhajiyyahClauses,
   onNavigate,
 }) => {
+  const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
+  const clauseToday = manhajiyyahClauses ? (manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0]) : null;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeWarning, setActiveWarning] = useState<WarningLetterRecord | null>(null);
 
@@ -240,6 +247,63 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { total: totalPejuang, hadir, terlambat, belumAbsen };
   }, [accounts, attendance]);
 
+  
+  // --- New Logic: Hari Ini & Efektif Bulanan ---
+  const todayDateStr = getLocalDateString(new Date());
+  
+  // List Pejuang Terlambat Hari Ini
+  const pejuangTerlambatHadir = React.useMemo(() => {
+    return attendance.filter(a => a.date === todayDateStr && a.status === 'Terlambat');
+  }, [attendance, todayDateStr]);
+
+  // List Pejuang Sedang Cuti Hari Ini
+  const pejuangCutiHariIni = React.useMemo(() => {
+    return leaveRequests.filter(l => l.status === 'Disetujui' && l.tanggalMulai <= todayDateStr && l.tanggalSelesai >= todayDateStr);
+  }, [leaveRequests, todayDateStr]);
+
+  // List Pejuang Sedang Izin Keluar Hari Ini
+  const pejuangIzinHariIni = React.useMemo(() => {
+    return exitPermissions.filter(e => e.tanggalKeluar <= todayDateStr && e.tanggalIzinSampai >= todayDateStr && e.status === 'Disetujui');
+  }, [exitPermissions, todayDateStr]);
+
+  // Total Jam Kerja Efektif Bulanan (Bulan Ini)
+  const efektifBulanan = React.useMemo(() => {
+    const currentMonthPrefix = todayDateStr.substring(0, 7); // YYYY-MM
+    const attBulanIni = attendance.filter(a => a.date.startsWith(currentMonthPrefix));
+    
+    const jamKerja: Record<string, number> = {}; // pejuangId -> total minutes
+    
+    attBulanIni.forEach(att => {
+      if (!att.time || !att.timePulang) return;
+      if (['Sakit', 'Libur', 'Cuti', 'Tidak Absen Pulang', '-'].includes(att.timePulang)) return;
+      if (['Sakit', 'Libur', 'Cuti', '-'].includes(att.time)) return;
+
+      const [hIn, mIn] = att.time.split(':').map(Number);
+      const [hOut, mOut] = att.timePulang.split(':').map(Number);
+      
+      if (!isNaN(hIn) && !isNaN(mIn) && !isNaN(hOut) && !isNaN(mOut)) {
+        let diff = (hOut * 60 + mOut) - (hIn * 60 + mIn);
+        if (diff > 0) {
+          jamKerja[att.pejuangId] = (jamKerja[att.pejuangId] || 0) + diff;
+        }
+      }
+    });
+    
+    // Sort pejuang by highest effective hours
+    const sortedPejuang = Object.entries(jamKerja).map(([id, mins]) => {
+      const p = accounts.find(a => a.id === id);
+      return {
+        id,
+        name: p ? p.name : 'Unknown',
+        subDivisi: p ? p.subDivisi : '-',
+        totalHours: (mins / 60).toFixed(1),
+        totalMins: mins
+      };
+    }).sort((a, b) => b.totalMins - a.totalMins);
+
+    return sortedPejuang;
+  }, [attendance, todayDateStr, accounts]);
+
   // 30 Days Trend Percentage Calculation
   const monthlyKehadiranPercentage = React.useMemo(() => {
     const data = [];
@@ -410,9 +474,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-1">
               Pasal Manhajiyyah Hari Ini:
             </div>
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Pasal {new Date().getDate() % 10 || 1}: Tetap istiqomah dalam melayani ummat dengan ikhlas dan sabar.
-            </p>
+            {clauseToday ? (
+              <p className="text-xs text-amber-600 dark:text-amber-400 line-clamp-2" title={clauseToday.content}>
+                <strong>Pasal {clauseToday.pasalNumber}: {clauseToday.title}</strong> - "{clauseToday.content}"
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Memuat Pasal Manhajiyyah...
+              </p>
+            )}
           </div>
         </div>
       </header>
