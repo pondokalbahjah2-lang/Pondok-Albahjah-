@@ -413,7 +413,10 @@ export default function App() {
     setAttendance(atts);
         try {
       for (const a of addedOrUpdated) await setDoc(doc(db, 'attendance', a.id), a);
-    } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'attendance'); }
+    } catch (e) { 
+      handleFirestoreError(e, OperationType.WRITE, 'attendance'); 
+      throw e;
+    }
   };
 
   const handleSaveExitPermissions = async (exs: typeof exitPermissions) => {

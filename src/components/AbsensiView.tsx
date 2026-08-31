@@ -30,7 +30,7 @@ interface AbsensiViewProps {
   attendance: AttendanceRecord[];
   locationSettings: LocationSettings;
   schedules: WorkSchedule[];
-  onSaveAttendance: (records: AttendanceRecord[]) => void;
+  onSaveAttendance: (records: AttendanceRecord[]) => Promise<void> | void;
 }
 
 export const AbsensiView: React.FC<AbsensiViewProps> = ({
@@ -44,6 +44,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locError, setLocError] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
@@ -381,7 +382,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     distanceMeters !== null && distanceMeters <= locationSettings.radiusMaxMeters;
 
   
-  const handleSubmitAttendance = (e: React.FormEvent) => {
+  const handleSubmitAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!photoPreview && attendanceStatus !== 'Libur') {
@@ -445,11 +446,20 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       };
       
       const updatedAttendance = attendance.map(a => a.id === updatedRecord.id ? updatedRecord : a);
-      onSaveAttendance(updatedAttendance);
-      setPhotoPreview('');
-      setNotes('');
-      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-      alert(`Jam Pulang Berhasil Dicatat: ${timeStr}`);
+      
+      try {
+        setIsSubmitting(true);
+        await onSaveAttendance(updatedAttendance);
+        setPhotoPreview('');
+        setNotes('');
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+        alert(`Jam Pulang Berhasil Dicatat: ${timeStr}`);
+      } catch (err) {
+        alert('Terjadi kesalahan saat menyimpan absensi pulang.');
+        console.error(err);
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -490,11 +500,19 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       notes: notes || `Absensi melalui sistem web app (${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})`,
     };
 
-    onSaveAttendance([newRecord, ...attendance]);
-    setPhotoPreview('');
-    setNotes('');
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-    alert(`Absensi Kehadiran Berhasil Ditambahkan dengan Status: ${finalStatus}`);
+    try {
+      setIsSubmitting(true);
+      await onSaveAttendance([newRecord, ...attendance]);
+      setPhotoPreview('');
+      setNotes('');
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      alert(`Absensi Kehadiran Berhasil Ditambahkan dengan Status: ${finalStatus}`);
+    } catch (err) {
+      alert('Terjadi kesalahan saat menyimpan absensi masuk.');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Filter attendance for view
@@ -822,7 +840,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                   }`}
                 >
                   {attendanceStatus === 'Pulang' && <LogOut size={16} />}
-                  <span>{attendanceStatus === 'Pulang' ? 'Kirim Absen Pulang' : 'Kirim Absen Masuk (' + attendanceStatus + ')'}</span>
+                  <span>{isSubmitting ? 'Menyimpan...' : (attendanceStatus === 'Pulang' ? 'Kirim Absen Pulang' : 'Kirim Absen Masuk (' + attendanceStatus + ')')}</span>
                 </button>
               </div>
             )}
