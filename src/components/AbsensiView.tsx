@@ -240,7 +240,25 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setPhotoPreview(event.target?.result as string);
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 800;
+        let targetWidth = img.width;
+        let targetHeight = img.height;
+        if (targetWidth > MAX_WIDTH) {
+          targetHeight = (targetHeight * MAX_WIDTH) / targetWidth;
+          targetWidth = MAX_WIDTH;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          setPhotoPreview(canvas.toDataURL('image/jpeg', 0.8));
+        }
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -278,8 +296,17 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      
+      const MAX_WIDTH = 800;
+      let targetWidth = video.videoWidth;
+      let targetHeight = video.videoHeight;
+      if (targetWidth > MAX_WIDTH) {
+        targetHeight = (targetHeight * MAX_WIDTH) / targetWidth;
+        targetWidth = MAX_WIDTH;
+      }
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
