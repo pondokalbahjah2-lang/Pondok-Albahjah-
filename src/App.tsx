@@ -565,7 +565,6 @@ export default function App() {
                 warningLetters={warningLetters}
                 manhajiyyahClauses={manhajiyyahClauses}
                 broadcastMessage={generalSettings.broadcastMessage}
-                jenisCutiList={generalSettings.jenisCutiList}
                 onNavigate={setActiveTab}
               />
             )}

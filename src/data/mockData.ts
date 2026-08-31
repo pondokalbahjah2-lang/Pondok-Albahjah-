@@ -11,9 +11,9 @@ import {
 } from '../types';
 
 export const INITIAL_LOCATION_SETTINGS: LocationSettings = {
-  latitude: -6.7643194,
-  longitude: 108.4879201,
-  radiusMaxMeters: 200,
+  latitude: -6.7321,
+  longitude: 108.5521,
+  radiusMaxMeters: 150,
   addressName: 'Pondok Pesantren Al-Bahjah Cabang Cirebon 1, Sengkuang, Sendang, Cirebon',
 };
 
