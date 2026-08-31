@@ -78,7 +78,7 @@ export function formatMasehiDate(date: Date = new Date()): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(date).replace('Minggu', 'Ahad');
+  }).format(date);
 }
 
 /**

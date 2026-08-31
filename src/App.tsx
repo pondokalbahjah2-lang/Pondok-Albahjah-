@@ -314,7 +314,7 @@ export default function App() {
       
       const now = new Date();
       const currentDayIndex = now.getDay(); // 0 = Minggu
-      const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
       const todayStr = days[currentDayIndex];
       
       // Find user's schedule

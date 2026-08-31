@@ -290,7 +290,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       // Find user schedule
       const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const hariMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
       let totalHadir = 0;
       let totalTelat = 0;
@@ -434,7 +434,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     filteredAccountsForReport.forEach((p, idx) => {
       const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const hariMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
       let totalHadir = 0, totalTelat = 0, totalIzin = 0, totalCuti = 0, totalSakit = 0, totalLibur = 0;
 

@@ -212,7 +212,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi SMPIQu',
     jamMasuk: '04:30',
     jamPulang: '21:00',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
   },
   {
     id: 'sch-2',
@@ -221,7 +221,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi SMAIQu',
     jamMasuk: '04:30',
     jamPulang: '21:00',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
   },
   {
     id: 'sch-3',
@@ -230,7 +230,7 @@ export const INITIAL_SCHEDULES: WorkSchedule[] = [
     targetName: 'Divisi Kepondokan Banat',
     jamMasuk: '04:15',
     jamPulang: '21:30',
-    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'],
+    hariKerja: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
   },
   {
     id: 'sch-4',

@@ -125,26 +125,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX_WIDTH = 400;
-          let width = img.width;
-          let height = img.height;
-          if (width > MAX_WIDTH) {
-            height = (height * MAX_WIDTH) / width;
-            width = MAX_WIDTH;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            handleUpdateProfilePic(dataUrl);
-          }
-        };
-        img.src = reader.result as string;
+        const dataUrl = reader.result as string;
+        handleUpdateProfilePic(dataUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -407,7 +389,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [schJamPulang, setSchJamPulang] = useState('16:00');
   const [schHariKerja, setSchHariKerja] = useState<string[]>(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
 
-  const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+  const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
   const uniqueDivisions = Array.from(new Set(accounts.map(a => a.subDivisi))).filter(Boolean);
 
 
@@ -1986,7 +1968,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Hari Kerja Aktif</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'].map((hari) => {
+                  {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((hari) => {
                     const isSelected = schHariKerja.includes(hari);
                     return (
                       <button

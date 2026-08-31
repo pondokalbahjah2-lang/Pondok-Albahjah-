@@ -213,8 +213,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = getLocalDateString(d);
-      let dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      if (dayName === 'Min') dayName = 'Ahd';
+      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
       
       const dayRecords = attendance.filter(a => a.pejuangId === currentUser.id && a.date === dateStr);
       let statusValue = 0; // 0 = No Record/Sakit/Libur, 1 = Terlambat, 2 = Hadir
