@@ -71,7 +71,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           matchedUser = userDoc.data() as UserAccount;
         } else {
           // Hanya izinkan auto-create jika email adalah email admin, untuk setup awal
-          if (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu')) {
+          if (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu') || email.includes('pondokalbahjah2')) {
             matchedUser = {
               id: cred.user.uid,
               username: email.split('@')[0],
@@ -95,6 +95,35 @@ export const LoginView: React.FC<LoginViewProps> = ({
         }
       } catch (err: any) {
         console.warn('Firebase Auth Failed:', err.code, err.message);
+        
+        // Auto-create for admin if not found
+        if ((err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') && (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu') || email.includes('pondokalbahjah2'))) {
+           try {
+                            const newCred = await createUserWithEmailAndPassword(auth, email, password);
+              
+              matchedUser = {
+                id: newCred.user.uid,
+                username: email.split('@')[0],
+                password,
+                name: email.split('@')[0],
+                role: 'Admin',
+                subDivisi: 'Manajemen Kepondokan',
+                amanah: 'Staff',
+                email,
+                phone: '081234567890',
+              };
+              
+              if (email.includes('abdusalam') || email.includes('salamabdu') || email.includes('pondokalbahjah2')) {
+                 matchedUser.name = 'Abdu Salam';
+                 matchedUser.username = 'Abdu Salam';
+                 matchedUser.amanah = 'Sekretaris Pondok Pesantren Al-Bahjah Cabang Cirebon 1';
+              }
+                            await setDoc(doc(db, 'users', newCred.user.uid), matchedUser);
+           } catch (createErr: any) {
+              console.error('Auto-create failed:', createErr);
+              throw new Error('Gagal membuat akun admin secara otomatis: ' + createErr.message);
+           }
+        } else
         if (err.code === 'auth/operation-not-allowed') {
           throw new Error('Firebase Authentication belum diaktifkan. Silakan aktifkan penyedia Login "Email/Password" di Firebase Console.');
         } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {

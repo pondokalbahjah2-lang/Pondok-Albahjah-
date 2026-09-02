@@ -1,12 +1,11 @@
 {
-  "projectId": "custom-chicken-9xctm",
-  "appId": "1:538818226479:web:e915c805b3409445c1d9da",
-  "apiKey": "AIzaSyDZZ3eA6Or314_OHIHudWGP-BoQQHxxl9s",
-  "authDomain": "custom-chicken-9xctm.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-remixremixmanaje-f55dc24e-5295-4032-afa1-b70e85538640",
-  "storageBucket": "custom-chicken-9xctm.firebasestorage.app",
-  "messagingSenderId": "538818226479",
+  "projectId": "gen-lang-client-0781963987",
+  "appId": "1:566106091464:web:e581a4a0f5388535d99afd",
+  "apiKey": "AIzaSyA1fg8L2YxHLBgYztLETxdJudEMvAskzjo",
+  "authDomain": "gen-lang-client-0781963987.firebaseapp.com",
+  "storageBucket": "gen-lang-client-0781963987.firebasestorage.app",
+  "messagingSenderId": "566106091464",
   "measurementId": "",
-  "oAuthClientId": "538818226479-b1tjop8fc0uah0jheo7750utffiov26l.apps.googleusercontent.com",
+  "oAuthClientId": "566106091464-ul8d29n7ae1rp7g0lr82863or02tkrtc.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

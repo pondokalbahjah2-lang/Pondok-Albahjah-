@@ -1264,6 +1264,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-xs focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-white"
                    rows={3}
                  />
+                 <div className="flex space-x-2">
                  <button
                    onClick={() => {
                      if (onSaveGeneralSettings) {
@@ -1271,10 +1272,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                        alert('Pengumuman berhasil disiarkan!');
                      }
                    }}
-                   className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold w-full"
+                   className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex-1"
                  >
                    Siarkan Pengumuman
                  </button>
+                 {broadcastMessage && (
+                   <button
+                     onClick={() => {
+                       if (confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
+                         if (onSaveGeneralSettings) {
+                           onSaveGeneralSettings({ broadcastMessage: '' });
+                           setBroadcastMsgInput('');
+                           alert('Pengumuman berhasil dihapus!');
+                         }
+                       }
+                     }}
+                     className="py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold"
+                   >
+                     Hapus Pengumuman
+                   </button>
+                 )}
+                 </div>
                </div>
             </div>
           )}

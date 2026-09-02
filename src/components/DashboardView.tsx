@@ -1,4 +1,5 @@
 import { getLocalDateString } from '../utils/dateUtils';
+import { DashboardSummaryChart } from './DashboardSummaryChart';
 import React, { useState } from 'react';
 import {
   PieChart as RechartsPieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend,
@@ -670,7 +671,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* Attendance Summary Circular Progress */}
+            {currentUser.role === 'Admin' && (
+        <>
+{/* Attendance Summary Circular Progress */}
       <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Tingkat Kehadiran Harian</h3>
@@ -1231,6 +1234,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+    </>
+    )}
+    
+    {/* Dashboard Analytics for Pejuang */}
+      {currentUser.role === 'Pejuang' && (
+        <DashboardSummaryChart 
+          currentUser={currentUser} 
+          attendance={attendance} 
+        />
+      )}
     </div>
   );
 };
+

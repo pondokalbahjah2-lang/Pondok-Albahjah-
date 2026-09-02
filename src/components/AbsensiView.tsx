@@ -381,14 +381,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const handleSubmitAttendance = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!photoPreview && attendanceStatus !== 'Libur') {
-      if (attendanceStatus === 'Sakit') {
-        alert('Silakan ambil foto atau unggah surat keterangan sakit Anda terlebih dahulu sebagai bukti.');
-      } else {
-        alert('Silakan ambil atau unggah foto kehadiran Anda terlebih dahulu.');
-      }
-      return;
-    }
+    
 
     if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && !isWithinRadius && currentUser.role === 'Pejuang') {
       alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
@@ -437,7 +430,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       const updatedRecord = {
         ...todayRecord!,
         timePulang: timeStr,
-        photoPulangUrl: photoPreview,
+        photoPulangUrl: "", // Removed photo
         notes: pulangNotes
       };
       
@@ -478,7 +471,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       date: dateStr,
       time: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : timeStr),
       timePulang: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : undefined),
-      photoUrl: photoPreview,
+      photoUrl: "", // Removed photo
       latitude: currentLat || 0,
       longitude: currentLng || 0,
       distanceFromPondok: distanceMeters || 0,
@@ -653,123 +646,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
                 </div>
               )}
-            </div>
-
-            {/* Photo Viewfinder Preview */}
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                Foto Kehadiran (Wajib Swafoto)
-              </label>
-
-              <div className="relative aspect-[3/4] md:aspect-video rounded-2xl bg-white/10 dark:bg-slate-900/20 backdrop-blur-[5px] border-2 border-dashed border-slate-300 dark:border-slate-700 overflow-hidden flex flex-col items-center justify-center p-3 text-center">
-                {isCameraOpen ? (
-                  <>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover rounded-xl"
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
-                    {isCameraOpen && (
-                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-                        <div className="w-full max-w-[250px] aspect-square rounded-3xl border-4 border-amber-500/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] flex items-center justify-center relative overflow-hidden">
-                          <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400 shadow-[0_0_10px_2px_rgba(99,102,241,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : photoPreview ? (
-                  <div className="relative w-full h-full group cursor-pointer" onClick={() => setIsImageModalOpen(true)}>
-                    <img
-                      src={photoPreview}
-                      alt="Absensi Preview"
-                      className="w-full h-full object-cover rounded-xl"
-                    />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                      <ZoomIn className="w-8 h-8 text-white" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Camera className="w-8 h-8 text-slate-400 mx-auto" />
-                    <p className="text-xs text-slate-500">
-                      Aktifkan kamera untuk mengambil swafoto kehadiran
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {isCameraOpen ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={toggleCamera}
-                      className="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold text-center flex items-center justify-center transition-colors"
-                      title="Ubah Kamera Depan/Belakang"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={capturePhoto}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold text-center shadow-md flex items-center justify-center space-x-1.5 transition-colors"
-                    >
-                      <Camera className="w-4 h-4" />
-                      <span>Ambil Foto</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={stopCamera}
-                      className="py-2.5 px-4 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold text-center flex items-center justify-center transition-colors"
-                    >
-                      Batal
-                    </button>
-                  </>
-                ) : (
-                  
-                  <div className="flex space-x-2 w-full flex-col gap-2">
-                    <div className="flex space-x-2 w-full">
-                      <button
-                        type="button"
-                        onClick={startCamera}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold text-center shadow-md flex items-center justify-center space-x-1.5 transition-colors"
-                      >
-                        <Camera className="w-4 h-4" />
-                        <span>Buka Kamera ({facingMode === 'user' ? 'Depan' : 'Belakang'})</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={startQRScanner}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold text-center shadow-md flex items-center justify-center space-x-1.5 transition-colors"
-                      >
-                         <QrCode className="w-4 h-4" />
-                        <span>Scan QR Absensi</span>
-                      </button>
-                    </div>
-                    {attendanceStatus === 'Sakit' && (
-                      <div className="relative w-full">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleFileUpload}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          className="w-full py-2.5 px-3 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold text-center shadow-md flex items-center justify-center space-x-1.5 transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                          <span>Atau Upload Surat Sakit (Gambar)</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                )}
-              </div>
             </div>
 
             {/* Notes */}

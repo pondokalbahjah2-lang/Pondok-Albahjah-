@@ -43,7 +43,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   const [selectedPejuangId, setSelectedPejuangId] = useState('');
   const [periode, setPeriode] = useState('Agustus 2026');
   const [fileName, setFileName] = useState('');
-  const [singleFile, setSingleFile] = useState<File | null>(null);
+  const [gdriveLink, setGdriveLink] = useState("");
   const [singleFilePassword, setSingleFilePassword] = useState('');
   
   const [revealSlipId, setRevealSlipId] = useState('');
@@ -52,8 +52,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   const [revealError, setRevealError] = useState('');
 
         
-  const [stagedBulkFiles, setStagedBulkFiles] = useState<StagedBulkUpload[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
@@ -75,119 +74,41 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
       alert('Silakan pilih pejuang sasaran upload slip ubar.');
       return;
     }
-    if (!singleFile) {
-      alert('Silakan pilih file PDF Slip Ubar.');
+    if (!gdriveLink) {
+      alert('Silakan masukkan Link Google Drive Slip Ubar.');
       return;
     }
     
     const pejuangObj = accounts.find((a) => a.id === selectedPejuangId);
     if (!pejuangObj) return;
 
-    const finalFileName = fileName || `Slip_Ubar_${pejuangObj.name.replace(/\s+/g, '_')}_${periode.replace(/\s+/g, '')}.pdf`;
+    const finalFileName = fileName || `Slip_Ubar_${pejuangObj.name.replace(/\s+/g, '_')}_${periode.replace(/\s+/g, '')}`;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Url = event.target?.result as string;
-      const newSlip: SlipUbarRecord = {
-        id: `ubar-${Date.now()}`,
-        pejuangId: pejuangObj.id,
-        pejuangName: pejuangObj.name,
-        periode,
-        tanggalUpload: getLocalDateString(new Date()),
-        fileName: finalFileName,
-        fileUrl: base64Url,
-        filePassword: singleFilePassword
-      };
-
-      onSaveSlipUbar([newSlip, ...slipUbarList]);
-      setFileName('');
-      setSingleFile(null);
-      setSingleFilePassword('');
-      alert(`Dokumen Slip Ubar ${periode} untuk ${pejuangObj.name} berhasil diunggah.`);
-    };
-    reader.readAsDataURL(singleFile);
-  };
-
-  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const staged: StagedBulkUpload[] = (Array.from(files) as File[]).map((file: File, index: number) => {
-      // Try to find a pejuang by matching filename
-      const matchedPejuang = pejuangAccounts.find(p => 
-        file.name?.toLowerCase().includes(p.name?.toLowerCase() || '')
-      );
-
-      return {
-        id: `staged-${index}-${Date.now()}`,
-        file,
-        fileName: file.name,
-        matchedPejuangId: matchedPejuang ? matchedPejuang.id : '',
-        filePassword: '',
-        periode,
-      };
-    });
-
-    setStagedBulkFiles(staged);
-    e.target.value = '';
-  };
-
-  const handleUpdateStagedPejuang = (id: string, pejuangId: string) => {
-    setStagedBulkFiles(prev => prev.map(s => s.id === id ? { ...s, matchedPejuangId: pejuangId } : s));
-  };
-
-  const handleUpdateStagedPassword = (id: string, pass: string) => {
-    setStagedBulkFiles(prev => prev.map(s => s.id === id ? { ...s, filePassword: pass } : s));
-  };
-
-
-  const handleUpdateStagedFile = (id: string, newFile: File) => {
-    setStagedBulkFiles(prev => prev.map(s => s.id === id ? { ...s, file: newFile, fileName: newFile.name } : s));
-  };
-
-  const handleRemoveStaged = (id: string) => {
-    setStagedBulkFiles(prev => prev.filter(s => s.id !== id));
-  };
-
-  const handleSaveBulk = async () => {
-    if (stagedBulkFiles.some(s => !s.matchedPejuangId)) {
-      alert("Ada slip yang belum dipetakan ke pejuang. Mohon lengkapi terlebih dahulu.");
-      return;
-    }
-
-    const readFileAsDataURL = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target?.result as string);
-        reader.onerror = (error) => reject(error);
-        reader.readAsDataURL(file);
-      });
+    const newSlip: SlipUbarRecord = {
+      id: `ubar-${Date.now()}`,
+      pejuangId: pejuangObj.id,
+      pejuangName: pejuangObj.name,
+      periode,
+      tanggalUpload: getLocalDateString(new Date()),
+      fileName: finalFileName,
+      fileUrl: gdriveLink,
+      filePassword: singleFilePassword
     };
 
-    try {
-      const newSlips: SlipUbarRecord[] = await Promise.all(stagedBulkFiles.map(async (s, index) => {
-        const pejuang = pejuangAccounts.find(p => p.id === s.matchedPejuangId);
-        const base64Url = await readFileAsDataURL(s.file);
-        return {
-          id: `ubar-bulk-${index}-${Date.now()}`,
-          pejuangId: s.matchedPejuangId,
-          pejuangName: pejuang ? pejuang.name : 'Unknown Pejuang',
-          periode: s.periode,
-          tanggalUpload: getLocalDateString(new Date()),
-          fileName: s.fileName,
-          fileUrl: base64Url,
-          filePassword: s.filePassword,
-        };
-      }));
-
-      onSaveSlipUbar([...newSlips, ...slipUbarList]);
-      setStagedBulkFiles([]);
-      alert(`Upload Sekaligus Berhasil! ${newSlips.length} dokumen slip ubar telah disimpan.`);
-    } catch (error) {
-      alert('Terjadi kesalahan saat memproses file PDF.');
-      console.error(error);
-    }
+    onSaveSlipUbar([newSlip, ...slipUbarList]);
+    setFileName('');
+    setGdriveLink('');
+    setSingleFilePassword('');
+    alert(`Link Dokumen Slip Ubar ${periode} untuk ${pejuangObj.name} berhasil disimpan.`);
   };
+
+  
+  
+  
+
+  
+  
+  
 
   
   const handleRevealPassword = (e: React.FormEvent) => {
@@ -229,7 +150,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
 
       {/* Admin Upload Section */}
       {currentUser.role === 'Admin' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 max-w-3xl mx-auto gap-6">
           {/* Individual Upload */}
           <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
             <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
@@ -272,34 +193,30 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
               </div>
 
               
-              <div>
+                            <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                  File Dokumen PDF
+                  Link Google Drive Slip Ubar
                 </label>
                 <input
-                  type="file"
+                  type="url"
                   required
-                  accept="application/pdf"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setSingleFile(e.target.files[0]);
-                      if (!fileName) setFileName(e.target.files[0].name);
-                    }
-                  }}
+                  value={gdriveLink}
+                  onChange={(e) => setGdriveLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                  Nama File Dokumen PDF
+                  Nama Tampilan Slip Ubar
                 </label>
 
                 <input
                   type="text"
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
-                  placeholder="Contoh: Slip_Ubar_Agustus.pdf"
+                  placeholder="Contoh: Slip Ubar Agustus"
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
                 />
               </div>
@@ -322,37 +239,8 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
             </form>
           </div>
 
-          {/* Bulk Upload Feature */}
-          <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col justify-between space-y-4">
-            <div>
-              <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                <FileCheck className="w-4 h-4 text-emerald-600" />
-                <span>Upload Massal / Sekaligus Slip Ubar</span>
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Upload berkas slip ubar secara sekaligus untuk seluruh pejuang terdaftar pada periode berjalan. Sistem akan otomatis memetakan dokumen ke masing-masing akun pejuang.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-3">
-              <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 mb-2">
-                Periode Aktif Bulk: {periode}
-              </div>
-              <label className="w-full py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-black text-xs shadow-md transition-all flex justify-center items-center cursor-pointer">
-                <span>Upload Sekaligus Untuk Seluruh Pejuang</span>
-                <input 
-                  type="file" 
-                  multiple 
-                  accept="application/pdf,image/*" 
-                  className="hidden" 
-                  onChange={handleBulkUpload} 
-                />
-              </label>
-            </div>
-          </div>
-        </div>
+                  </div>
       )}
-
       {/* Document List & Download Table */}
       <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -431,15 +319,14 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                         <span>Sandi</span>
                       </button>
                       <a
-                        href={slip.fileUrl}
-
-                        download={slip.fileName}
-                        rel="noreferrer"
-                        className="inline-flex items-center space-x-1.5 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shadow-sm transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Unduh Dokumen</span>
-                      </a>
+      href={slip.fileUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center space-x-1.5 py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shadow-sm transition-colors"
+    >
+      <Download className="w-3.5 h-3.5" />
+      <span>Buka Link</span>
+    </a>
                     </td>
                   </tr>
                 ))
@@ -535,86 +422,6 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
 
       
 
-      {/* Staged Bulk Upload Modal */}
-      {stagedBulkFiles.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-5 border-b border-slate-800">
-              <h3 className="font-bold text-white flex items-center space-x-2 text-sm">
-                <FileCheck className="w-5 h-5 text-emerald-500" />
-                <span>Review & Sesuaikan Upload Massal ({stagedBulkFiles.length} File)</span>
-              </h3>
-              <button
-                onClick={() => setStagedBulkFiles([])}
-                className="p-2 -mr-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="p-5 flex-1 overflow-y-auto space-y-4">
-              {stagedBulkFiles.map((item) => (
-                <div key={item.id} className="p-4 rounded-2xl bg-slate-800/50 border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div className="flex-1 space-y-1">
-                    <div className="text-xs text-slate-400 truncate max-w-[200px] sm:max-w-xs" title={item.fileName}>File: <span className="font-bold text-slate-200">{item.fileName}</span></div>
-                    <div className="text-xs text-slate-400">Bulan: <span className="font-bold text-slate-200">{item.periode}</span></div>
-                  </div>
-                  
-                  <div className="w-full sm:w-64 space-y-2">
-                    <select
-                      value={item.matchedPejuangId}
-                      onChange={(e) => handleUpdateStagedPejuang(item.id, e.target.value)}
-                      className={`w-full p-2.5 rounded-xl text-xs font-bold ${!item.matchedPejuangId ? 'bg-rose-950/40 border-rose-800 text-rose-300' : 'bg-slate-900 border-slate-700 text-slate-200'} border`}
-                    >
-                      <option value="">-- Pilih Pejuang (Wajib) --</option>
-                      {pejuangAccounts.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                    <input 
-                      type="text" 
-                      placeholder="Kata Sandi PDF (Opsional)" 
-                      value={item.filePassword || ''}
-                      onChange={(e) => handleUpdateStagedPassword(item.id, e.target.value)}
-                      className="w-full p-2.5 rounded-xl text-xs bg-slate-900 border border-slate-700 text-slate-200 focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div className="flex space-x-2 w-full sm:w-auto mt-3 sm:mt-0">
-                    <label className="py-2.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold cursor-pointer transition-colors shadow-sm text-center flex-1 sm:flex-none">
-                      <span>Ubah File</span>
-                      <input 
-                        type="file" 
-                        accept="application/pdf,image/*" 
-                        className="hidden" 
-                        onChange={(e) => {
-                           if (e.target.files?.[0]) handleUpdateStagedFile(item.id, e.target.files[0]);
-                        }} 
-                      />
-                    </label>
-                    <button
-                      onClick={() => handleRemoveStaged(item.id)}
-                      className="py-2.5 px-4 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 text-xs font-bold transition-colors shadow-sm flex-1 sm:flex-none"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-5 border-t border-slate-800 bg-slate-900 flex justify-end">
-               <button
-                  onClick={handleSaveBulk}
-                  className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2"
-               >
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Simpan Semua Slip Ubar</span>
-               </button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
   );
 };

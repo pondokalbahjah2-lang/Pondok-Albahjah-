@@ -1,4 +1,5 @@
 import { getLocalDateString } from '../utils/dateUtils';
+import { uploadPDFToDrive } from '../utils/googleDrive';
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -265,9 +266,21 @@ export const CutiView: React.FC<CutiViewProps> = ({
       doc.text(footerText, 10, 202); 
       doc.setTextColor(0, 0, 0);
 
-      const filename = `Surat_Cuti_${rec.pejuangName.replace(/s+/g, '_')}_${rec.tanggalMulai}.pdf`;
+      const filename = `Surat_Cuti_${rec.pejuangName.replace(/\s+/g, '_')}_${rec.tanggalMulai}.pdf`;
       doc.save(filename);
       alert('Surat Cuti berhasil diunduh sebagai PDF.');
+      
+      try {
+        if (confirm(`Apakah Anda ingin menyimpan "${filename}" ke Google Drive Anda?`)) {
+          alert("Sedang mengunggah ke Google Drive... Mohon tunggu.");
+          const pdfBlob = doc.output('blob');
+          const fileId = await uploadPDFToDrive(pdfBlob, filename);
+          alert(`Berhasil disimpan ke Google Drive dengan ID: ${fileId}`);
+        }
+      } catch (driveErr: any) {
+        alert('Gagal menyimpan ke Google Drive: ' + driveErr.message);
+      }
+
     } catch (err) {
       console.error('Failed to generate cuti PDF', err);
       alert('Gagal mencetak PDF. ' + String(err));
