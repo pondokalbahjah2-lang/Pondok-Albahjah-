@@ -401,9 +401,38 @@ export default function App() {
       return !existing || JSON.stringify(existing) !== JSON.stringify(a);
     });
     setAttendance(atts);
-        try {
-      for (const a of addedOrUpdated) await setDoc(doc(db, 'attendance', a.id), a);
-    } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'attendance'); }
+
+    if (addedOrUpdated.length === 0) return;
+
+    const maxRetries = 3;
+
+    const attemptWrite = async (retries: number, delayMs: number) => {
+      try {
+        const chunks = [];
+        for (let i = 0; i < addedOrUpdated.length; i += 500) {
+          chunks.push(addedOrUpdated.slice(i, i + 500));
+        }
+
+        for (const chunk of chunks) {
+          const batch = writeBatch(db);
+          for (const a of chunk) {
+            batch.set(doc(db, 'attendance', a.id), a);
+          }
+          await batch.commit();
+        }
+      } catch (e: any) {
+        const errCode = e?.code || '';
+        if ((errCode === 'permission-denied' || errCode === 'unavailable') && retries > 0) {
+          console.warn(`Firestore write failed with ${errCode}. Retrying in ${delayMs}ms... (${retries} retries left)`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await attemptWrite(retries - 1, delayMs * 2);
+        } else {
+          handleFirestoreError(e, OperationType.WRITE, 'attendance');
+        }
+      }
+    };
+
+    await attemptWrite(maxRetries, 1000);
   };
 
   const handleSaveExitPermissions = async (exs: typeof exitPermissions) => {
