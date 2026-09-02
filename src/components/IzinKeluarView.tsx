@@ -1,5 +1,4 @@
 import { getLocalDateString } from '../utils/dateUtils';
-import { uploadPDFToDrive } from '../utils/googleDrive';
 import React, { useState } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -141,43 +140,6 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
     onSaveExitPermissions(updated);
     setSelectedRecordForReturn(null);
-  };
-
-    const handleSaveToDrive = async (rec: ExitPermissionRecord) => {
-    if (!suratIzinTemplateUrl) {
-      alert("Template Surat Izin belum diunggah. Silakan hubungi Admin.");
-      return;
-    }
-    
-    // Copy the PDF generation logic
-    const doc = new jsPDF('p', 'mm', 'a5');
-    doc.addImage(suratIzinTemplateUrl, 'JPEG', 0, 0, 148, 210);
-    doc.setFontSize(10);
-    const startX = 48;
-    doc.text(rec.pejuangName, startX, 53.0);
-    doc.text(rec.subDivisi || '-', startX, 60.0);
-    const hajatSplit = doc.splitTextToSize(rec.alasan, 85);
-    doc.text(hajatSplit[0], startX, 67.0);
-    doc.text(`${rec.tanggalKeluar} / ${rec.jamKeluar}`, startX, 74.0);
-    doc.text(`${rec.tanggalIzinSampai} / ${rec.jamHarusKembali}`, startX, 81.0);
-    
-    const printAtasanName = kepalaPondokName || 'Ust M Hamdani, B.Sc';
-    doc.setFontSize(9);
-    doc.text(doc.splitTextToSize(printAtasanName, 40), 37, 144.5, { align: 'center' });
-    doc.text(doc.splitTextToSize(rec.pejuangName, 40), 111, 144.5, { align: 'center' });
-    
-    const pdfBlob = doc.output('blob');
-    const filename = `Surat_Izin_Keluar_${rec.pejuangName.replace(/\s+/g, '_')}_${rec.tanggalKeluar}.pdf`;
-    
-    try {
-      if (confirm(`Apakah Anda ingin menyimpan "${filename}" ke Google Drive Anda?`)) {
-        alert("Sedang mengunggah ke Google Drive... Mohon tunggu.");
-        const fileId = await uploadPDFToDrive(pdfBlob, filename);
-        alert(`Berhasil disimpan ke Google Drive dengan ID: ${fileId}`);
-      }
-    } catch (err: any) {
-      alert('Gagal menyimpan ke Google Drive: ' + err.message);
-    }
   };
 
   const handleGeneratePDF = async (rec: ExitPermissionRecord) => {

@@ -153,8 +153,8 @@ export default function App() {
 
         // Sync Attendance
         const attQ = isAd 
-          ? query(collection(db, 'attendance'), limit(1000))
-          : query(collection(db, 'attendance'), where('pejuangId', '==', uid), limit(100));
+          ? query(collection(db, 'attendance'), orderBy('id', 'desc'), limit(1000))
+          : query(collection(db, 'attendance'), where('pejuangId', '==', uid));
         unsubAtt = onSnapshot(attQ, (snap) => {
           let data = snap.docs.map(d => d.data() as any);
           if (!isAd) {
@@ -166,8 +166,8 @@ export default function App() {
 
         // Sync Exit Permissions
         const exitQ = isAd 
-          ? query(collection(db, 'exitPermissions'), limit(500))
-          : query(collection(db, 'exitPermissions'), where('pejuangId', '==', uid), limit(50));
+          ? query(collection(db, 'exitPermissions'), orderBy('id', 'desc'), limit(500))
+          : query(collection(db, 'exitPermissions'), where('pejuangId', '==', uid));
         let firstExitLoad = true;
         unsubExit = onSnapshot(exitQ, (snap) => {
           let data = snap.docs.map(d => d.data() as any);
@@ -195,8 +195,8 @@ export default function App() {
 
         // Sync Leave Requests
         const leaveQ = isAd 
-          ? query(collection(db, 'leaveRequests'), limit(500))
-          : query(collection(db, 'leaveRequests'), where('pejuangId', '==', uid), limit(50));
+          ? query(collection(db, 'leaveRequests'), orderBy('id', 'desc'), limit(500))
+          : query(collection(db, 'leaveRequests'), where('pejuangId', '==', uid));
         let firstLeaveLoad = true;
         unsubLeave = onSnapshot(leaveQ, (snap) => {
           let data = snap.docs.map(d => d.data() as any);
