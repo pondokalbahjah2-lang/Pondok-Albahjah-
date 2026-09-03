@@ -172,6 +172,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
         const matchedUser = accounts.find(a => a.webAuthnCredentialId === credential.id);
           
         if (matchedUser) {
+          if (matchedUser.email && matchedUser.password) {
+            await signInWithEmailAndPassword(auth, matchedUser.email, matchedUser.password);
+          }
           onLoginSuccess(matchedUser);
         } else {
           throw new Error('Data biometrik tidak dikenali di sistem. Silakan login manual dan daftarkan sidik jari/Face ID Anda di menu Pengaturan Sistem.');

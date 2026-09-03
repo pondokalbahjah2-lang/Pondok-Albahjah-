@@ -12,6 +12,7 @@ import {
 } from "firebase/auth";
 import {
   getFirestore,
+  initializeFirestore,
   collection,
   doc,
   getDoc,
@@ -37,7 +38,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 export const auth = initializeAuth(app, {
   persistence: [
     browserLocalPersistence,
@@ -85,5 +86,6 @@ export function handleFirestoreError(
     path,
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
+  alert("Gagal menyimpan ke database: " + errInfo.error);
   // Don't throw, just log to prevent app crash
 }
