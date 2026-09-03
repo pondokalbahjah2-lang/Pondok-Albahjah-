@@ -299,7 +299,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
     const belumAbsen = pejuangs.filter(p => !attendeesIds.has(p.id)).length;
     
-    return { total: totalPejuang, hadir, terlambat, belumAbsen };
+    const sakit = todayAttendance.filter(a => a.status === "Sakit").length;
+    const libur = todayAttendance.filter(a => a.status === "Libur").length;
+    return { total: totalPejuang, hadir, terlambat, sakit, libur, belumAbsen };
   }, [accounts, attendance]);
 
   
@@ -699,25 +701,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 strokeWidth="8"
                 fill="transparent"
                 strokeDasharray="264"
-                strokeDashoffset={264 - (264 * (totalPejuang > 0 ? Math.round(((totalHadirTepatWaktu + totalTerlambatHadir) / totalPejuang) * 100) : 0)) / 100}
+                strokeDashoffset={264 - (264 * (totalPejuang > 0 ? Math.round(((todayStats.hadir + todayStats.terlambat) / totalPejuang) * 100) : 0)) / 100}
                 className="text-emerald-500 transition-all duration-1000 ease-out"
                 strokeLinecap="round"
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
               <span className="text-xl font-black text-slate-800 dark:text-white">
-                {totalPejuang > 0 ? Math.round(((totalHadirTepatWaktu + totalTerlambatHadir) / totalPejuang) * 100) : 0}%
+                {totalPejuang > 0 ? Math.round(((todayStats.hadir + todayStats.terlambat) / totalPejuang) * 100) : 0}%
               </span>
             </div>
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Telah Absen ({totalHadirTepatWaktu + totalTerlambatHadir})</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Telah Absen ({todayStats.hadir + todayStats.terlambat})</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Absen ({totalPejuang - (totalHadirTepatWaktu + totalTerlambatHadir)})</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Absen ({todayStats.belumAbsen})</span>
             </div>
           </div>
         </div>
@@ -754,7 +756,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-            {totalHadirTepatWaktu}
+            {todayStats.hadir}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">
             Absen Tepat Waktu
@@ -772,7 +774,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
-            {totalTerlambatHadir}
+            {todayStats.terlambat}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">
             Melewati Jam Masuk
@@ -808,7 +810,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">
-            {totalSakit}
+            {todayStats.sakit}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">
             Dalam Perawatan
@@ -826,7 +828,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">
-            {totalLibur}
+            {todayStats.libur}
           </div>
           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">
             Jadwal Libur
