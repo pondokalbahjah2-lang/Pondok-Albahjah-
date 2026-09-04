@@ -91,6 +91,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const [selectedSubDivisi, setSelectedSubDivisi] = useState('Semua');
+  const [activeListModal, setActiveListModal] = useState<'hadir' | 'terlambat' | 'sakit' | 'libur' | 'belumAbsen' | null>(null);
 
   const pejuangList = React.useMemo(() => accounts.filter((a) => a.role === 'Pejuang'), [accounts]);
   
@@ -241,6 +242,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return attendance.find(a => a.pejuangId === currentUser.id && a.date === todayStr) || null;
   }, [attendance, currentUser.id, currentUser.role]);
 
+  const mySisaCutiTahunan = React.useMemo(() => {
+    if (currentUser.role !== 'Pejuang') return 0;
+    const currentYearStr = new Date().getFullYear().toString();
+    const used = leaveRequests
+      .filter(l => l.pejuangId === currentUser.id && l.jenisCuti === 'Cuti Tahunan' && (l.status === 'Disetujui' || l.status === 'Menunggu Persetujuan') && l.tanggalMulai.startsWith(currentYearStr))
+      .reduce((acc, curr) => acc + curr.totalHari, 0);
+    return Math.max(0, 12 - used);
+  }, [leaveRequests, currentUser]);
+
   const myWeeklyStats = React.useMemo(() => {
     const today = new Date();
     const lastWeek = new Date(today);
@@ -293,16 +303,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const totalPejuang = pejuangs.length;
     
     const todayAttendance = attendance.filter(a => a.date === todayStr);
-    const hadir = todayAttendance.filter(a => a.status === 'Hadir').length;
-    const terlambat = todayAttendance.filter(a => a.status === 'Terlambat').length;
-    // To find out who hasn't clocked in, we check who isn't in todayAttendance
+    const hadirList = todayAttendance.filter(a => a.status === 'Hadir');
+    const terlambatList = todayAttendance.filter(a => a.status === 'Terlambat');
+    const sakitList = todayAttendance.filter(a => a.status === 'Sakit');
+    const liburList = todayAttendance.filter(a => a.status === 'Libur');
+
     const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
-    const belumAbsen = pejuangs.filter(p => !attendeesIds.has(p.id)).length;
+    const belumAbsenList = pejuangs.filter(p => !attendeesIds.has(p.id));
     
-    const sakit = todayAttendance.filter(a => a.status === "Sakit").length;
-    const libur = todayAttendance.filter(a => a.status === "Libur").length;
-    return { total: totalPejuang, hadir, terlambat, sakit, libur, belumAbsen };
-  }, [accounts, attendance]);
+    return {
+      total: totalPejuang,
+      hadir: hadirList.length,
+      terlambat: terlambatList.length,
+      sakit: sakitList.length,
+      libur: liburList.length,
+      belumAbsen: belumAbsenList.length,
+      lists: {
+        hadir: hadirList,
+        terlambat: terlambatList,
+        sakit: sakitList,
+        libur: liburList,
+        belumAbsen: belumAbsenList
+      }
+    };
+  }, [attendance, accounts]);
 
   
   // --- New Logic: Hari Ini & Efektif Bulanan ---
@@ -555,7 +579,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-5 h-5" />
@@ -581,6 +605,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <p className="text-[10px] text-slate-500 font-bold uppercase">Cuti (7 Hari)</p>
               <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">{myWeeklyStats.totalCuti} Pengajuan</h4>
+            </div>
+          </div>
+          <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">Sisa Cuti Tahunan</p>
+              <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">{mySisaCutiTahunan} Hari</h4>
             </div>
           </div>
         </div>
@@ -717,9 +750,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
               <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Telah Absen ({todayStats.hadir + todayStats.terlambat})</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 cursor-pointer hover:opacity-80" onClick={() => setActiveListModal('belumAbsen')}>
               <div className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Absen ({todayStats.belumAbsen})</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:underline">Belum Absen ({todayStats.belumAbsen})</span>
+            </div>
+            <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 mt-1" onClick={() => setActiveListModal('sakit')}>
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:underline">Sakit ({todayStats.sakit})</span>
+            </div>
+            <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 mt-1" onClick={() => setActiveListModal('libur')}>
+              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:underline">Libur/Cuti ({todayStats.libur})</span>
             </div>
           </div>
         </div>
@@ -764,7 +805,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Terlambat Hadir */}
-        <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
+        <div 
+          onClick={() => setActiveListModal('terlambat')}
+          className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg cursor-pointer hover:scale-105 transition-transform"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
               Terlambat Hadir
@@ -1238,6 +1282,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </>
     )}
     
+    
+      {/* Active List Modal */}
+      {activeListModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>
+                  {activeListModal === 'hadir' && 'Daftar Hadir Tepat Waktu'}
+                  {activeListModal === 'terlambat' && 'Daftar Terlambat Hadir'}
+                  {activeListModal === 'sakit' && 'Daftar Pejuang Sakit'}
+                  {activeListModal === 'libur' && 'Daftar Pejuang Libur/Cuti'}
+                  {activeListModal === 'belumAbsen' && 'Daftar Belum Absen'}
+                </span>
+              </h2>
+              <button
+                onClick={() => setActiveListModal(null)}
+                className="p-2 -mr-2 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 flex-1 overflow-y-auto space-y-3">
+              {todayStats.lists[activeListModal].length === 0 ? (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-center text-xs text-slate-400 italic border border-slate-100 dark:border-slate-800">
+                  Tidak ada data untuk kategori ini.
+                </div>
+              ) : (
+                todayStats.lists[activeListModal].map((item: any) => {
+                  const name = item.pejuangName || item.name;
+                  const subDivisi = item.subDivisi || (accounts.find(a => a.id === (item.pejuangId || item.id))?.subDivisi) || '-';
+                  return (
+                    <div key={item.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-sm text-slate-800 dark:text-slate-100">{name}</div>
+                        <div className="text-[10px] font-medium text-slate-500">{subDivisi}</div>
+                      </div>
+                      {item.waktuKedatangan && (
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                          {item.waktuKedatangan}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     {/* Dashboard Analytics for Pejuang */}
       {currentUser.role === 'Pejuang' && (
         <PejuangDashboardAnalytics 

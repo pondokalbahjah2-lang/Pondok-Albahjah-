@@ -26,6 +26,7 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
   const [prayerTimes, setPrayerTimes] = useState<{ [key: string]: string } | null>(null);
   const [isLoadingPrayer, setIsLoadingPrayer] = useState(false);
   const [divisiFilter, setDivisiFilter] = useState('Semua');
+  const [viewMode, setViewMode] = useState<'all' | 'me'>('all');
 
   const subDivisiList = React.useMemo(() => {
     return ['Semua', ...Array.from(new Set(accounts.filter(a => a.role === 'Pejuang' && a.subDivisi).map(a => a.subDivisi)))];
@@ -113,7 +114,9 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
         }
       }
 
-      return isApprovedOrPending && isWithinDate && matchesDivisi;
+      const matchesViewMode = viewMode === 'all' || l.pejuangId === currentUser.id;
+
+      return isApprovedOrPending && isWithinDate && matchesDivisi && matchesViewMode;
     });
   };
 

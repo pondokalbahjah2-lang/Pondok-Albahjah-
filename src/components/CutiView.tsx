@@ -62,8 +62,17 @@ export const CutiView: React.FC<CutiViewProps> = ({
   const [alasan, setAlasan] = useState('');
   const [tanggalMulai, setTanggalMulai] = useState(getLocalDateString());
   const [tanggalSelesai, setTanggalSelesai] = useState(getLocalDateString());
+  const [durasiCutiTahunan, setDurasiCutiTahunan] = useState(1);
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
+
+  const getSisaCutiTahunan = (pId: string) => {
+    const currentYearStr = new Date().getFullYear().toString();
+    const used = leaveRequests
+      .filter(l => l.pejuangId === pId && l.jenisCuti === 'Cuti Tahunan' && (l.status === 'Disetujui' || l.status === 'Menunggu Persetujuan') && l.tanggalMulai.startsWith(currentYearStr))
+      .reduce((acc, curr) => acc + curr.totalHari, 0);
+    return Math.max(0, 12 - used);
+  };
 
   useEffect(() => {
     const user = accounts.find(a => a.id === targetPejuangId);
@@ -74,13 +83,19 @@ export const CutiView: React.FC<CutiViewProps> = ({
 
   useEffect(() => {
     if (tanggalMulai && jenisCuti && showAddModal) {
-      const selectedJenis = jenisCutiList.find(j => j.name === jenisCuti);
-      const max = (jenisCuti === 'Cuti Tahunan') ? 4 : (selectedJenis?.maxDays || 1);
-      const start = new Date(tanggalMulai);
-      start.setDate(start.getDate() + (max - 1));
-      setTanggalSelesai(getLocalDateString(start));
+      if (jenisCuti === 'Cuti Tahunan') {
+        const start = new Date(tanggalMulai);
+        start.setDate(start.getDate() + (durasiCutiTahunan - 1));
+        setTanggalSelesai(getLocalDateString(start));
+      } else {
+        const selectedJenis = jenisCutiList.find(j => j.name === jenisCuti);
+        const max = selectedJenis?.maxDays || 1;
+        const start = new Date(tanggalMulai);
+        start.setDate(start.getDate() + (max - 1));
+        setTanggalSelesai(getLocalDateString(start));
+      }
     }
-  }, [tanggalMulai, jenisCuti, jenisCutiList, showAddModal]);
+  }, [tanggalMulai, jenisCuti, jenisCutiList, showAddModal, durasiCutiTahunan]);
 
   // Filtered requests
   const filteredRequests = leaveRequests.filter((l) => {
@@ -107,6 +122,11 @@ export const CutiView: React.FC<CutiViewProps> = ({
     if (jenisCuti === 'Cuti Tahunan') {
       if (totalHari > 4) {
         alert('Maksimal pengambilan cuti tahunan dalam satu kali pengajuan adalah 4 hari.');
+        return;
+      }
+      const sisa = getSisaCutiTahunan(targetUser.id);
+      if (totalHari > sisa) {
+        alert(`Sisa cuti tahunan hanya ${sisa} hari. Tidak dapat mengajukan ${totalHari} hari.`);
         return;
       }
     }
@@ -467,6 +487,13 @@ export const CutiView: React.FC<CutiViewProps> = ({
                 </div>
               )}
 
+              {jenisCuti === 'Cuti Tahunan' && (
+                <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-200">Sisa Cuti Tahunan:</span>
+                  <span className="text-sm font-bold text-amber-400">{getSisaCutiTahunan(targetPejuangId)} Hari</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -538,18 +565,36 @@ export const CutiView: React.FC<CutiViewProps> = ({
                     className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Tanggal Kembali Cuti
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={tanggalSelesai}
-                    onChange={(e) => setTanggalSelesai(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
-                  />
-                </div>
+                {jenisCuti === 'Cuti Tahunan' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Durasi (1-4 Hari)
+                    </label>
+                    <select
+                      value={durasiCutiTahunan}
+                      onChange={(e) => setDurasiCutiTahunan(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+                    >
+                      <option value={1}>1 Hari</option>
+                      <option value={2}>2 Hari</option>
+                      <option value={3}>3 Hari</option>
+                      <option value={4}>4 Hari</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Tanggal Kembali Cuti
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={tanggalSelesai}
+                      onChange={(e) => setTanggalSelesai(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+                    />
+                  </div>
+                )}
               </div>
               
               <button
