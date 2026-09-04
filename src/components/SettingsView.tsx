@@ -314,8 +314,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (index > -1) {
       currentList.splice(index, 1);
     } else {
-      if (currentList.length >= 9) {
-        alert('Maksimal 9 pejuang dapat ditunjuk sebagai approver.');
+      if (currentList.length >= 20) {
+        alert('Maksimal 20 pejuang dapat ditunjuk sebagai approver.');
         return;
       }
       currentList.push(id);
@@ -366,6 +366,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newNipy, setNewNipy] = useState('');
+  const [newSuratKeputusanUrl, setNewSuratKeputusanUrl] = useState('');
+  const [newPkwtStart, setNewPkwtStart] = useState('');
+  const [newPkwtEnd, setNewPkwtEnd] = useState('');
   const [pejuangSearchQuery, setPejuangSearchQuery] = useState('');
   const [pejuangCurrentPage, setPejuangCurrentPage] = useState(1);
   const pejuangItemsPerPage = 10;
@@ -489,6 +492,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           subDivisi: newSubDivisi,
           amanah: newAmanah,
           nipy: newNipy,
+      suratKeputusanUrl: newSuratKeputusanUrl,
+      pkwtStart: newPkwtStart,
+      pkwtEnd: newPkwtEnd,
           email: email
         };
       }
@@ -1515,6 +1521,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           setNewSubDivisi(acc.subDivisi);
                           setNewAmanah(acc.amanah);
                           setNewNipy(acc.nipy || '');
+                          setNewSuratKeputusanUrl(acc.suratKeputusanUrl || '');
+                          setNewPkwtStart(acc.pkwtStart || '');
+                          setNewPkwtEnd(acc.pkwtEnd || '');
                           setShowEditUserModal(true);
                         }}
                         className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 mr-2"

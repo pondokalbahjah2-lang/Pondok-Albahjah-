@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, GeneralSettings } from './types';
+import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -12,6 +12,7 @@ import { SuratTeguranView } from './components/SuratTeguranView';
 import { KalenderView } from './components/KalenderView';
 import { LaporanView } from './components/LaporanView';
 import { SettingsView } from './components/SettingsView';
+import { KajianView } from './components/KajianView';
 import { db, auth, handleFirestoreError, OperationType } from './utils/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, getDocs, limit, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -35,6 +36,7 @@ export default function App() {
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({});
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
+  const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
   
   const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
@@ -531,8 +533,14 @@ export default function App() {
     }
   };
 
+  const handleSaveKajian = (newRecords: KajianRecord[]) => {
+    setKajianRecords(newRecords);
+    AppStorage.saveKajianRecords(newRecords);
+  };
+
   const handleSaveManhajiyyahClauses = async (cls: typeof manhajiyyahClauses) => {
     setManhajiyyahClauses(cls);
+
     if (currentUser?.role === 'Admin') {
       try {
         const addedOrUpdated = cls.filter(a => {
@@ -815,7 +823,16 @@ export default function App() {
                 }}
               />
             )}
-          </motion.div>
+          
+            {activeTab === 'kajian' && (
+              <KajianView 
+                currentUser={currentUser}
+                kajianRecords={kajianRecords}
+                onSaveKajian={handleSaveKajian}
+                accounts={accounts}
+              />
+            )}
+</motion.div>
 
         </AnimatePresence>
         

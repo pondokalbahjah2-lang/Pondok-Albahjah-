@@ -1,4 +1,4 @@
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, getLogicalAttendanceDateStr } from '../utils/dateUtils';
 import React, { useState } from 'react';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
@@ -547,7 +547,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const attBody = userAtt.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(a => [
       a.date,
       ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time,
-      ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLocalDateString() ? 'Tidak Absen Pulang' : '-')),
+      ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLogicalAttendanceDateStr(accounts.find(u => u.id === a.pejuangId)) ? 'Tidak Absen Pulang' : '-')),
       a.status,
       a.notes || '-'
     ]);
@@ -922,7 +922,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                     <tr key={a.id}>
                       <td className="p-2.5 font-medium">{a.date}</td>
                       <td className="p-2.5 font-bold text-emerald-600">{['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time}</td>
-                      <td className="p-2.5 font-bold text-amber-600">{['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLocalDateString() ? 'Tidak Absen Pulang' : '-'))}</td>
+                      <td className="p-2.5 font-bold text-amber-600">{['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLogicalAttendanceDateStr(accounts.find(u => u.id === a.pejuangId)) ? 'Tidak Absen Pulang' : '-'))}</td>
                       <td className="p-2.5">
                         <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold ${
                           a.status === 'Hadir' ? 'bg-emerald-100 text-emerald-700' :

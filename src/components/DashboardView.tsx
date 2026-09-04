@@ -639,6 +639,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Amanah: {currentUser.amanah} ({currentUser.subDivisi})
             </p>
+            {currentUser.role === 'Pejuang' && (currentUser.suratKeputusanUrl || currentUser.pkwtStart || currentUser.pkwtEnd) && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {currentUser.suratKeputusanUrl && (
+                  <a 
+                    href={currentUser.suratKeputusanUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-md text-[10px] font-bold border border-emerald-200 dark:border-emerald-800"
+                  >
+                    <FileText className="w-3 h-3" />
+                    Lihat SK
+                  </a>
+                )}
+                {(currentUser.pkwtStart || currentUser.pkwtEnd) && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] font-bold border border-slate-200 dark:border-slate-700">
+                    <Calendar className="w-3 h-3" />
+                    PKWT: {currentUser.pkwtStart || '?'} s.d {currentUser.pkwtEnd || '?'}
+                  </span>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -917,7 +939,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Charts Section */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+
+
         {/* Bar Chart: Weekly Attendance Trends (Current Month) */}
         <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
@@ -1355,7 +1381,47 @@ const PejuangDashboardAnalytics: React.FC<{
   exitPermissions: ExitPermissionRecord[];
 }> = ({ currentUser, attendance, leaveRequests, exitPermissions }) => {
   // Chart data 1 week
-  const last7DaysData = React.useMemo(() => {
+  
+  // Leave quota calculation
+  const getSisaCutiTahunan = React.useMemo(() => {
+    const currentYearStr = new Date().getFullYear().toString();
+    const used = leaveRequests
+      .filter(l => l.pejuangId === currentUser.id && l.jenisCuti === 'Cuti Tahunan' && (l.status === 'Disetujui' || l.status === 'Selesai' || l.status === 'Sedang Cuti') && l.tanggalMulai.startsWith(currentYearStr))
+      .reduce((acc, curr) => acc + curr.totalHari, 0);
+    return Math.max(0, 12 - used);
+  }, [leaveRequests, currentUser.id]);
+
+  const maxCuti = 12;
+  const cutiPercent = Math.min(100, Math.round((getSisaCutiTahunan / maxCuti) * 100));
+
+    const last30DaysData = React.useMemo(() => {
+    const data = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = getLocalDateString(d);
+      
+      const record = attendance.find(a => a.pejuangId === currentUser.id && a.date === dateStr);
+      let statusVal = 0;
+      let fill = '#e2e8f0'; 
+      if (record) {
+        if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } 
+        else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } 
+        else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; } 
+      }
+      data.push({
+        name: d.getDate(),
+        date: dateStr,
+        status: record ? record.status : 'Belum/Libur',
+        value: statusVal,
+        fill
+      });
+    }
+    return data;
+  }, [attendance, currentUser.id]);
+
+const last7DaysData = React.useMemo(() => {
     const data = [];
     const today = new Date();
     for (let i = 6; i >= 0; i--) {
@@ -1415,6 +1481,31 @@ const PejuangDashboardAnalytics: React.FC<{
 
   return (
     <div className="space-y-6 mt-6">
+<div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-xl shadow-amber-600/20 text-white relative overflow-hidden group mb-6">
+        <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
+          <CalendarDays className="w-24 h-24" />
+        </div>
+        <div className="relative z-10">
+          <h3 className="text-sm font-bold text-amber-100 mb-1 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4" />
+            Sisa Kuota Cuti Tahunan
+          </h3>
+          <div className="flex items-end gap-2 mb-4">
+            <span className="text-4xl font-black">{getSisaCutiTahunan}</span>
+            <span className="text-sm font-semibold text-amber-200 mb-1">dari {maxCuti} Hari</span>
+          </div>
+          
+          <div className="w-full bg-black/20 rounded-full h-3 mb-2 backdrop-blur-sm overflow-hidden">
+            <div 
+              className="bg-white h-3 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${cutiPercent}%` }}
+            ></div>
+          </div>
+          <p className="text-[10px] font-medium text-amber-100">
+            {12 - getSisaCutiTahunan} hari telah digunakan tahun ini
+          </p>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly Chart */}
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl">
@@ -1452,6 +1543,44 @@ const PejuangDashboardAnalytics: React.FC<{
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* 30 Days Chart */}
+        <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl lg:col-span-2 mt-6">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+            <BarChartIcon className="w-4 h-4 text-emerald-500" />
+            Riwayat Absensi (30 Hari Terakhir)
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={last30DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                <YAxis hide />
+                <RechartsTooltip 
+                  cursor={{ fill: 'transparent' }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-slate-900 text-white text-xs p-2 rounded-lg shadow-xl border border-slate-700">
+                          <p className="font-bold mb-1">{data.date}</p>
+                          <p>Status: <span style={{ color: data.fill }}>{data.status}</span></p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                  {last30DaysData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
 
         {/* Monthly Pie Chart */}
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl">

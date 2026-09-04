@@ -38,6 +38,7 @@ export const SuratTeguranView: React.FC<SuratTeguranViewProps> = ({
   const [alasan, setAlasan] = useState('');
   const [tanggal, setTanggal] = useState(getLocalDateString(new Date()));
   const [fileName, setFileName] = useState('');
+  const [gdriveLink, setGdriveLink] = useState('');
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
 
@@ -72,13 +73,14 @@ export const SuratTeguranView: React.FC<SuratTeguranViewProps> = ({
       tanggal,
       alasan,
       fileName: fileName || `${type.replace(/\s+/g, '_')}_${targetUser.name.replace(/\s+/g, '_')}.pdf`,
-      fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      fileUrl: gdriveLink || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
     };
 
     onSaveWarningLetters([newRecord, ...warningLetters]);
     setShowAddModal(false);
     setAlasan('');
     setFileName('');
+    setGdriveLink('');
     alert(`Rekap ${type} berhasil diterbitkan untuk ${targetUser.name}.`);
   };
 
@@ -305,6 +307,19 @@ export const SuratTeguranView: React.FC<SuratTeguranViewProps> = ({
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
                   placeholder="Contoh: Surat_Teguran_Ahmad.pdf"
+                  className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Link Google Drive Berkas Surat Peringatan
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={gdriveLink}
+                  onChange={(e) => setGdriveLink(e.target.value)}
+                  placeholder="Link Google Drive..."
                   className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                 />
               </div>

@@ -1,4 +1,4 @@
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, getLogicalAttendanceDateStr } from '../utils/dateUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera as CameraIcon } from 'lucide-react';
 import jsQR from 'jsqr';
@@ -396,7 +396,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     }
 
     const now = new Date();
-    const dateStr = getLocalDateString(now);
+    const dateStr = getLogicalAttendanceDateStr(currentUser, now);
     const timeStr = now.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
@@ -492,7 +492,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     currentUser.role === 'Admin' ? true : a.pejuangId === currentUser.id
   );
 
-    const todayDateStr = getLocalDateString(new Date());
+    const todayDateStr = getLogicalAttendanceDateStr(currentUser, new Date());
   const todayRecord = myAttendance.find(a => a.date === todayDateStr && a.pejuangId === currentUser.id);
   const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Cuti');
   const isClockedIn = !!todayRecord;

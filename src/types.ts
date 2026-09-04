@@ -24,6 +24,9 @@ export interface UserAccount {
   pushNotificationsEnabled?: boolean;
   webAuthnCredentialId?: string;
   passwordLastUpdated?: string;
+  suratKeputusanUrl?: string;
+  pkwtStart?: string;
+  pkwtEnd?: string;
 }
 
 export interface ManhajiyyahClause {
@@ -156,4 +159,19 @@ export interface HijriDate {
   monthNumber: number;
   year: number;
   formatted: string;
+}
+
+export interface KajianRecord {
+  id: string;
+  pejuangId: string;
+  pejuangName: string;
+  subDivisi: string;
+  date: string;
+  kajianName: string;
+  mode: 'Offline' | 'Online';
+  latitude?: number;
+  longitude?: number;
+  isWithinRadius?: boolean;
+  attendancePhotoUrl?: string; // Gdrive Link
+  notesPhotoUrl?: string; // Gdrive Link
 }

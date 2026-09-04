@@ -48,6 +48,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   
   const [bulkRows, setBulkRows] = useState([{ pejuangId: '', gdriveLink: '', password: '' }]);
   const [bulkPeriode, setBulkPeriode] = useState('Agustus 2026');
+  const [bulkSubDivisiFilter, setBulkSubDivisiFilter] = useState('Semua');
 
   const [revealSlipId, setRevealSlipId] = useState('');
   const [revealPasswordInput, setRevealPasswordInput] = useState('');
@@ -59,6 +60,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   const itemsPerPage = 10;
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
+  const subDivisiList = React.useMemo(() => ['Semua', ...Array.from(new Set(pejuangAccounts.map(p => p.subDivisi)))], [pejuangAccounts]);
 
   // Filter Slip Ubar list
   const filteredSlips = slipUbarList.filter((s) => {
@@ -211,7 +213,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
                 >
                   <option value="">-- Pilih Pejuang --</option>
-                  {pejuangAccounts.map((p) => (
+                  {pejuangAccounts.filter(p => bulkSubDivisiFilter === 'Semua' || p.subDivisi === bulkSubDivisiFilter).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.subDivisi})
                     </option>
@@ -286,6 +288,20 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
               <Upload className="w-4 h-4 text-emerald-600" />
               <span>Upload Slip Ubar Massal</span>
             </h2>
+            <div className="mb-2">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                Filter Divisi untuk Dropdown Pejuang
+              </label>
+              <select
+                value={bulkSubDivisiFilter}
+                onChange={(e) => setBulkSubDivisiFilter(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
+              >
+                {subDivisiList.map(sd => (
+                  <option key={sd} value={sd}>{sd}</option>
+                ))}
+              </select>
+            </div>
             <form onSubmit={handleBulkUploadSlip} className="space-y-3">
               <div className="space-y-2">
                 {bulkRows.map((row, index) => (
@@ -301,7 +317,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                       className="w-1/3 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
                     >
                       <option value="">-- Pejuang --</option>
-                      {pejuangAccounts.map((p) => (
+                      {pejuangAccounts.filter(p => bulkSubDivisiFilter === 'Semua' || p.subDivisi === bulkSubDivisiFilter).map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
