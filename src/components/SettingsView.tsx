@@ -394,7 +394,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [schJamPulang, setSchJamPulang] = useState('16:00');
   const [schHariKerja, setSchHariKerja] = useState<string[]>(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
 
-  const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+  const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
   const uniqueDivisions = Array.from(new Set(accounts.map(a => a.subDivisi))).filter(Boolean);
 
 
@@ -1042,7 +1042,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                      Pejuang Berwenang Approve Izin Keluar (Maks 9)
+                      Pejuang Berwenang Approve Izin Keluar (Maks 20)
                     </label>
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
                       {accounts.filter(a => a.role === 'Pejuang').map(acc => (
@@ -1064,7 +1064,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                      Pejuang Berwenang Approve Cuti (Maks 9)
+                      Pejuang Berwenang Approve Cuti (Maks 20)
                     </label>
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
                       {accounts.filter(a => a.role === 'Pejuang').map(acc => (
@@ -1979,7 +1979,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Hari Kerja Aktif</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((hari) => {
+                  {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'].map((hari) => {
                     const isSelected = schHariKerja.includes(hari);
                     return (
                       <button

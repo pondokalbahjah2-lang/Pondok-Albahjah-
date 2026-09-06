@@ -5,6 +5,7 @@ import {
   LeaveRequestRecord,
   WarningLetterRecord,
   SlipUbarRecord,
+  KajianRecord,
   WorkSchedule,
   LocationSettings,
   ManhajiyyahClause,
@@ -16,6 +17,7 @@ import {
   INITIAL_LEAVE_REQUESTS,
   INITIAL_MANHAJIYYAH_CLAUSES,
   INITIAL_SLIP_UBAR,
+  INITIAL_KAJIAN_RECORDS,
   INITIAL_WARNING_LETTERS,
   INITIAL_SCHEDULES,
   INITIAL_LOCATION_SETTINGS,
@@ -28,6 +30,7 @@ const STORAGE_KEYS = {
   LEAVE_REQUESTS: 'albahjah_leave_requests_v2',
   WARNING_LETTERS: 'albahjah_warning_letters_v2',
   SLIP_UBAR: 'albahjah_slip_ubar_v2',
+  KAJIAN: 'albahjah_kajian_v2',
   SCHEDULES: 'albahjah_schedules_v2',
   LOCATION_SETTINGS: 'albahjah_location_settings_v2',
   MANHAJIYYAH: 'albahjah_manhajiyyah_v2',
@@ -76,6 +79,8 @@ export const Storage = {
 
   getSlipUbar: (): SlipUbarRecord[] => getItem(STORAGE_KEYS.SLIP_UBAR, INITIAL_SLIP_UBAR),
   saveSlipUbar: (data: SlipUbarRecord[]) => setItem(STORAGE_KEYS.SLIP_UBAR, data),
+  getKajianRecords: (): KajianRecord[] => getItem(STORAGE_KEYS.KAJIAN, INITIAL_KAJIAN_RECORDS),
+  saveKajianRecords: (data: KajianRecord[]) => setItem(STORAGE_KEYS.KAJIAN, data),
 
   getSchedules: (): WorkSchedule[] => getItem(STORAGE_KEYS.SCHEDULES, INITIAL_SCHEDULES),
   saveSchedules: (data: WorkSchedule[]) => setItem(STORAGE_KEYS.SCHEDULES, data),

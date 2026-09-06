@@ -420,11 +420,16 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schPulangH, schPulangM] = (userSchedule?.jamPulang || '16:00').split(':').map(Number);
       let pulangNotes = todayRecord!.notes;
-      if ((currH * 60 + currM) < (schPulangH * 60 + schPulangM)) {
-        const confirmEarly = window.confirm(`Jam pulang yang ditetapkan adalah ${userSchedule?.jamPulang || '16:00'}. Anda yakin ingin pulang lebih awal?`);
-        if (!confirmEarly) return;
+      
+      const diffPulangMins = (schPulangH * 60 + schPulangM) - (currH * 60 + currM);
+      if (diffPulangMins > 5) {
+        alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${userSchedule?.jamPulang || '16:00'}).`);
+        return;
+      }
+      if (diffPulangMins > 0) {
         pulangNotes = (pulangNotes ? pulangNotes + ' | ' : '') + 'Pulang Lebih Awal';
       }
+
 
       // Clock out
       const updatedRecord = {
@@ -458,6 +463,12 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     if (attendanceStatus === 'Hadir') {
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schH, schM] = (userSchedule?.jamMasuk || '04:30').split(':').map(Number);
+      const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
+      if (diffMasukMins > 60) {
+        alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${userSchedule?.jamMasuk || '04:30'}).`);
+        return;
+      }
+
       if ((currH * 60 + currM) > (schH * 60 + schM)) {
         finalStatus = 'Terlambat';
       }

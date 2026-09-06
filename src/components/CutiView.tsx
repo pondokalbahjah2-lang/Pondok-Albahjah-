@@ -58,6 +58,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
   // Form states
   const [targetPejuangId, setTargetPejuangId] = useState(currentUser.id);
   const [nipy, setNipy] = useState('');
+  const [isManualEntry, setIsManualEntry] = useState(false);
   const [jenisCuti, setJenisCuti] = useState(jenisCutiList[0]?.name || 'Cuti Tahunan');
   const [alasan, setAlasan] = useState('');
   const [tanggalMulai, setTanggalMulai] = useState(getLocalDateString());
@@ -350,6 +351,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
       {/* Leave Requests Table */}
       
       {statusFilter === 'Rekap Kuota Cuti' ? (
+        <>
         <div className="bg-white/70 dark:bg-slate-900/60 rounded-3xl border border-white/60 dark:border-white/10 shadow-xl overflow-hidden p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white">Rekap & Input Manual Cuti Tahunan</h3>
@@ -395,6 +397,56 @@ export const CutiView: React.FC<CutiViewProps> = ({
             </table>
           </div>
         </div>
+
+        <div className="bg-white/70 dark:bg-slate-900/60 rounded-3xl border border-white/60 dark:border-white/10 shadow-xl overflow-hidden p-6 mb-6 mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-emerald-500" />
+              Tabel Riwayat Pemakaian Cuti Keseluruhan
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/50">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-bold">
+                  <th className="py-3 px-3">Pejuang</th>
+                  <th className="py-3 px-3">Jenis Cuti</th>
+                  <th className="py-3 px-3">Tanggal Pelaksanaan</th>
+                  <th className="py-3 px-3">Durasi</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {leaveRequests.filter(l => l.status === 'Disetujui' || l.status === 'Selesai' || l.status === 'Sedang Cuti').length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 italic">Belum ada riwayat cuti yang disetujui.</td>
+                  </tr>
+                ) : (
+                  leaveRequests
+                    .filter(l => l.status === 'Disetujui' || l.status === 'Selesai' || l.status === 'Sedang Cuti')
+                    .sort((a, b) => new Date(b.tanggalMulai).getTime() - new Date(a.tanggalMulai).getTime())
+                    .map(req => (
+                      <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-800 dark:text-slate-100">{req.pejuangName}</div>
+                          <div className="text-[10px] text-slate-500">{req.subDivisi}</div>
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-700 dark:text-slate-300">{req.jenisCuti}</td>
+                        <td className="py-3 px-3 text-slate-600 dark:text-slate-400">{req.tanggalMulai} s/d {req.tanggalSelesai}</td>
+                        <td className="py-3 px-3 font-bold text-amber-600 dark:text-amber-500">{req.totalHari} Hari</td>
+                        <td className="py-3 px-3 text-center">
+                          <span className="inline-block px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold text-[10px]">
+                            {req.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </>
       ) : (
 <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs">
@@ -519,6 +571,20 @@ export const CutiView: React.FC<CutiViewProps> = ({
             
             <form onSubmit={handleCreateLeaveRequest} className="space-y-4">
               {currentUser.role === 'Admin' && (
+                <div className="flex items-center gap-2 mb-2 p-2 bg-slate-800/50 rounded-xl border border-slate-700">
+                  <input
+                    type="checkbox"
+                    id="manualEntry"
+                    checked={isManualEntry}
+                    onChange={(e) => setIsManualEntry(e.target.checked)}
+                    className="w-4 h-4 text-emerald-500 rounded bg-slate-800 border-slate-700 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="manualEntry" className="text-xs font-semibold text-emerald-400">
+                    Bypass Approval (Input Data Historis Cuti)
+                  </label>
+                </div>
+              )}
+              {currentUser.role === 'Admin' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Pilih Pejuang
@@ -602,7 +668,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Tanggal Awal Cuti
@@ -615,7 +681,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                     className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   />
                 </div>
-                {jenisCuti === 'Cuti Tahunan' && currentUser.role !== 'Admin' ? (
+                {jenisCuti === 'Cuti Tahunan' && currentUser.role !== 'Admin' && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
                       Durasi (1-4 Hari)
@@ -631,20 +697,24 @@ export const CutiView: React.FC<CutiViewProps> = ({
                       <option value={4}>4 Hari</option>
                     </select>
                   </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Tanggal Kembali Cuti
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={tanggalSelesai}
-                      onChange={(e) => setTanggalSelesai(e.target.value)}
-                      className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
-                    />
-                  </div>
                 )}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Tanggal Kembali Cuti
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={tanggalSelesai}
+                    onChange={(e) => setTanggalSelesai(e.target.value)}
+                    disabled={jenisCuti === 'Cuti Tahunan' && currentUser.role !== 'Admin'}
+                    className={`w-full p-2.5 rounded-xl border border-slate-700 text-xs text-white ${
+                      jenisCuti === 'Cuti Tahunan' && currentUser.role !== 'Admin' 
+                        ? 'bg-slate-800/50 cursor-not-allowed opacity-70' 
+                        : 'bg-slate-800'
+                    }`}
+                  />
+                </div>
               </div>
               
               <button

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UserAccount, KajianRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
 import { BookOpen, MapPin, Search, Download, AlertTriangle } from 'lucide-react';
+import { LocationMap } from './LocationMap';
 
 interface KajianViewProps {
   currentUser: UserAccount;
@@ -129,6 +130,7 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
             </div>
 
             {mode === 'Offline' && (
+              <>
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">Lokasi Wajib Dikunci (GPS)</p>
                 <button
@@ -141,6 +143,18 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
                   {locationStatus === 'loading' ? 'Mengunci Lokasi...' : locationStatus === 'success' ? 'Lokasi Terkunci!' : 'Ambil Lokasi Saat Ini'}
                 </button>
               </div>
+              {coords.lat && coords.lng && (
+                <div className="mt-2 relative z-0 h-48 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                  <LocationMap 
+                    userLat={coords.lat}
+                    userLng={coords.lng}
+                    pondokLat={-6.758801}
+                    pondokLng={108.472935}
+                    radius={100}
+                  />
+                </div>
+              )}
+              </>
             )}
 
             <div>

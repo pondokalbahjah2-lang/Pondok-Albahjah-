@@ -315,8 +315,8 @@ export default function App() {
       if (Notification.permission !== 'granted') return;
       
       const now = new Date();
-      const currentDayIndex = now.getDay(); // 0 = Minggu
-      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const currentDayIndex = now.getDay(); // 0 = Ahad
+      const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
       const todayStr = days[currentDayIndex];
       
       // Find user's schedule
@@ -654,6 +654,11 @@ export default function App() {
                 accounts={accounts}
                 warningLetters={warningLetters}
                 onSaveWarningLetters={handleSaveWarningLetters}
+                onUpdateAccount={(updatedAcc) => {
+                  const newAccounts = accounts.map(a => a.id === updatedAcc.id ? updatedAcc : a);
+                  setAccounts(newAccounts);
+                  AppStorage.saveAccounts(newAccounts);
+                }}
               />
             )}
             {activeTab === 'kalender' && (

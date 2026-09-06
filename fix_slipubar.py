@@ -1,164 +1,10 @@
-import { getLocalDateString } from '../utils/dateUtils';
-import React, { useState } from 'react';
-import {
-  FileText,
-  Download,
-  Upload,
-  Mail,
-  Lock,
-  Search,
-  CheckCircle,
-  FileCheck,
-  Send,
-  Eye,
-  Key,
-  ClipboardList,
-} from 'lucide-react';
-import { UserAccount, SlipUbarRecord } from '../types';
+import re
 
-interface SlipUbarViewProps {
-  currentUser: UserAccount;
-  accounts: UserAccount[];
-  slipUbarList: SlipUbarRecord[];
-  onSaveSlipUbar: (records: SlipUbarRecord[]) => void;
-  onUpdateAccountPassword?: (pejuangId: string, newPass: string) => void;
-}
+with open("src/components/SlipUbarView.tsx", "r") as f:
+    content = f.read()
 
-interface StagedBulkUpload {
-  filePassword?: string;
-  id: string;
-  file: File;
-  fileName: string;
-  matchedPejuangId: string;
-  periode: string;
-}
-
-export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
-  currentUser,
-  accounts,
-  slipUbarList,
-  onSaveSlipUbar,
-  onUpdateAccountPassword,
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPejuangId, setSelectedPejuangId] = useState('');
-  const [periode, setPeriode] = useState('Agustus 2026');
-  const [fileName, setFileName] = useState('');
-  const [gdriveLink, setGdriveLink] = useState("");
-  const [singleFilePassword, setSingleFilePassword] = useState('');
-  
-  const [bulkData, setBulkData] = useState<Record<string, { gdriveLink: string, password: string }>>({});
-  const [bulkPeriode, setBulkPeriode] = useState('Agustus 2026');
-  const [bulkSubDivisiFilter, setBulkSubDivisiFilter] = useState('Semua');
-
-  const [revealSlipId, setRevealSlipId] = useState('');
-  const [revealPasswordInput, setRevealPasswordInput] = useState('');
-  const [revealedPassword, setRevealedPassword] = useState('');
-  const [revealError, setRevealError] = useState('');
-
-        
-    const [currentPage, setCurrentPage] = useState(1);
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [bulkLogs, setBulkLogs] = useState<{pejuangName: string, id: string, status: string, message: string}[]>([]);
-  const itemsPerPage = 10;
-
-  const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
-  const subDivisiList = React.useMemo(() => ['Semua', ...Array.from(new Set(pejuangAccounts.map(p => p.subDivisi)))], [pejuangAccounts]);
-
-  // Filter Slip Ubar list
-  const filteredSlips = slipUbarList.filter((s) => {
-    const matchesUser =
-      currentUser.role === 'Admin' || s.pejuangId === currentUser.id;
-    const matchesSearch =
-      s.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.periode?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesUser && matchesSearch;
-  });
-
-  
-  const handleUploadSlip = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPejuangId) {
-      alert('Silakan pilih pejuang sasaran upload slip ubar.');
-      return;
-    }
-    if (!gdriveLink) {
-      alert('Silakan masukkan Link Google Drive Slip Ubar.');
-      return;
-    }
-    
-    const pejuangObj = accounts.find((a) => a.id === selectedPejuangId);
-    if (!pejuangObj) return;
-
-    const finalFileName = fileName || `Slip_Ubar_${pejuangObj.name.replace(/\s+/g, '_')}_${periode.replace(/\s+/g, '')}`;
-
-    const newSlip: SlipUbarRecord = {
-      id: `ubar-${Date.now()}`,
-      pejuangId: pejuangObj.id,
-      pejuangName: pejuangObj.name,
-      periode,
-      tanggalUpload: getLocalDateString(new Date()),
-      fileName: finalFileName,
-      fileUrl: gdriveLink,
-      filePassword: singleFilePassword
-    };
-
-    onSaveSlipUbar([newSlip, ...slipUbarList]);
-    setFileName('');
-    setGdriveLink('');
-    setSingleFilePassword('');
-    alert(`Link Dokumen Slip Ubar ${periode} untuk ${pejuangObj.name} berhasil disimpan.`);
-  };
-
-  const handleBulkUploadSlip = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newSlips: SlipUbarRecord[] = [];
-    const currentLogs: {pejuangName: string, id: string, status: string, message: string}[] = [];
-    
-    let errorLines = 0;
-    Object.keys(bulkData).forEach(pId => {
-      const data = bulkData[pId];
-      if (!data.gdriveLink) return;
-      
-      const pejuangObj = pejuangAccounts.find(p => p.id === pId);
-      if (pejuangObj) {
-        // Unique Check Logic - Validate pejuangId explicitly
-        if (pId !== pejuangObj.id) {
-           currentLogs.push({ pejuangName: pejuangObj.name, id: pId, status: 'Failed', message: 'ID Mismatch (Keamanan Gagal)' });
-           errorLines++;
-           return;
-        }
-        
-        const finalFileName = `Slip_Ubar_${pejuangObj.name.replace(/\s+/g, '_')}_${bulkPeriode.replace(/\s+/g, '')}`;
-        newSlips.push({
-          id: `ubar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          pejuangId: pejuangObj.id,
-          pejuangName: pejuangObj.name,
-          periode: bulkPeriode,
-          tanggalUpload: getLocalDateString(new Date()),
-          fileName: finalFileName,
-          fileUrl: data.gdriveLink,
-          filePassword: data.password
-        });
-        currentLogs.push({ pejuangName: pejuangObj.name, id: pId, status: 'Success', message: `Tersambung (Periode ${bulkPeriode})` });
-      } else {
-        currentLogs.push({ pejuangName: 'Unknown', id: pId, status: 'Failed', message: 'Akun Pejuang tidak ditemukan' });
-        errorLines++;
-      }
-    });
-
-    if (newSlips.length > 0) {
-      onSaveSlipUbar([...newSlips, ...slipUbarList]);
-      setBulkLogs(currentLogs);
-      setShowLogModal(true);
-      setBulkData({});
-    } else {
-      alert('Tidak ada link GDrive yang valid untuk diunggah.');
-    }
-  };
-
-
-
+# I will append the missing handleRevealPassword and the return block.
+missing_code = """
   const handleRevealPassword = (e: React.FormEvent) => {
     e.preventDefault();
     const slip = slipUbarList.find(s => s.id === revealSlipId);
@@ -320,21 +166,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
       {/* List */}
       <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100">Daftar Dokumen Slip Ubar</h2>
-            {currentUser.role === 'Admin' && slipUbarList.length > 0 && (
-              <button
-                onClick={() => {
-                  if(window.confirm('PERINGATAN: Apakah Anda yakin ingin menghapus SELURUH dokumen slip ubar? Tindakan ini tidak dapat dibatalkan.')) {
-                    onSaveSlipUbar([]);
-                  }
-                }}
-                className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-bold text-[10px] transition-colors"
-              >
-                Hapus Semua
-              </button>
-            )}
-          </div>
+          <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100">Daftar Dokumen Slip Ubar</h2>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -355,7 +187,6 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                 <th className="py-2.5 px-3">Periode</th>
                 <th className="py-2.5 px-3">Nama Berkas</th>
                 <th className="py-2.5 px-3 text-right">Unduh Dokumen</th>
-                {currentUser.role === 'Admin' && <th className="py-2.5 px-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -394,46 +225,11 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                         <Download className="w-3.5 h-3.5 inline mr-1" /> Buka
                       </a>
                     </td>
-                    {currentUser.role === 'Admin' && (
-                      <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Yakin ingin menghapus dokumen ini?')) {
-                              onSaveSlipUbar(slipUbarList.filter(s => s.id !== slip.id));
-                            }
-                          }}
-                          className="py-1.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-[11px]"
-                        >
-                          Hapus
-                        </button>
-                      </td>
-                    )}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-          {Math.ceil(filteredSlips.length / itemsPerPage) > 1 && (
-            <div className="flex justify-center items-center mt-6 space-x-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 text-xs font-bold"
-              >
-                Sebelumnya
-              </button>
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                Halaman {currentPage} dari {Math.ceil(filteredSlips.length / itemsPerPage)}
-              </span>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredSlips.length / itemsPerPage), p + 1))}
-                disabled={currentPage === Math.ceil(filteredSlips.length / itemsPerPage)}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-50 text-xs font-bold"
-              >
-                Selanjutnya
-              </button>
-            </div>
-          )}
         </div>
       </div>
       
@@ -472,61 +268,12 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Audit Log Modal */}
-      {showLogModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-3xl w-full shadow-2xl text-slate-100 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-              <h3 className="font-bold text-sm text-white flex items-center space-x-2">
-                <ClipboardList className="w-4 h-4 text-emerald-400" />
-                <span>Log Audit Upload Massal Slip Ubar</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowLogModal(false)}
-                className="p-1 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-2">
-               <table className="w-full text-left text-xs">
-                 <thead className="bg-slate-800 text-slate-300 uppercase text-[10px] font-bold sticky top-0">
-                   <tr>
-                     <th className="py-2 px-2">Pejuang</th>
-                     <th className="py-2 px-2">ID Validasi</th>
-                     <th className="py-2 px-2">Status</th>
-                     <th className="py-2 px-2">Keterangan</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-800/50">
-                   {bulkLogs.map((log, idx) => (
-                     <tr key={idx} className="hover:bg-slate-800/50">
-                       <td className="py-2 px-2 font-bold">{log.pejuangName}</td>
-                       <td className="py-2 px-2 text-[10px] text-slate-400 font-mono">{log.id.slice(0, 8)}...</td>
-                       <td className="py-2 px-2">
-                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.status === 'Success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                           {log.status}
-                         </span>
-                       </td>
-                       <td className="py-2 px-2 text-slate-300">{log.message}</td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-            </div>
-            
-            <button
-              onClick={() => setShowLogModal(false)}
-              className="mt-4 w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all"
-            >
-              Tutup Log
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+"""
+
+content = content + missing_code
+
+with open("src/components/SlipUbarView.tsx", "w") as f:
+    f.write(content)
