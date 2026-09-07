@@ -308,6 +308,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const hadirList = todayAttendance.filter(a => a.status === 'Hadir');
     const terlambatList = todayAttendance.filter(a => a.status === 'Terlambat');
     const sakitList = todayAttendance.filter(a => a.status === 'Sakit');
+    const izinList = todayAttendance.filter(a => a.status === 'Izin tidak masuk');
     const liburList = todayAttendance.filter(a => a.status === 'Libur');
 
     const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
@@ -319,12 +320,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       terlambat: terlambatList.length,
       sakit: sakitList.length,
       libur: liburList.length,
+      izin: izinList.length,
       belumAbsen: belumAbsenList.length,
       lists: {
         hadir: hadirList,
         terlambat: terlambatList,
         sakit: sakitList,
         libur: liburList,
+        izinTdkMasuk: izinList,
         belumAbsen: belumAbsenList
       }
     };
@@ -866,6 +869,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Rekap Keluar Pondok
           </div>
         </div>
+        {/* Total Izin Tidak Masuk */}
+        <div 
+          onClick={() => setActiveListModal('izinTdkMasuk')}
+          className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg cursor-pointer hover:scale-105 transition-transform"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              Izin Tdk Masuk
+            </span>
+            <div className="p-2 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">
+            {todayStats.izin || 0}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1">
+            Tidak Hadir (Izin)
+          </div>
+        </div>
 
         {/* Total Sakit */}
         <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
@@ -1324,6 +1347,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {activeListModal === 'sakit' && 'Daftar Pejuang Sakit'}
                   {activeListModal === 'libur' && 'Daftar Pejuang Libur/Cuti'}
                   {activeListModal === 'belumAbsen' && 'Daftar Belum Absen'}
+                  {activeListModal === 'izinTdkMasuk' && 'Daftar Izin Tidak Masuk'}
                 </span>
               </h2>
               <button
@@ -1410,7 +1434,8 @@ const PejuangDashboardAnalytics: React.FC<{
       if (record) {
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } 
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } 
-        else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; } 
+        else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
+        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } 
       }
       data.push({
         name: d.getDate(),
@@ -1439,7 +1464,8 @@ const last7DaysData = React.useMemo(() => {
       if (record) {
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } // emerald
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } // amber
-        else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; } // blue
+        else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
+        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } // blue
       }
       
       data.push({
@@ -1462,6 +1488,7 @@ const last7DaysData = React.useMemo(() => {
     let hadir = 0;
     let terlambat = 0;
     let sakit = 0;
+    let izin = 0;
     
     attendance.forEach(a => {
       if (a.pejuangId === currentUser.id) {
@@ -1470,6 +1497,7 @@ const last7DaysData = React.useMemo(() => {
           if (a.status === 'Hadir') hadir++;
           else if (a.status === 'Terlambat') terlambat++;
           else if (a.status === 'Sakit') sakit++;
+          else if (a.status === 'Izin tidak masuk') izin++;
         }
       }
     });

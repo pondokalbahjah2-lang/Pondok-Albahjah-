@@ -47,7 +47,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [locError, setLocError] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang'>('Hadir');
+  const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang' | 'Izin tidak masuk'>('Hadir');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 10;
@@ -383,13 +383,13 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     
 
-    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && !isWithinRadius && currentUser.role === 'Pejuang') {
+    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin tidak masuk' && !isWithinRadius && currentUser.role === 'Pejuang') {
       alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
       return;
     }
     
     if (!currentLat || !currentLng) {
-      if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit') {
+      if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit' && attendanceStatus !== 'Izin tidak masuk') {
         alert('Tunggu hingga lokasi GPS Anda ditemukan (klik Cek Lokasi GPS) sebelum mengirim absensi.');
         return;
       }
@@ -505,9 +505,9 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     const todayDateStr = getLogicalAttendanceDateStr(currentUser, new Date());
   const todayRecord = myAttendance.find(a => a.date === todayDateStr && a.pejuangId === currentUser.id);
-  const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Cuti');
+  const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Izin tidak masuk' && a.status !== 'Cuti');
   const isClockedIn = !!todayRecord;
-  const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Cuti'));
+  const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Izin tidak masuk' || todayRecord.status === 'Cuti'));
 
   useEffect(() => {
     if (isClockedIn && !isClockedOut) {
@@ -574,8 +574,8 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
                 Pilih Status Kehadiran
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                {(['Hadir', 'Sakit', 'Libur', 'Pulang'] as const).map((st) => (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
+                {(['Hadir', 'Sakit', 'Libur', 'Izin tidak masuk', 'Pulang'] as const).map((st) => (
                   <button
                     key={st}
                     type="button"
@@ -830,6 +830,8 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                               ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
                               : rec.status === 'Terlambat'
                               ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
+                              : rec.status === 'Izin tidak masuk'
+                              ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300'
                               : 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
                           }`}
                         >

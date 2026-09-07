@@ -51,7 +51,7 @@ export interface AttendanceRecord {
   latitude: number;
   longitude: number;
   distanceFromPondok: number; // in meters
-  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur';
+  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin tidak masuk';
   isWithinRadius: boolean;
   notes?: string;
 }

@@ -85,7 +85,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   const uniqueDivisions = Array.from(new Set(accounts.filter(a => a.subDivisi).map(a => a.subDivisi)));
   
   const overallChartData = React.useMemo(() => {
-    let hadir = 0, telat = 0, sakit = 0, cuti = 0, libur = 0, izin = 0;
+    let hadir = 0, telat = 0, sakit = 0, cuti = 0, libur = 0, izinKeluar = 0, izinTdkMasuk = 0;
     
     // Iterate through dates in the range
     const start = new Date(reportStartDate);
@@ -102,8 +102,9 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         
         if (isCuti) cuti++;
         else if (att?.status === 'Sakit') sakit++;
+        else if (att?.status === 'Izin tidak masuk') izinTdkMasuk++;
         else if (att?.status === 'Libur') libur++;
-        else if (isIzin) izin++;
+        else if (isIzin) izinKeluar++;
         else if (att) {
           if (att.status === 'Hadir') hadir++;
           else if (att.status === 'Terlambat') telat++;
@@ -116,7 +117,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       { name: 'Telat', Total: telat, fill: '#f59e0b' },
       { name: 'Sakit', Total: sakit, fill: '#f43f5e' },
       { name: 'Cuti', Total: cuti, fill: '#6366f1' },
-      { name: 'Izin', Total: izin, fill: '#0ea5e9' },
+      { name: 'Izin Keluar', Total: izinKeluar, fill: '#0ea5e9' },
+      { name: 'Izin Tdk Masuk', Total: izinTdkMasuk, fill: '#3b82f6' },
       { name: 'Libur', Total: libur, fill: '#a855f7' }
     ];
   }, [reportStartDate, reportEndDate, accounts, attendance, leaveRequests, exitPermissions]);
@@ -345,6 +347,10 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           valMasuk = 'Cuti';
           valPulang = 'Cuti';
           totalCuti++;
+        } else if (att?.status === 'Izin tidak masuk') {
+          valMasuk = 'Izin';
+          valPulang = 'Izin';
+          totalIzin++;
         } else if (att?.status === 'Sakit') {
           valMasuk = 'Sakit';
           valPulang = 'Sakit';
@@ -455,6 +461,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
         if (isCuti) {
           valM = 'C'; valP = 'C'; totalCuti++;
+        } else if (att?.status === 'Izin tidak masuk') {
+          valM = 'I'; valP = 'I'; totalIzin++;
         } else if (att?.status === 'Sakit') {
           valM = 'S'; valP = 'S'; totalSakit++;
         } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari)) {
@@ -529,6 +537,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       ['Hadir Tepat Waktu', totalHadir],
       ['Terlambat', totalTerlambat],
       ['Sakit', totalSakit],
+      ['Izin Tidak Masuk', userAtt.filter((a) => a.status === 'Izin tidak masuk').length],
       ['Izin Keluar', userExits.length],
       ['Cuti', userLeaves.length],
       ['Slip Ubar Uploaded', userSlipUbars.length],
@@ -620,7 +629,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
             className="py-2.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-2"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Unduh CSV</span>
+            <span>Unduh Excel</span>
           </button>
           <button
             onClick={handleExportIndividualPDF}
@@ -927,6 +936,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                         <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold ${
                           a.status === 'Hadir' ? 'bg-emerald-100 text-emerald-700' :
                           a.status === 'Terlambat' ? 'bg-orange-100 text-orange-700' :
+                          a.status === 'Izin tidak masuk' ? 'bg-blue-100 text-blue-700' :
                           'bg-emerald-100 text-emerald-700'
                         }`}>
                           {a.status}

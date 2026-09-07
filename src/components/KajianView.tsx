@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { UserAccount, KajianRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
+import { calculateDistanceMeters } from '../utils/storage';
 import { BookOpen, MapPin, Search, Download, AlertTriangle } from 'lucide-react';
 import { LocationMap } from './LocationMap';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface KajianViewProps {
   currentUser: UserAccount;
   kajianRecords: KajianRecord[];
   onSaveKajian: (records: KajianRecord[]) => void;
   accounts: UserAccount[];
+  locationSettings: any;
 }
 
-export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecords, onSaveKajian, accounts }) => {
+export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecords, onSaveKajian, accounts, locationSettings }) => {
   const isAdmin = currentUser.role === 'Admin';
   
   const [kajianName, setKajianName] = useState("Kajian Tafsir Al-Qur'an Setiap Sabtu Pagi");
@@ -20,6 +25,9 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
   const [notesPhotoUrl, setNotesPhotoUrl] = useState('');
   
   const [locationStatus, setLocationStatus] = useState<'idle'|'loading'|'success'|'error'>('idle');
+  const [locError, setLocError] = useState('');
+  const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
+
   const [coords, setCoords] = useState<{lat: number, lng: number}>({lat: 0, lng: 0});
   
   // Admin Search
@@ -29,17 +37,51 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
 
   const getLocation = () => {
     setLocationStatus('loading');
-    setTimeout(() => {
-      setCoords({lat: -6.74, lng: 108.55}); // Dummy coordinates
-      setLocationStatus('success');
-    }, 1500);
+    setLocError('');
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCoords({ lat, lng });
+          const dist = calculateDistanceMeters(
+            lat,
+            lng,
+            locationSettings.latitude,
+            locationSettings.longitude
+          );
+          setDistanceMeters(dist);
+          setLocationStatus('success');
+        },
+        (err) => {
+          let errMsg = 'Gagal mengambil lokasi.';
+          if (err.code === err.PERMISSION_DENIED) errMsg = 'Izin akses lokasi ditolak.';
+          if (err.code === err.POSITION_UNAVAILABLE) errMsg = 'Lokasi tidak tersedia.';
+          if (err.code === err.TIMEOUT) errMsg = 'Waktu permintaan habis.';
+          setLocError(errMsg);
+          setLocationStatus('error');
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    } else {
+      setLocError('Browser tidak mendukung Geolocation.');
+      setLocationStatus('error');
+    }
   };
+  
+  const isWithinRadius = distanceMeters !== null && distanceMeters <= locationSettings.radiusMaxMeters;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'Offline' && locationStatus !== 'success') {
-      alert("Harap ambil lokasi Anda terlebih dahulu untuk absen Offline.");
-      return;
+    if (mode === 'Offline') {
+      if (locationStatus !== 'success') {
+        alert("Harap ambil lokasi Anda terlebih dahulu untuk absen Offline.");
+        return;
+      }
+      if (!isWithinRadius && currentUser.role === 'Pejuang') {
+        alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
+        return;
+      }
     }
     if (!attendancePhotoUrl || !notesPhotoUrl) {
       alert("Mohon isi link Google Drive untuk foto kehadiran dan catatan.");
@@ -73,20 +115,47 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
     return true;
   });
 
-  const handleDownloadCsv = () => {
-    const header = "Nama Pejuang,Sub Divisi,Tanggal,Nama Kajian,Mode,Bukti Hadir,Bukti Catatan\n";
-    const rows = filteredRecords.map(r => 
-      `${r.pejuangName},${r.subDivisi},${r.date},${r.kajianName},${r.mode},${r.attendancePhotoUrl ? 'Ada' : 'Tidak Ada'},${r.notesPhotoUrl ? 'Ada' : 'Tidak Ada'}`
-    ).join("\n");
-    const blob = new Blob([header + rows], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('hidden', '');
-    a.setAttribute('href', url);
-    a.setAttribute('download', `Laporan_Kajian_${filterStartDate}_sd_${filterEndDate}.csv`);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownloadExcel = () => {
+    if (filteredRecords.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+    const data = filteredRecords.map(r => ({
+      'Tanggal': r.date,
+      'Nama Pejuang': r.pejuangName,
+      'Sub Divisi': r.subDivisi,
+      'Kajian': r.kajianName,
+      'Mode': r.mode,
+      'Link Hadir': r.attendancePhotoUrl || '-',
+      'Link Catatan': r.notesPhotoUrl || '-'
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kajian");
+    XLSX.writeFile(wb, `Laporan_Kajian_${filterStartDate}_sd_${filterEndDate}.xlsx`);
+  };
+
+  const handleDownloadPDF = () => {
+    if (filteredRecords.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+    const doc = new jsPDF('landscape');
+    doc.text(`Laporan Absensi Kajian Buya Yahya (${filterStartDate} s/d ${filterEndDate})`, 14, 15);
+    
+    const tableData = filteredRecords.map(r => [
+      r.date, r.pejuangName, r.subDivisi, r.kajianName, r.mode, r.attendancePhotoUrl ? 'Ada' : '-', r.notesPhotoUrl ? 'Ada' : '-'
+    ]);
+
+    autoTable(doc, {
+      startY: 20,
+      head: [['Tanggal', 'Nama Pejuang', 'Sub Divisi', 'Kajian', 'Mode', 'Link Hadir', 'Link Catatan']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] }
+    });
+    
+    doc.save(`Laporan_Kajian_${filterStartDate}_sd_${filterEndDate}.pdf`);
   };
 
   return (
@@ -143,15 +212,21 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
                   {locationStatus === 'loading' ? 'Mengunci Lokasi...' : locationStatus === 'success' ? 'Lokasi Terkunci!' : 'Ambil Lokasi Saat Ini'}
                 </button>
               </div>
-              {coords.lat && coords.lng && (
-                <div className="mt-2 relative z-0 h-48 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                  <LocationMap 
-                    userLat={coords.lat}
-                    userLng={coords.lng}
-                    pondokLat={-6.758801}
-                    pondokLng={108.472935}
-                    radius={100}
-                  />
+              {locError && <div className="mt-2 p-2 bg-rose-100 text-rose-700 text-xs rounded-lg font-bold">{locError}</div>}
+              {coords.lat !== 0 && coords.lng !== 0 && (
+                <div className="mt-3">
+                  <div className="text-xs mb-2">
+                    Jarak dari pondok: <strong className={isWithinRadius ? 'text-emerald-600' : 'text-rose-600'}>{distanceMeters} meter</strong> (Maks: {locationSettings.radiusMaxMeters}m)
+                  </div>
+                  <div className="relative z-0 h-48 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                    <LocationMap 
+                      userLat={coords.lat}
+                      userLng={coords.lng}
+                      pondokLat={locationSettings.latitude}
+                      pondokLng={locationSettings.longitude}
+                      radius={locationSettings.radiusMaxMeters}
+                    />
+                  </div>
                 </div>
               )}
               </>
@@ -204,10 +279,16 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
                 <input type="text" placeholder="Cari nama..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-xs" />
               </div>
             </div>
-            <button onClick={handleDownloadCsv} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Unduh Laporan Excel/CSV
-            </button>
+            <div className="flex gap-2">
+              <button onClick={handleDownloadExcel} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Excel
+              </button>
+              <button onClick={handleDownloadPDF} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                PDF
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

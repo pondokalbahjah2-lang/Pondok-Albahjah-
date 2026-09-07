@@ -478,6 +478,19 @@ export default function App() {
     }
   };
 
+    const handleDeleteAllSlipUbar = async () => {
+    setSlipUbarList([]);
+    if (currentUser?.role === 'Admin') {
+      try {
+        const snapshot = await getDocs(collection(db, 'slipUbar'));
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        await logAudit('DELETE_ALL_SLIP', 'Admin deleted all slip ubar documents', currentUser);
+      } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'slipUbar'); }
+    }
+  };
+
   const handleSaveSlipUbar = async (slps: typeof slipUbarList) => {
     const addedOrUpdated = slps.filter(a => {
       const existing = slipUbarList.find(ex => ex.id === a.id);
@@ -646,6 +659,7 @@ export default function App() {
                 accounts={accounts}
                 slipUbarList={slipUbarList}
                 onSaveSlipUbar={handleSaveSlipUbar}
+                onDeleteAllSlipUbar={handleDeleteAllSlipUbar}
               />
             )}
             {activeTab === 'sp' && (
@@ -832,6 +846,7 @@ export default function App() {
             {activeTab === 'kajian' && (
               <KajianView 
                 currentUser={currentUser}
+                locationSettings={locationSettings}
                 kajianRecords={kajianRecords}
                 onSaveKajian={handleSaveKajian}
                 accounts={accounts}
