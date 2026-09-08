@@ -216,6 +216,12 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                     <option key={p.id} value={p.id}>{p.name} ({p.subDivisi})</option>
                   ))}
                 </select>
+                {selectedPejuangId && (
+                  <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Target file: Slip_Ubar_{pejuangAccounts.find(p => p.id === selectedPejuangId)?.name.replace(/\s+/g, '_')}_{periode.replace(/\s+/g, '')}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

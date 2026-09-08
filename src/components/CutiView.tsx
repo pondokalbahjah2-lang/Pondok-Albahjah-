@@ -86,13 +86,13 @@ export const CutiView: React.FC<CutiViewProps> = ({
     if (tanggalMulai && jenisCuti && showAddModal) {
       if (jenisCuti === 'Cuti Tahunan') {
         const start = new Date(tanggalMulai);
-        start.setDate(start.getDate() + (durasiCutiTahunan - 1));
+        start.setDate(start.getDate() + durasiCutiTahunan);
         setTanggalSelesai(getLocalDateString(start));
       } else {
         const selectedJenis = jenisCutiList.find(j => j.name === jenisCuti);
         const max = selectedJenis?.maxDays || 1;
         const start = new Date(tanggalMulai);
-        start.setDate(start.getDate() + (max - 1));
+        start.setDate(start.getDate() + max);
         setTanggalSelesai(getLocalDateString(start));
       }
     }
@@ -117,7 +117,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
     const start = new Date(tanggalMulai);
     const end = new Date(tanggalSelesai);
     const diffTime = Math.max(0, end.getTime() - start.getTime());
-    const totalHari = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const totalHari = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Karena end adalah tanggal kembali
 
     // Check Cuti Tahunan rules
     if (jenisCuti === 'Cuti Tahunan') {

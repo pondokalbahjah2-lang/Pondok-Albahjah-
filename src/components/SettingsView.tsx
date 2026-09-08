@@ -14,6 +14,8 @@ import {
   Key,
   ShieldCheck,
   CheckCircle,
+  Calendar,
+  X,
   Camera,
   User,
   Upload,
@@ -40,7 +42,7 @@ interface SettingsViewProps {
   accounts: UserAccount[];
   locationSettings: LocationSettings;
   schedules: WorkSchedule[];
-  manhajiyyahClauses: ManhajiyyahClause[];
+    manhajiyyahClauses: ManhajiyyahClause[];
   attendance?: AttendanceRecord[];
   onSaveLocationSettings: (settings: LocationSettings) => void;
   onSaveSchedules: (schedules: WorkSchedule[]) => void;
@@ -74,7 +76,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   accounts,
   locationSettings,
   schedules,
-  manhajiyyahClauses,
+    manhajiyyahClauses,
   attendance = [],
   onSaveLocationSettings,
   onSaveSchedules,
@@ -393,6 +395,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [schJamMasuk, setSchJamMasuk] = useState('04:30');
   const [schJamPulang, setSchJamPulang] = useState('16:00');
   const [schHariKerja, setSchHariKerja] = useState<string[]>(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
+  const [schPejuangIds, setSchPejuangIds] = useState<string[]>([]);
+  const [schDivisiIds, setSchDivisiIds] = useState<string[]>([]);
+  const [editScheduleId, setEditScheduleId] = useState('');
+  const [customJamKerja, setCustomJamKerja] = useState<Record<string, { masuk: string, pulang: string }>>({});
+  const [schTanggalLibur, setSchTanggalLibur] = useState<string[]>([]);
 
   const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
   const uniqueDivisions = Array.from(new Set(accounts.map(a => a.subDivisi))).filter(Boolean);
@@ -440,6 +447,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     );
   };
 
+  
+  const handleEditSchedule = (sch: WorkSchedule) => {
+    setEditScheduleId(sch.id);
+    setSchTargetType(sch.targetType);
+    setSchPejuangIds(sch.pejuangIds || []);
+    setSchDivisiIds(sch.divisiIds || []);
+    setSchTargetName(sch.targetName);
+    setSchJamMasuk(sch.jamMasuk);
+    setSchJamPulang(sch.jamPulang);
+    setSchHariKerja(sch.hariKerja || []);
+    setCustomJamKerja(sch.customJamKerja || {});
+    setSchTanggalLibur(sch.tanggalLibur || []);
+    setShowAddScheduleModal(true);
+  };
+
   const handleAddSchedule = (e: React.FormEvent) => {
     e.preventDefault();
     const finalTargetName = schTargetType === 'Divisi' ? (schSelectedDivisi || schTargetName || 'Semua Divisi') : schTargetName;
@@ -449,17 +471,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
     const targetPejuang = schTargetType === 'Individu' ? accounts.find(a => a.name === finalTargetName) : undefined;
     
+    
     const newSchedule: WorkSchedule = {
-      id: `sch-${Date.now()}`,
+      id: editScheduleId || `sch-${Date.now()}`,
       targetType: schTargetType,
-      targetId: schTargetType === 'Individu' ? (targetPejuang?.id || finalTargetName) : finalTargetName,
+      targetId: schTargetType === 'Individu' ? (targetPejuang?.id || finalTargetName) : schTargetType === 'Group' ? 'Group' : finalTargetName,
       targetName: finalTargetName,
       jamMasuk: schJamMasuk,
       jamPulang: schJamPulang,
-      hariKerja: schHariKerja
+      hariKerja: schHariKerja,
+      customJamKerja,
+      tanggalLibur: schTanggalLibur,
+      pejuangIds: schTargetType === 'Group' ? schPejuangIds : undefined,
+      divisiIds: schTargetType === 'Group' ? schDivisiIds : undefined
     };
-    onSaveSchedules([...schedules, newSchedule]);
+
+    if (editScheduleId) {
+      onSaveSchedules(schedules.map(s => s.id === editScheduleId ? newSchedule : s));
+    } else {
+      onSaveSchedules([...schedules, newSchedule]);
+    }
     setShowAddScheduleModal(false);
+    setEditScheduleId('');
+    setSchTanggalLibur([]);
     alert(`Jadwal kerja untuk ${finalTargetName} berhasil ditambahkan dan disimpan!`);
   };
 
@@ -1375,7 +1409,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>Pengaturan Jam Kerja & Hari Kerja Divisi/Individu</span>
             </h2>
             <button
-              onClick={() => setShowAddScheduleModal(true)}
+              onClick={() => {
+                setEditScheduleId('');
+                setSchTargetType('Divisi');
+                setSchTargetName('');
+                setSchJamMasuk('04:30');
+                setSchJamPulang('16:00');
+                setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
+                setSchPejuangIds([]);
+                setSchDivisiIds([]);
+                setSchTanggalLibur([]);
+                setCustomJamKerja({});
+                setShowAddScheduleModal(true);
+              }}
               className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -1435,7 +1481,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Tab Content 3: Data Pejuang */}
+
+                {/* Tab Content 3: Data Pejuang */}
       {activeTab === 'pejuang' && (
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -1872,6 +1919,67 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {schHariKerja.map(hari => (
+                    <div key={hari} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="w-20 text-xs font-bold text-slate-700 dark:text-slate-200">{hari}</span>
+                      <input
+                        type="time"
+                        value={customJamKerja[hari]?.masuk || ''}
+                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], masuk: e.target.value } }))}
+                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                        placeholder="Jam Masuk"
+                      />
+                      <span className="text-slate-400">-</span>
+                      <input
+                        type="time"
+                        value={customJamKerja[hari]?.pulang || ''}
+                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], pulang: e.target.value } }))}
+                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                        placeholder="Jam Pulang"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Tanggal Libur Khusus / Nasional</label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input 
+                      type="date" 
+                      id="newHolidayDate"
+                      className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const dateInput = document.getElementById('newHolidayDate') as HTMLInputElement;
+                        if (dateInput.value && !schTanggalLibur.includes(dateInput.value)) {
+                          setSchTanggalLibur([...schTanggalLibur, dateInput.value]);
+                          dateInput.value = '';
+                        }
+                      }}
+                      className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      + Tambah Libur
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {schTanggalLibur.map(tgl => (
+                      <div key={tgl} className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-1 rounded-md text-xs font-bold border border-rose-200">
+                        <span>{tgl}</span>
+                        <button type="button" onClick={() => setSchTanggalLibur(schTanggalLibur.filter(t => t !== tgl))} className="text-rose-500 hover:text-rose-800 ml-1">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
@@ -1921,19 +2029,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   >
                     <option value="Divisi">Berdasarkan Divisi</option>
                     <option value="Individu">Perorangan (Individu)</option>
+                    <option value="Group">Group (Beberapa Pejuang/Divisi)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                    {schTargetType === 'Divisi' ? 'Pilih / Nama Divisi' : 'Pilih Nama Pejuang'}
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    {schTargetType === 'Divisi' ? 'Pilih / Nama Divisi' : schTargetType === 'Group' ? 'Nama Group' : 'Pilih Nama Pejuang'}
                   </label>
-                  {schTargetType === 'Divisi' ? (
+                  {schTargetType === 'Divisi' || schTargetType === 'Group' ? (
                     <input
                       type="text"
                       required
                       value={schTargetName}
                       onChange={(e) => setSchTargetName(e.target.value)}
-                      placeholder="Contoh: Media / Keuangan / Dapur"
+                      placeholder={schTargetType === 'Group' ? 'Contoh: Tim Proyek A' : 'Contoh: Media / Keuangan / Dapur'}
                       className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                     />
                   ) : (
@@ -1953,6 +2062,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
+              {schTargetType === 'Group' && (
+                <div className="col-span-2 space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Anggota Pejuang</label>
+                    <div className="max-h-32 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 custom-scrollbar">
+                      {accounts.map(acc => (
+                        <label key={acc.id} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-200 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={schPejuangIds.includes(acc.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) setSchPejuangIds([...schPejuangIds, acc.id]);
+                              else setSchPejuangIds(schPejuangIds.filter(id => id !== acc.id));
+                            }}
+                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>{acc.name} ({acc.subDivisi})</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Divisi (Opsional)</label>
+                    <div className="max-h-32 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 custom-scrollbar">
+                      {uniqueDivisions.map(div => (
+                        <label key={div} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-200 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={schDivisiIds?.includes(div) || false}
+                            onChange={(e) => {
+                              const curr = schDivisiIds || [];
+                              if (e.target.checked) setSchDivisiIds([...curr, div]);
+                              else setSchDivisiIds(curr.filter(d => d !== div));
+                            }}
+                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>{div}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Jam Masuk (Subuh/Pagi)</label>
@@ -1975,7 +2128,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
               </div>
-
+              
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Hari Kerja Aktif</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -1996,6 +2149,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {schHariKerja.map(hari => (
+                    <div key={hari} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="w-20 text-xs font-bold text-slate-700 dark:text-slate-200">{hari}</span>
+                      <input
+                        type="time"
+                        value={customJamKerja[hari]?.masuk || ''}
+                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], masuk: e.target.value } }))}
+                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                        placeholder="Jam Masuk"
+                      />
+                      <span className="text-slate-400">-</span>
+                      <input
+                        type="time"
+                        value={customJamKerja[hari]?.pulang || ''}
+                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], pulang: e.target.value } }))}
+                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                        placeholder="Jam Pulang"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Tanggal Libur Khusus / Nasional</label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input 
+                      type="date" 
+                      id="newHolidayDate"
+                      className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const dateInput = document.getElementById('newHolidayDate') as HTMLInputElement;
+                        if (dateInput.value && !schTanggalLibur.includes(dateInput.value)) {
+                          setSchTanggalLibur([...schTanggalLibur, dateInput.value]);
+                          dateInput.value = '';
+                        }
+                      }}
+                      className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      + Tambah Libur
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {schTanggalLibur.map(tgl => (
+                      <div key={tgl} className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-1 rounded-md text-xs font-bold border border-rose-200">
+                        <span>{tgl}</span>
+                        <button type="button" onClick={() => setSchTanggalLibur(schTanggalLibur.filter(t => t !== tgl))} className="text-rose-500 hover:text-rose-800 ml-1">✕</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 

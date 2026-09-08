@@ -65,10 +65,15 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   const [jamKembaliReal, setJamKembaliReal] = useState('12:30');
 
   // Filtered records
+  const isApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
+
   const filteredRecords = exitPermissions.filter((rec) => {
-    // If pejuang role, show only own records unless admin
-    const matchesUser =
-      currentUser.role === 'Admin' || rec.pejuangId === currentUser.id;
+    const matchesUser = isApprover(rec.subDivisi) || rec.pejuangId === currentUser.id;
     const matchesSearch =
       rec.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       rec.alasan?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -260,17 +265,16 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     setApprovalJamHarusKembali(rec.jamHarusKembali);
   };
 
-  const handleSubmitApproval = (e: React.FormEvent) => {
+  const handleSubmitApproval = (e: React.FormEvent, isRejected: boolean = false) => {
     e.preventDefault();
     if (!approvalRecord) return;
-
     const now = new Date();
     const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
        
     const updated = exitPermissions.map(p => p.id === approvalRecord.id ? { 
       ...p, 
-      status: 'Di Luar' as const, 
+      status: isRejected ? 'Ditolak' as const : 'Di Luar' as const, 
       tanggalKeluar: approvalTanggalKeluar,
       tanggalIzinSampai: approvalTanggalIzinSampai,
       jamKeluar: approvalJamKeluar,
@@ -714,12 +718,22 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 mt-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg transition-all"
-              >
-                Setujui & Simpan
-              </button>
+              <div className="flex space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmitApproval(e, true)}
+                  className="w-1/3 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all"
+                >
+                  Tolak
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmitApproval(e, false)}
+                  className="w-2/3 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all"
+                >
+                  Setujui & Simpan
+                </button>
+              </div>
             </form>
           </div>
         </div>

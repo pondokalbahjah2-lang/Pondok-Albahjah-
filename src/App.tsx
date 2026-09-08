@@ -38,7 +38,7 @@ export default function App() {
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
   
-  const [showDesyncBanner, setShowDesyncBanner] = useState(false);
+    const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -56,7 +56,7 @@ export default function App() {
       }
     }, (err) => console.log('Settings read err'));
 
-    // Sync Manhajiyyah Clauses
+
     let firstManhajLoad = true;
     const unsubManhaj = onSnapshot(collection(db, 'manhajiyyahClauses'), (snap) => {
       if (!firstManhajLoad && currentUser?.role !== 'Admin') {
@@ -80,7 +80,8 @@ export default function App() {
 
     return () => {
       unsubGeneral();
-      unsubManhaj();
+      
+      
     };
   }, [currentUser?.role]); // re-bind when role changes so the notification logic uses correct role
 
@@ -92,6 +93,8 @@ export default function App() {
       return;
     }
 
+        let unsubCutiNotif = () => {};
+    let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
     let unsubAtt = () => {};
     let unsubExit = () => {};
@@ -252,8 +255,49 @@ export default function App() {
           }
         }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/location'));
 
+    // Sync Cuti Notifications
+    let firstCutiLoad = true;
+    unsubCutiNotif = onSnapshot(collection(db, 'cuti'), (snap) => {
+      if (!firstCutiLoad && currentUser?.role === 'Admin') {
+         snap.docChanges().forEach(change => {
+           if (change.type === 'added') {
+             const newData = change.doc.data();
+             if (newData.status === 'Menunggu Persetujuan') {
+               const msg = `Pengajuan Cuti Baru dari ${newData.pejuangName} (${newData.jenisCuti})`;
+               if (Notification.permission === 'granted') {
+                 new Notification('Al-Bahjah Sistem', { body: msg });
+               } else {
+                 alert(msg);
+               }
+             }
+           }
+         });
+      }
+      firstCutiLoad = false;
+    });
 
-        // Sync Manhajiyyah Clauses
+    // Sync Izin Notifications
+    let firstIzinLoad = true;
+    unsubIzinNotif = onSnapshot(collection(db, 'izinKeluar'), (snap) => {
+      if (!firstIzinLoad && currentUser?.role === 'Admin') {
+         snap.docChanges().forEach(change => {
+           if (change.type === 'added') {
+             const newData = change.doc.data();
+             if (newData.status === 'Menunggu Persetujuan') {
+               const msg = `Pengajuan Izin Keluar/Sakit Baru dari ${newData.pejuangName}`;
+               if (Notification.permission === 'granted') {
+                 new Notification('Al-Bahjah Sistem', { body: msg });
+               } else {
+                 alert(msg);
+               }
+             }
+           }
+         });
+      }
+      firstIzinLoad = false;
+    });
+
+    // Sync Manhajiyyah Clauses
         let firstManhajLoad = true;
         unsubManhaj = onSnapshot(collection(db, 'manhajiyyahClauses'), (snap) => {
           if (!firstManhajLoad && !isAd) {
@@ -283,6 +327,8 @@ export default function App() {
       unsubAuth();
       unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip();
       unsubSchedules(); unsubLoc(); unsubManhaj();
+       unsubCutiNotif(); unsubIzinNotif();
+      
     };
   }, [currentUser]);
 
@@ -636,6 +682,7 @@ export default function App() {
                 attendance={attendance}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
+
                 onSaveAttendance={handleSaveAttendance}
               />
             )}
@@ -692,6 +739,7 @@ export default function App() {
                 warningLetters={warningLetters}
                 slipUbarList={slipUbarList}
                 schedules={schedules}
+
               />
             )}
             {activeTab === 'settings' && (
@@ -709,6 +757,7 @@ export default function App() {
                 accounts={accounts}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
+
                 manhajiyyahClauses={manhajiyyahClauses}
                 onSaveLocationSettings={handleSaveLocationSettings}
                 onSaveSchedules={handleSaveSchedules}
