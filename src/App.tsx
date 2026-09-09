@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
+import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings, HolidayRecord } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -38,7 +38,8 @@ export default function App() {
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
   
-    const [showDesyncBanner, setShowDesyncBanner] = useState(false);
+  const [holidays, setHolidays] = useState<HolidayRecord[]>([]);
+  const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -93,7 +94,8 @@ export default function App() {
       return;
     }
 
-        let unsubCutiNotif = () => {};
+    let unsubHolidays = () => {};
+    let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
     let unsubAtt = () => {};
@@ -255,6 +257,15 @@ export default function App() {
           }
         }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/location'));
 
+
+    
+    unsubHolidays = onSnapshot(collection(db, 'holidays'), (snap) => {
+      const h: HolidayRecord[] = [];
+      snap.forEach((docSnap) => h.push(docSnap.data() as HolidayRecord));
+      setHolidays(h);
+    }, (err) => console.log('Holidays sync err'));
+
+
     // Sync Cuti Notifications
     let firstCutiLoad = true;
     unsubCutiNotif = onSnapshot(collection(db, 'cuti'), (snap) => {
@@ -327,7 +338,7 @@ export default function App() {
       unsubAuth();
       unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip();
       unsubSchedules(); unsubLoc(); unsubManhaj();
-       unsubCutiNotif(); unsubIzinNotif();
+      unsubHolidays(); unsubCutiNotif(); unsubIzinNotif();
       
     };
   }, [currentUser]);
@@ -682,7 +693,7 @@ export default function App() {
                 attendance={attendance}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-
+holidays={holidays}
                 onSaveAttendance={handleSaveAttendance}
               />
             )}
@@ -739,7 +750,7 @@ export default function App() {
                 warningLetters={warningLetters}
                 slipUbarList={slipUbarList}
                 schedules={schedules}
-
+holidays={holidays}
               />
             )}
             {activeTab === 'settings' && (
@@ -757,7 +768,7 @@ export default function App() {
                 accounts={accounts}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-
+holidays={holidays}
                 manhajiyyahClauses={manhajiyyahClauses}
                 onSaveLocationSettings={handleSaveLocationSettings}
                 onSaveSchedules={handleSaveSchedules}

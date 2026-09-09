@@ -42,7 +42,8 @@ interface SettingsViewProps {
   accounts: UserAccount[];
   locationSettings: LocationSettings;
   schedules: WorkSchedule[];
-    manhajiyyahClauses: ManhajiyyahClause[];
+  holidays?: any[];
+  manhajiyyahClauses: ManhajiyyahClause[];
   attendance?: AttendanceRecord[];
   onSaveLocationSettings: (settings: LocationSettings) => void;
   onSaveSchedules: (schedules: WorkSchedule[]) => void;
@@ -76,7 +77,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   accounts,
   locationSettings,
   schedules,
-    manhajiyyahClauses,
+  holidays,
+  manhajiyyahClauses,
   attendance = [],
   onSaveLocationSettings,
   onSaveSchedules,
@@ -396,10 +398,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [schJamPulang, setSchJamPulang] = useState('16:00');
   const [schHariKerja, setSchHariKerja] = useState<string[]>(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
   const [schPejuangIds, setSchPejuangIds] = useState<string[]>([]);
-  const [schDivisiIds, setSchDivisiIds] = useState<string[]>([]);
   const [editScheduleId, setEditScheduleId] = useState('');
   const [customJamKerja, setCustomJamKerja] = useState<Record<string, { masuk: string, pulang: string }>>({});
-  const [schTanggalLibur, setSchTanggalLibur] = useState<string[]>([]);
 
   const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
   const uniqueDivisions = Array.from(new Set(accounts.map(a => a.subDivisi))).filter(Boolean);
@@ -452,13 +452,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setEditScheduleId(sch.id);
     setSchTargetType(sch.targetType);
     setSchPejuangIds(sch.pejuangIds || []);
-    setSchDivisiIds(sch.divisiIds || []);
     setSchTargetName(sch.targetName);
     setSchJamMasuk(sch.jamMasuk);
     setSchJamPulang(sch.jamPulang);
     setSchHariKerja(sch.hariKerja || []);
     setCustomJamKerja(sch.customJamKerja || {});
-    setSchTanggalLibur(sch.tanggalLibur || []);
     setShowAddScheduleModal(true);
   };
 
@@ -481,9 +479,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       jamPulang: schJamPulang,
       hariKerja: schHariKerja,
       customJamKerja,
-      tanggalLibur: schTanggalLibur,
-      pejuangIds: schTargetType === 'Group' ? schPejuangIds : undefined,
-      divisiIds: schTargetType === 'Group' ? schDivisiIds : undefined
+      pejuangIds: schTargetType === 'Group' ? schPejuangIds : undefined
     };
 
     if (editScheduleId) {
@@ -493,7 +489,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
     setShowAddScheduleModal(false);
     setEditScheduleId('');
-    setSchTanggalLibur([]);
     alert(`Jadwal kerja untuk ${finalTargetName} berhasil ditambahkan dan disimpan!`);
   };
 
@@ -1409,19 +1404,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>Pengaturan Jam Kerja & Hari Kerja Divisi/Individu</span>
             </h2>
             <button
-              onClick={() => {
-                setEditScheduleId('');
-                setSchTargetType('Divisi');
-                setSchTargetName('');
-                setSchJamMasuk('04:30');
-                setSchJamPulang('16:00');
-                setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
-                setSchPejuangIds([]);
-                setSchDivisiIds([]);
-                setSchTanggalLibur([]);
-                setCustomJamKerja({});
-                setShowAddScheduleModal(true);
-              }}
+              onClick={() => setShowAddScheduleModal(true)}
               className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -1482,7 +1465,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
 
-                {/* Tab Content 3: Data Pejuang */}
+          <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                <Calendar className="w-4 h-4 text-rose-500" />
+                <span>Pengaturan Hari Libur (Tanggal Merah)</span>
+              </h2>
+            </div>
+            
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Tambah Hari Libur Baru</h3>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const target = e.target as any;
+                  const newHoliday = {
+                    id: `holiday-${Date.now()}`,
+                    tanggal: target.tanggal.value,
+                    keterangan: target.keterangan.value
+                  };
+                  // In a real app this would call an API, for now we can just use the prop if it had a setter
+                  // Since we didn't pass a setter, let's just trigger a custom event or let's import setDoc
+                  // Actually since this is SettingsView, we can use Firestore directly
+                  import('firebase/firestore').then(({ doc, setDoc }) => {
+                    import('../utils/firebase').then(({ db }) => {
+                      setDoc(doc(db, 'holidays', newHoliday.id), newHoliday).then(() => {
+                        target.reset();
+                        alert('Hari libur ditambahkan');
+                      });
+                    });
+                  });
+                }} className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Tanggal</label>
+                    <input type="date" name="tanggal" required className="w-full mt-1 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Keterangan / Nama Libur</label>
+                    <input type="text" name="keterangan" required placeholder="Contoh: Idul Fitri" className="w-full mt-1 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white" />
+                  </div>
+                  <button type="submit" className="w-full py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition-all">Simpan Hari Libur</button>
+                </form>
+              </div>
+              
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 max-h-64 overflow-y-auto custom-scrollbar">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Daftar Hari Libur</h3>
+                <div className="space-y-2">
+                  {holidays && holidays.length > 0 ? holidays.sort((a,b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()).map(h => (
+                    <div key={h.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                      <div>
+                        <div className="text-xs font-bold text-rose-600 dark:text-rose-400">{h.tanggal}</div>
+                        <div className="text-[10px] text-slate-600 dark:text-slate-300">{h.keterangan}</div>
+                      </div>
+                      <button onClick={() => {
+                        if (window.confirm('Hapus hari libur ini?')) {
+                          import('firebase/firestore').then(({ doc, deleteDoc }) => {
+                            import('../utils/firebase').then(({ db }) => {
+                              deleteDoc(doc(db, 'holidays', h.id));
+                            });
+                          });
+                        }
+                      }} className="p-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )) : (
+                    <div className="text-xs text-slate-500 italic text-center py-4">Belum ada data hari libur</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+      {/* Tab Content 3: Data Pejuang */}
       {activeTab === 'pejuang' && (
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -1919,67 +1974,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                  {schHariKerja.map(hari => (
-                    <div key={hari} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <span className="w-20 text-xs font-bold text-slate-700 dark:text-slate-200">{hari}</span>
-                      <input
-                        type="time"
-                        value={customJamKerja[hari]?.masuk || ''}
-                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], masuk: e.target.value } }))}
-                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                        placeholder="Jam Masuk"
-                      />
-                      <span className="text-slate-400">-</span>
-                      <input
-                        type="time"
-                        value={customJamKerja[hari]?.pulang || ''}
-                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], pulang: e.target.value } }))}
-                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                        placeholder="Jam Pulang"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Tanggal Libur Khusus / Nasional</label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input 
-                      type="date" 
-                      id="newHolidayDate"
-                      className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const dateInput = document.getElementById('newHolidayDate') as HTMLInputElement;
-                        if (dateInput.value && !schTanggalLibur.includes(dateInput.value)) {
-                          setSchTanggalLibur([...schTanggalLibur, dateInput.value]);
-                          dateInput.value = '';
-                        }
-                      }}
-                      className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      + Tambah Libur
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {schTanggalLibur.map(tgl => (
-                      <div key={tgl} className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-1 rounded-md text-xs font-bold border border-rose-200">
-                        <span>{tgl}</span>
-                        <button type="button" onClick={() => setSchTanggalLibur(schTanggalLibur.filter(t => t !== tgl))} className="text-rose-500 hover:text-rose-800 ml-1">✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
@@ -2062,50 +2056,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              {schTargetType === 'Group' && (
-                <div className="col-span-2 space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Anggota Pejuang</label>
-                    <div className="max-h-32 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 custom-scrollbar">
-                      {accounts.map(acc => (
-                        <label key={acc.id} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-200 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={schPejuangIds.includes(acc.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) setSchPejuangIds([...schPejuangIds, acc.id]);
-                              else setSchPejuangIds(schPejuangIds.filter(id => id !== acc.id));
-                            }}
-                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                          />
-                          <span>{acc.name} ({acc.subDivisi})</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Divisi (Opsional)</label>
-                    <div className="max-h-32 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 custom-scrollbar">
-                      {uniqueDivisions.map(div => (
-                        <label key={div} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-200 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={schDivisiIds?.includes(div) || false}
-                            onChange={(e) => {
-                              const curr = schDivisiIds || [];
-                              if (e.target.checked) setSchDivisiIds([...curr, div]);
-                              else setSchDivisiIds(curr.filter(d => d !== div));
-                            }}
-                            className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                          />
-                          <span>{div}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Jam Masuk (Subuh/Pagi)</label>
@@ -2128,7 +2078,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Hari Kerja Aktif</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -2149,66 +2099,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       </button>
                     );
                   })}
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                  {schHariKerja.map(hari => (
-                    <div key={hari} className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <span className="w-20 text-xs font-bold text-slate-700 dark:text-slate-200">{hari}</span>
-                      <input
-                        type="time"
-                        value={customJamKerja[hari]?.masuk || ''}
-                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], masuk: e.target.value } }))}
-                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                        placeholder="Jam Masuk"
-                      />
-                      <span className="text-slate-400">-</span>
-                      <input
-                        type="time"
-                        value={customJamKerja[hari]?.pulang || ''}
-                        onChange={(e) => setCustomJamKerja(prev => ({ ...prev, [hari]: { ...prev[hari], pulang: e.target.value } }))}
-                        className="flex-1 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                        placeholder="Jam Pulang"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Tanggal Libur Khusus / Nasional</label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input 
-                      type="date" 
-                      id="newHolidayDate"
-                      className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const dateInput = document.getElementById('newHolidayDate') as HTMLInputElement;
-                        if (dateInput.value && !schTanggalLibur.includes(dateInput.value)) {
-                          setSchTanggalLibur([...schTanggalLibur, dateInput.value]);
-                          dateInput.value = '';
-                        }
-                      }}
-                      className="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      + Tambah Libur
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {schTanggalLibur.map(tgl => (
-                      <div key={tgl} className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-1 rounded-md text-xs font-bold border border-rose-200">
-                        <span>{tgl}</span>
-                        <button type="button" onClick={() => setSchTanggalLibur(schTanggalLibur.filter(t => t !== tgl))} className="text-rose-500 hover:text-rose-800 ml-1">✕</button>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
 

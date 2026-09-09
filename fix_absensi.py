@@ -1,40 +1,76 @@
+import re
 with open("src/components/AbsensiView.tsx", "r") as f:
     content = f.read()
 
-# Replace schedule check logic
-old_schedule_find = """      const userSchedule = schedules.find(
-        (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
-      ) || schedules[0];"""
+content = content.replace("const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang'>('Hadir');", "const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang' | 'Izin tidak masuk'>('Hadir');")
 
-new_schedule_find_masuk = """    const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-    const currDay = hariMap[new Date().getDay()];
-    const userSchedule = schedules.find(
-      (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
-    ) || schedules[0];
-    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || '04:30';"""
+content = content.replace("if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && !isWithinRadius && currentUser.role === 'Pejuang') {", "if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin tidak masuk' && !isWithinRadius && currentUser.role === 'Pejuang') {")
 
-new_schedule_find_pulang = """      const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const currDay = hariMap[new Date().getDay()];
-      const userSchedule = schedules.find(
-        (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
-      ) || schedules[0];
-      const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || userSchedule?.jamPulang || '16:00';"""
+content = content.replace("if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit') {", "if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit' && attendanceStatus !== 'Izin tidak masuk') {")
 
-content = content.replace(
-    "    // Check work schedule\n" + old_schedule_find,
-    "    // Check work schedule\n" + new_schedule_find_masuk
-)
+content = content.replace("const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Cuti');", "const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Izin tidak masuk' && a.status !== 'Cuti');")
 
-content = content.replace(
-    "      // Check work schedule for jam pulang\n" + old_schedule_find,
-    "      // Check work schedule for jam pulang\n" + new_schedule_find_pulang
-)
+content = content.replace("const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Cuti'));", "const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Izin tidak masuk' || todayRecord.status === 'Cuti'));")
 
-content = content.replace("const [schPulangH, schPulangM] = (userSchedule?.jamPulang || '16:00').split(':').map(Number);", "const [schPulangH, schPulangM] = jamPulang.split(':').map(Number);")
-content = content.replace("userSchedule?.jamPulang || '16:00'", "jamPulang")
 
-content = content.replace("const [schH, schM] = (userSchedule?.jamMasuk || '04:30').split(':').map(Number);", "const [schH, schM] = jamMasuk.split(':').map(Number);")
-content = content.replace("userSchedule?.jamMasuk || '04:30'", "jamMasuk")
+ui_target = """                {['Hadir', 'Sakit', 'Libur', 'Pulang'].map((st: any) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setAttendanceStatus(st)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      attendanceStatus === st
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    {st === 'Pulang' ? 'Pulang' : st}
+                  </button>
+                ))}"""
+
+ui_replacement = """                {['Hadir', 'Sakit', 'Libur', 'Izin tidak masuk', 'Pulang'].map((st: any) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setAttendanceStatus(st)}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                      attendanceStatus === st
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    {st === 'Pulang' ? 'Pulang' : st}
+                  </button>
+                ))}"""
+content = content.replace(ui_target, ui_replacement)
+
+ui_status_table = """                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                            rec.status === 'Hadir'
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
+                              : rec.status === 'Terlambat'
+                              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
+                              : 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
+                          }`}
+                        >
+                          {rec.status}
+                        </span>"""
+
+ui_status_table_replacement = """                        <span
+                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                            rec.status === 'Hadir'
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
+                              : rec.status === 'Terlambat'
+                              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
+                              : rec.status === 'Izin tidak masuk'
+                              ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300'
+                              : 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
+                          }`}
+                        >
+                          {rec.status}
+                        </span>"""
+content = content.replace(ui_status_table, ui_status_table_replacement)
+
 
 with open("src/components/AbsensiView.tsx", "w") as f:
     f.write(content)

@@ -58,7 +58,8 @@ interface LaporanViewProps {
   warningLetters: WarningLetterRecord[];
   slipUbarList: SlipUbarRecord[];
   schedules?: any[];
-  }
+  holidays?: any[];
+}
 
 export const LaporanView: React.FC<LaporanViewProps> = ({
   currentUser,
@@ -69,7 +70,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   warningLetters,
   slipUbarList,
   schedules,
-  }) => {
+  holidays = [],
+}) => {
   const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [selectedPejuangId, setSelectedPejuangId] = useState<string>(
@@ -97,22 +99,15 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dateStr = getLocalDateString(d);
       
-      const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const [year, month, day] = dateStr.split('-');
-      const dayOfWeek = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).getDay();
-      const namaHari = hariMap[dayOfWeek];
-
       accounts.filter(a => a.role === 'Pejuang').forEach(p => {
-        const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(p.id) || s.divisiIds?.includes(p.subDivisi))));
-        const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
         const isCuti = leaveRequests.some(l => l.pejuangId === p.id && l.status === 'Disetujui' && l.tanggalMulai <= dateStr && l.tanggalSelesai >= dateStr);
         const isIzin = exitPermissions.some(e => e.pejuangId === p.id && e.status === 'Disetujui' && e.tanggalKeluar <= dateStr && e.tanggalIzinSampai >= dateStr);
         const att = attendance.find(a => a.pejuangId === p.id && a.date === dateStr);
         
         if (isCuti) cuti++;
         else if (att?.status === 'Sakit') sakit++;
-        else if (att?.status === 'Izin') izinTdkMasuk++;
-        else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) libur++;
+        else if (att?.status === 'Izin tidak masuk') izinTdkMasuk++;
+        else if (att?.status === 'Libur' || (holidays && holidays.some(h => h.tanggal === dateStr))) libur++;
         else if (isIzin) izinKeluar++;
         else if (att) {
           if (att.status === 'Hadir') hadir++;
@@ -144,7 +139,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
     // Filter by shift (shiftFilter uses schedule targetId)
     if (shiftFilter) {
-      const userSchedule = (schedules || []).find(s => s.targetId === a.id || s.targetId === a.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(a.id) || s.divisiIds?.includes(a.subDivisi))));
+      const userSchedule = (schedules || []).find(s => s.targetId === a.id || s.targetId === a.subDivisi);
       if (!userSchedule || userSchedule.id !== shiftFilter) {
         return false;
       }
@@ -299,7 +294,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     // Use filteredAccountsForReport to apply Divisi filter
     filteredAccountsForReport.forEach((p, idx) => {
       // Find user schedule
-      const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(p.id) || s.divisiIds?.includes(p.subDivisi))));
+      const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -356,7 +351,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           valMasuk = 'Cuti';
           valPulang = 'Cuti';
           totalCuti++;
-        } else if (att?.status === 'Izin') {
+        } else if (att?.status === 'Izin tidak masuk') {
           valMasuk = 'Izin';
           valPulang = 'Izin';
           totalIzin++;
@@ -364,7 +359,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           valMasuk = 'Sakit';
           valPulang = 'Sakit';
           totalSakit++;
-        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
+        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (holidays && holidays.some(h => h.tanggal === dateStr))) {
           valMasuk = 'Libur';
           valPulang = 'Libur';
           totalLibur++;
@@ -447,7 +442,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const bodyPulang: any[] = [];
 
     filteredAccountsForReport.forEach((p, idx) => {
-      const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(p.id) || s.divisiIds?.includes(p.subDivisi))));
+      const userSchedule = (schedules || []).find((s: any) => s.targetId === p.id || s.targetId === p.subDivisi);
       const hariKerja = userSchedule?.hariKerja || ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -470,11 +465,11 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
         if (isCuti) {
           valM = 'C'; valP = 'C'; totalCuti++;
-        } else if (att?.status === 'Izin') {
+        } else if (att?.status === 'Izin tidak masuk') {
           valM = 'I'; valP = 'I'; totalIzin++;
         } else if (att?.status === 'Sakit') {
           valM = 'S'; valP = 'S'; totalSakit++;
-        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
+        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (holidays && holidays.some(h => h.tanggal === dateStr))) {
           valM = 'L'; valP = 'L'; totalLibur++;
         } else if (isIzin) {
           valM = att?.time || 'I'; valP = att?.timePulang || 'I'; totalIzin++;
@@ -546,7 +541,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       ['Hadir Tepat Waktu', totalHadir],
       ['Terlambat', totalTerlambat],
       ['Sakit', totalSakit],
-      ['Izin', userAtt.filter((a) => a.status === 'Izin').length],
+      ['Izin Tidak Masuk', userAtt.filter((a) => a.status === 'Izin tidak masuk').length],
       ['Izin Keluar', userExits.length],
       ['Cuti', userLeaves.length],
       ['Slip Ubar Uploaded', userSlipUbars.length],
@@ -945,7 +940,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                         <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold ${
                           a.status === 'Hadir' ? 'bg-emerald-100 text-emerald-700' :
                           a.status === 'Terlambat' ? 'bg-orange-100 text-orange-700' :
-                          a.status === 'Izin' ? 'bg-blue-100 text-blue-700' :
+                          a.status === 'Izin tidak masuk' ? 'bg-blue-100 text-blue-700' :
                           'bg-emerald-100 text-emerald-700'
                         }`}>
                           {a.status}

@@ -51,7 +51,7 @@ export interface AttendanceRecord {
   latitude: number;
   longitude: number;
   distanceFromPondok: number; // in meters
-  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin';
+  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin tidak masuk';
   isWithinRadius: boolean;
   notes?: string;
 }
@@ -126,7 +126,6 @@ export interface WorkSchedule {
   customJamKerja?: Record<string, { masuk: string, pulang: string }>;
   pejuangIds?: string[];
   divisiIds?: string[];
-  tanggalLibur?: string[];
 }
 
 export interface AppNotification {

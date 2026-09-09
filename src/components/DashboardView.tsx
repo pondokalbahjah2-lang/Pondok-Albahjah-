@@ -308,7 +308,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const hadirList = todayAttendance.filter(a => a.status === 'Hadir');
     const terlambatList = todayAttendance.filter(a => a.status === 'Terlambat');
     const sakitList = todayAttendance.filter(a => a.status === 'Sakit');
-    const izinList = todayAttendance.filter(a => a.status === 'Izin');
+    const izinList = todayAttendance.filter(a => a.status === 'Izin tidak masuk');
     const liburList = todayAttendance.filter(a => a.status === 'Libur');
 
     const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
@@ -869,7 +869,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Rekap Keluar Pondok
           </div>
         </div>
-        {/* Total Izin */}
+        {/* Total Izin Tidak Masuk */}
         <div 
           onClick={() => setActiveListModal('izinTdkMasuk')}
           className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg cursor-pointer hover:scale-105 transition-transform"
@@ -1435,7 +1435,7 @@ const PejuangDashboardAnalytics: React.FC<{
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } 
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } 
         else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
-        else if (record.status === 'Izin') { statusVal = 1; fill = '#8b5cf6'; } 
+        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } 
       }
       data.push({
         name: d.getDate(),
@@ -1465,7 +1465,7 @@ const last7DaysData = React.useMemo(() => {
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } // emerald
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } // amber
         else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
-        else if (record.status === 'Izin') { statusVal = 1; fill = '#8b5cf6'; } // blue
+        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } // blue
       }
       
       data.push({
@@ -1497,7 +1497,7 @@ const last7DaysData = React.useMemo(() => {
           if (a.status === 'Hadir') hadir++;
           else if (a.status === 'Terlambat') terlambat++;
           else if (a.status === 'Sakit') sakit++;
-          else if (a.status === 'Izin') izin++;
+          else if (a.status === 'Izin tidak masuk') izin++;
         }
       }
     });
