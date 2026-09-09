@@ -68,7 +68,7 @@ export interface ExitPermissionRecord {
   jamKeluar: string;
   jamHarusKembali: string;
   jamKembaliReal?: string;
-  status: 'Di Luar' | 'Kembali Tepat Waktu' | 'Terlambat' | 'Menunggu Persetujuan' | 'Ditolak';
+  status: 'Di Luar' | 'Kembali Tepat Waktu' | 'Terlambat' | 'Menunggu Persetujuan';
   keteranganKeterlambatan?: string; // e.g. "1 Jam 15 Menit"
   approvedBy?: string;
   approvedAt?: string;
