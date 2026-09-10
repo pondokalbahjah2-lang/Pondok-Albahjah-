@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings, HolidayRecord } from './types';
+import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -12,6 +12,7 @@ import { SuratTeguranView } from './components/SuratTeguranView';
 import { KalenderView } from './components/KalenderView';
 import { LaporanView } from './components/LaporanView';
 import { SettingsView } from './components/SettingsView';
+import { AuditLogView, AuditLogEntry } from './components/AuditLogView';
 import { KajianView } from './components/KajianView';
 import { db, auth, handleFirestoreError, OperationType } from './utils/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, getDocs, limit, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -33,13 +34,13 @@ export default function App() {
   const [warningLetters, setWarningLetters] = useState<WarningLetterRecord[]>([]);
   const [slipUbarList, setSlipUbarList] = useState<SlipUbarRecord[]>([]);
   const [schedules, setSchedules] = useState<WorkSchedule[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({});
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
   
-  const [holidays, setHolidays] = useState<HolidayRecord[]>([]);
-  const [showDesyncBanner, setShowDesyncBanner] = useState(false);
+    const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -94,8 +95,7 @@ export default function App() {
       return;
     }
 
-    let unsubHolidays = () => {};
-    let unsubCutiNotif = () => {};
+        let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
     let unsubAtt = () => {};
@@ -257,15 +257,6 @@ export default function App() {
           }
         }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/location'));
 
-
-    
-    unsubHolidays = onSnapshot(collection(db, 'holidays'), (snap) => {
-      const h: HolidayRecord[] = [];
-      snap.forEach((docSnap) => h.push(docSnap.data() as HolidayRecord));
-      setHolidays(h);
-    }, (err) => console.log('Holidays sync err'));
-
-
     // Sync Cuti Notifications
     let firstCutiLoad = true;
     unsubCutiNotif = onSnapshot(collection(db, 'cuti'), (snap) => {
@@ -338,7 +329,7 @@ export default function App() {
       unsubAuth();
       unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip();
       unsubSchedules(); unsubLoc(); unsubManhaj();
-      unsubHolidays(); unsubCutiNotif(); unsubIzinNotif();
+       unsubCutiNotif(); unsubIzinNotif();
       
     };
   }, [currentUser]);
@@ -693,7 +684,7 @@ export default function App() {
                 attendance={attendance}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-holidays={holidays}
+
                 onSaveAttendance={handleSaveAttendance}
               />
             )}
@@ -740,7 +731,11 @@ holidays={holidays}
                 currentUser={currentUser} 
               />
             )}
-            {activeTab === 'laporan' && (
+            
+        {activeTab === 'audit' && (
+          <AuditLogView logs={auditLogs} />
+        )}
+        {activeTab === 'laporan' && (
               <LaporanView
                 currentUser={currentUser}
                 accounts={accounts}
@@ -750,7 +745,7 @@ holidays={holidays}
                 warningLetters={warningLetters}
                 slipUbarList={slipUbarList}
                 schedules={schedules}
-holidays={holidays}
+
               />
             )}
             {activeTab === 'settings' && (
@@ -768,7 +763,7 @@ holidays={holidays}
                 accounts={accounts}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-holidays={holidays}
+
                 manhajiyyahClauses={manhajiyyahClauses}
                 onSaveLocationSettings={handleSaveLocationSettings}
                 onSaveSchedules={handleSaveSchedules}

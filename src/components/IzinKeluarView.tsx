@@ -65,10 +65,16 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   const [jamKembaliReal, setJamKembaliReal] = useState('12:30');
 
   // Filtered records
+  const isApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (izinKeluarApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
+
   const filteredRecords = exitPermissions.filter((rec) => {
-    // If pejuang role, show only own records unless admin
-    const matchesUser =
-      currentUser.role === 'Admin' || rec.pejuangId === currentUser.id;
+    const matchesUser = isApprover(rec.subDivisi) || rec.pejuangId === currentUser.id;
     const matchesSearch =
       rec.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       rec.alasan?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -260,17 +266,16 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     setApprovalJamHarusKembali(rec.jamHarusKembali);
   };
 
-  const handleSubmitApproval = (e: React.FormEvent) => {
+  const handleSubmitApproval = (e: React.FormEvent, isRejected: boolean = false) => {
     e.preventDefault();
     if (!approvalRecord) return;
-
     const now = new Date();
     const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
        
     const updated = exitPermissions.map(p => p.id === approvalRecord.id ? { 
       ...p, 
-      status: 'Di Luar' as const, 
+      status: isRejected ? 'Ditolak' as const : 'Di Luar' as const, 
       tanggalKeluar: approvalTanggalKeluar,
       tanggalIzinSampai: approvalTanggalIzinSampai,
       jamKeluar: approvalJamKeluar,
@@ -322,7 +327,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
         </div>
 
         <div className="flex items-center space-x-1 overflow-x-auto w-full sm:w-auto">
-          {['Semua', 'Di Luar', 'Kembali Tepat Waktu', 'Terlambat'].map((st) => (
+          {['Semua', 'Menunggu Persetujuan', 'Di Luar', 'Kembali Tepat Waktu', 'Terlambat', 'Ditolak'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -411,8 +416,10 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                       className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                         rec.status === 'Di Luar'
                           ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
-                          : rec.status === 'Terlambat'
+                          : rec.status === 'Terlambat' || rec.status === 'Ditolak'
                           ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300'
+                          : rec.status === 'Menunggu Persetujuan'
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
                           : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
                       }`}
                     >
@@ -421,16 +428,16 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      {rec.status === 'Menunggu Persetujuan' && (currentUser.role === 'Admin' || izinKeluarApprovers.includes(currentUser.id)) && (
+                      {rec.status === 'Menunggu Persetujuan' && isApprover(rec.subDivisi) && (
                         <button
                           onClick={() => handleOpenApprovalModal(rec)}
                           className="py-1.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition-colors shadow-sm"
                         >
-                          Approve
+                          Review / Proses
                         </button>
                       )}
                       
-                      {rec.status !== 'Menunggu Persetujuan' && (
+                      {rec.status !== 'Menunggu Persetujuan' && rec.status !== 'Ditolak' && (
                         <button
                           onClick={() => handleGeneratePDF(rec)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-sm"
@@ -714,12 +721,22 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 mt-4 rounded-2xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg transition-all"
-              >
-                Setujui & Simpan
-              </button>
+              <div className="flex space-x-2 mt-4">
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmitApproval(e, true)}
+                  className="w-1/3 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all"
+                >
+                  Tolak
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmitApproval(e, false)}
+                  className="w-2/3 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all"
+                >
+                  Setujui & Simpan
+                </button>
+              </div>
             </form>
           </div>
         </div>

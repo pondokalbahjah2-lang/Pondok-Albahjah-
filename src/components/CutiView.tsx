@@ -98,10 +98,17 @@ export const CutiView: React.FC<CutiViewProps> = ({
     }
   }, [tanggalMulai, jenisCuti, jenisCutiList, showAddModal, durasiCutiTahunan]);
 
+  const isCutiApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (cutiApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
+
   // Filtered requests
   const filteredRequests = leaveRequests.filter((l) => {
-    const matchesUser =
-      currentUser.role === 'Admin' || l.pejuangId === currentUser.id;
+    const matchesUser = isCutiApprover(l.subDivisi) || l.pejuangId === currentUser.id;
     const matchesSearch =
       l.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.alasan?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -507,7 +514,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      {req.status === 'Menunggu Persetujuan' && (currentUser.role === 'Admin' || cutiApprovers.includes(currentUser.id)) && (
+                      {req.status === 'Menunggu Persetujuan' && isCutiApprover(req.subDivisi) && (
                         <>
                           <button
                             onClick={() => handleApproveReject(req.id, 'Disetujui')}

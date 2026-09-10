@@ -3,32 +3,22 @@ import re
 with open("src/components/AbsensiView.tsx", "r") as f:
     content = f.read()
 
-# 1. Block early clock out (> 5 mins)
-target_pulang = r"(const \[currH, currM\] = timeStr\.replace\('\.', ':'\)\.split\(':'\)\.map\(Number\);\s*const \[schPulangH, schPulangM\] = \(userSchedule\?\.jamPulang \|\| '16:00'\)\.split\(':'\)\.map\(Number\);\s*let pulangNotes = todayRecord!\.notes;\s*)(if \(\(currH \* 60 \+ currM\) < \(schPulangH \* 60 \+ schPulangM\)\) \{[\s\S]*?pulangNotes = \(pulangNotes \? pulangNotes \+ ' \| ' : ''\) \+ 'Pulang Lebih Awal';\s*\})"
+replacement = """    // Check work schedule
+    const userSchedule = schedules.find(
+      (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
+    ) || schedules[0];
+    
+    const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const currDay = hariMap[new Date().getDay()];
+    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || "08:00";
 
-new_pulang = r"""\1
-      const diffPulangMins = (schPulangH * 60 + schPulangM) - (currH * 60 + currM);
-      if (diffPulangMins > 5) {
-        alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${userSchedule?.jamPulang || '16:00'}).`);
-        return;
-      }
-      if (diffPulangMins > 0) {
-        pulangNotes = (pulangNotes ? pulangNotes + ' | ' : '') + 'Pulang Lebih Awal';
-      }
-"""
-content = re.sub(target_pulang, new_pulang, content)
+    let finalStatus: AttendanceRecord['status'] = attendanceStatus;"""
 
-# 2. Block early clock in (> 1 hr)
-target_hadir = r"(let finalStatus: AttendanceRecord\['status'\] = attendanceStatus;\s*if \(attendanceStatus === 'Hadir'\) \{\s*const \[currH, currM\] = timeStr\.replace\('\.', ':'\)\.split\(':'\)\.map\(Number\);\s*const \[schH, schM\] = \(userSchedule\?\.jamMasuk \|\| '04:30'\)\.split\(':'\)\.map\(Number\);)"
-
-new_hadir = r"""\1
-      const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
-      if (diffMasukMins > 60) {
-        alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${userSchedule?.jamMasuk || '04:30'}).`);
-        return;
-      }
-"""
-content = re.sub(target_hadir, new_hadir, content)
+content = re.sub(
+    r"    // Check work schedule\n    const userSchedule = schedules\.find\(\n      \(s\) => s\.targetName\.includes\(currentUser\.subDivisi\) \|\| s\.targetId === currentUser\.id\n    \) \|\| schedules\[0\];\n\n    let finalStatus: AttendanceRecord\['status'\] = attendanceStatus;",
+    replacement,
+    content
+)
 
 with open("src/components/AbsensiView.tsx", "w") as f:
     f.write(content)

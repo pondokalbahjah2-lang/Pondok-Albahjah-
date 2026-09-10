@@ -47,7 +47,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [locError, setLocError] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang' | 'Izin tidak masuk'>('Hadir');
+  const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang' | 'Izin'>('Hadir');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 10;
@@ -383,13 +383,13 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     
 
-    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin tidak masuk' && !isWithinRadius && currentUser.role === 'Pejuang') {
+    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin' && !isWithinRadius && currentUser.role === 'Pejuang') {
       alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
       return;
     }
     
     if (!currentLat || !currentLng) {
-      if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit' && attendanceStatus !== 'Izin tidak masuk') {
+      if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit' && attendanceStatus !== 'Izin') {
         alert('Tunggu hingga lokasi GPS Anda ditemukan (klik Cek Lokasi GPS) sebelum mengirim absensi.');
         return;
       }
@@ -413,17 +413,20 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       }
 
       // Check work schedule for jam pulang
+      const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const currDay = hariMap[new Date().getDay()];
       const userSchedule = schedules.find(
-        (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
+        (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
       ) || schedules[0];
+      const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || userSchedule?.jamPulang || "16:00";
       
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
-      const [schPulangH, schPulangM] = (userSchedule?.jamPulang || '16:00').split(':').map(Number);
+      const [schPulangH, schPulangM] = jamPulang.split(':').map(Number);
       let pulangNotes = todayRecord!.notes;
       
       const diffPulangMins = (schPulangH * 60 + schPulangM) - (currH * 60 + currM);
       if (diffPulangMins > 5) {
-        alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${userSchedule?.jamPulang || '16:00'}).`);
+        alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${jamPulang}).`);
         return;
       }
       if (diffPulangMins > 0) {
@@ -457,15 +460,19 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     const userSchedule = schedules.find(
       (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
     ) || schedules[0];
+    
+    const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const currDay = hariMap[new Date().getDay()];
+    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || "08:00";
 
     let finalStatus: AttendanceRecord['status'] = attendanceStatus;
 
     if (attendanceStatus === 'Hadir') {
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
-      const [schH, schM] = (userSchedule?.jamMasuk || '04:30').split(':').map(Number);
+      const [schH, schM] = jamMasuk.split(':').map(Number);
       const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
       if (diffMasukMins > 60) {
-        alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${userSchedule?.jamMasuk || '04:30'}).`);
+        alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${jamMasuk}).`);
         return;
       }
 
@@ -505,9 +512,9 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     const todayDateStr = getLogicalAttendanceDateStr(currentUser, new Date());
   const todayRecord = myAttendance.find(a => a.date === todayDateStr && a.pejuangId === currentUser.id);
-  const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Izin tidak masuk' && a.status !== 'Cuti');
+  const uncompletedPastRecord = myAttendance.find(a => a.pejuangId === currentUser.id && a.date !== todayDateStr && !a.timePulang && a.status !== 'Sakit' && a.status !== 'Libur' && a.status !== 'Izin' && a.status !== 'Cuti');
   const isClockedIn = !!todayRecord;
-  const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Izin tidak masuk' || todayRecord.status === 'Cuti'));
+  const isClockedOut = !!(todayRecord && (todayRecord.timePulang || todayRecord.status === 'Sakit' || todayRecord.status === 'Libur' || todayRecord.status === 'Izin' || todayRecord.status === 'Cuti'));
 
   useEffect(() => {
     if (isClockedIn && !isClockedOut) {
@@ -575,7 +582,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                 Pilih Status Kehadiran
               </label>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
-                {(['Hadir', 'Sakit', 'Libur', 'Izin tidak masuk', 'Pulang'] as const).map((st) => (
+                {(['Hadir', 'Sakit', 'Libur', 'Izin', 'Pulang'] as const).map((st) => (
                   <button
                     key={st}
                     type="button"
@@ -830,7 +837,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                               ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
                               : rec.status === 'Terlambat'
                               ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
-                              : rec.status === 'Izin tidak masuk'
+                              : rec.status === 'Izin'
                               ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300'
                               : 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
                           }`}

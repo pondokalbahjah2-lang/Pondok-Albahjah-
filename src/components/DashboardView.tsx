@@ -93,7 +93,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const [selectedSubDivisi, setSelectedSubDivisi] = useState('Semua');
-  const [activeListModal, setActiveListModal] = useState<'hadir' | 'terlambat' | 'sakit' | 'libur' | 'belumAbsen' | null>(null);
+  const [activeListModal, setActiveListModal] = useState<'hadir' | 'terlambat' | 'sakit' | 'libur' | 'belumAbsen' | 'izinTdkMasuk' | 'pengajuanCuti' | 'sedangCuti' | null>(null);
 
   const pejuangList = React.useMemo(() => accounts.filter((a) => a.role === 'Pejuang'), [accounts]);
   
@@ -104,7 +104,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Metric Calculations
   const metrics = React.useMemo(() => {
-    let totalIzinKeluar = exitPermissions.length;
+    let totalIzinKeluar = exitPermissions.filter(e => e.status !== 'Menunggu Persetujuan' && e.status !== 'Ditolak' && e.status !== 'Pending').length;
     let totalSakit = 0;
     let totalLibur = 0;
     let totalHadirTepatWaktu = 0;
@@ -120,10 +120,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     let totalMengajukanCuti = 0;
     let totalSedangCuti = 0;
+    const todayStr = getLocalDateString(new Date());
     for (let i = 0; i < leaveRequests.length; i++) {
       const status = leaveRequests[i].status;
       if (status === 'Menunggu Persetujuan') totalMengajukanCuti++;
-      else if (status === 'Sedang Cuti') totalSedangCuti++;
+      else if (status === 'Disetujui' && leaveRequests[i].tanggalMulai <= todayStr && leaveRequests[i].tanggalSelesai >= todayStr) totalSedangCuti++;
+      else if (status === 'Sedang Cuti') totalSedangCuti++; // Keep for backward compatibility if any
     }
 
     return {
@@ -150,6 +152,65 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   } = metrics;
 
   // Compute frequent exit permit request count per pejuang
+
+  // --- Admin Visualizations Data ---
+  const adminDailyTrends = React.useMemo(() => {
+    const data = [];
+    const t = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(t);
+      d.setDate(d.getDate() - i);
+      const dateStr = getLocalDateString(d);
+      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      
+      let hadir = 0;
+      let terlambat = 0;
+      let tidakHadir = 0; // Sakit, Izin, Libur
+      
+      attendance.forEach(a => {
+        if (a.date === dateStr) {
+          if (a.status === 'Hadir') hadir++;
+          else if (a.status === 'Terlambat') terlambat++;
+          else tidakHadir++;
+        }
+      });
+      
+      data.push({ name: dayName, hadir, terlambat, tidakHadir });
+    }
+    return data;
+  }, [attendance]);
+
+  const adminAbsenteeismDept = React.useMemo(() => {
+    const divStats: Record<string, { divisi: string; absen: number }> = {};
+    pejuangList.forEach((p) => {
+      if (!divStats[p.subDivisi]) {
+        divStats[p.subDivisi] = { divisi: p.subDivisi, absen: 0 };
+      }
+    });
+    
+    // Check all non-presence in recent attendance (or overall)
+    attendance.forEach((a) => {
+      if (divStats[a.subDivisi] && a.status !== 'Hadir' && a.status !== 'Terlambat') {
+        divStats[a.subDivisi].absen += 1;
+      }
+    });
+    
+    // Top 5 absentee departments
+    return Object.values(divStats)
+      .filter(d => d.absen > 0)
+      .sort((a, b) => b.absen - a.absen)
+      .slice(0, 5);
+  }, [attendance, pejuangList]);
+
+  const pendingRequestsCount = React.useMemo(() => {
+    const pendingIzin = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan').length;
+    const pendingCuti = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan').length;
+    return [
+      { name: 'Izin Keluar', value: pendingIzin, fill: '#3b82f6' },
+      { name: 'Pengajuan Cuti', value: pendingCuti, fill: '#8b5cf6' }
+    ];
+  }, [exitPermissions, leaveRequests]);
+
   const { topExitPejuangs, chartDataDivisi } = React.useMemo(() => {
     const exitCountMap: Record<string, { name: string; subDivisi: string; count: number; lateCount: number }> = {};
 
@@ -187,6 +248,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
 
     exitPermissions.forEach((ep) => {
+      if (ep.status === 'Menunggu Persetujuan' || ep.status === 'Ditolak' || ep.status === 'Pending') return;
       if (divStats[ep.subDivisi]) {
         divStats[ep.subDivisi].izin += 1;
       }
@@ -208,32 +270,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const frequentExitList = topExitPejuangs;
   const barData = chartDataDivisi.filter(d => d.hadir > 0 || d.izin > 0);
 
-    // Current User Weekly Attendance Consistency Trend
-  const weeklyAttendanceData = React.useMemo(() => {
-    const data = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
-      
-      const dayRecords = attendance.filter(a => a.pejuangId === currentUser.id && a.date === dateStr);
-      let statusValue = 0; // 0 = No Record/Sakit/Libur, 1 = Terlambat, 2 = Hadir
-      
-      if (dayRecords.length > 0) {
-        const latest = dayRecords[0]; // Assuming newest first
-        if (latest.status === 'Hadir') statusValue = 2;
-        else if (latest.status === 'Terlambat') statusValue = 1;
-      }
-      
-      data.push({
-        name: dayName,
-        konsistensi: statusValue,
-      });
-    }
-    return data;
-  }, [attendance, currentUser.id]);
+    
 
 
   // Weekly Stats for current user
@@ -308,11 +345,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const hadirList = todayAttendance.filter(a => a.status === 'Hadir');
     const terlambatList = todayAttendance.filter(a => a.status === 'Terlambat');
     const sakitList = todayAttendance.filter(a => a.status === 'Sakit');
-    const izinList = todayAttendance.filter(a => a.status === 'Izin tidak masuk');
+    const izinList = todayAttendance.filter(a => a.status === 'Izin' || a.status === 'Izin Tidak Masuk');
     const liburList = todayAttendance.filter(a => a.status === 'Libur');
 
     const attendeesIds = new Set(todayAttendance.map(a => a.pejuangId));
     const belumAbsenList = pejuangs.filter(p => !attendeesIds.has(p.id));
+    const pengajuanCutiList = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan');
+    const sedangCutiList = leaveRequests.filter(l => l.status === 'Sedang Cuti' || (l.status === 'Disetujui' && l.tanggalMulai <= todayStr && l.tanggalSelesai >= todayStr));
     
     return {
       total: totalPejuang,
@@ -328,10 +367,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         sakit: sakitList,
         libur: liburList,
         izinTdkMasuk: izinList,
-        belumAbsen: belumAbsenList
+        belumAbsen: belumAbsenList,
+        pengajuanCuti: pengajuanCutiList,
+        sedangCuti: sedangCutiList
       }
     };
-  }, [attendance, accounts]);
+  }, [attendance, accounts, leaveRequests]);
 
   
   // --- New Logic: Hari Ini & Efektif Bulanan ---
@@ -395,7 +436,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const data = [];
     const today = new Date();
     const activePejuangs = accounts.filter(a => a.role === 'Pejuang').length;
-    if (activePejuangs === 0) return []; // avoid division by zero
+    const denominator = activePejuangs > 0 ? activePejuangs : (accounts.length || 1);
 
     for (let i = 29; i >= 0; i--) {
       const d = new Date(today);
@@ -403,10 +444,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const dateStr = getLocalDateString(d);
       const dayName = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
       
-      const dayRecords = attendance.filter(a => a.date === dateStr && (a.status === 'Hadir' || a.status === 'Terlambat'));
-      // Using unique pejuang count who attended that day
-      const uniqueAttendees = new Set(dayRecords.map(a => a.pejuangId)).size;
-      const percentage = Math.round((uniqueAttendees / activePejuangs) * 100);
+      const dayRecords = attendance.filter(a => a.date === dateStr);
+      
+      const presentRecords = dayRecords.filter(a => a.status === 'Hadir' || a.status === 'Terlambat');
+      const uniqueAttendees = new Set(presentRecords.map(a => a.pejuangId)).size;
+      
+      const excusedRecords = dayRecords.filter(a => a.status === 'Sakit' || a.status === 'Izin' || a.status === 'Izin Tidak Masuk' || a.status === 'Libur');
+      const uniqueExcused = new Set(excusedRecords.map(a => a.pejuangId)).size;
+      
+      const expectedToAttend = denominator - uniqueExcused;
+      const finalDenominator = expectedToAttend > 0 ? expectedToAttend : denominator;
+      
+      let percentage = 0;
+      if (uniqueAttendees > 0) {
+          percentage = Math.round((uniqueAttendees / finalDenominator) * 100);
+          if (percentage > 100) percentage = 100;
+      }
       
       data.push({
         name: dayName,
@@ -454,7 +507,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const [y, m, d] = e.tanggalKeluar.split('-');
         if (parseInt(y) === currentYear && parseInt(m) === currentMonth + 1) {
           const day = parseInt(d);
-          if (day >= startDay && day <= endDay) {
+          if (day >= startDay && day <= endDay && e.status !== 'Menunggu Persetujuan' && e.status !== 'Ditolak' && e.status !== 'Pending') {
             izinCount++;
           }
         }
@@ -476,8 +529,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     const hadirTepat = attendance.filter(a => a.date?.startsWith(yearMonth) && a.status === 'Hadir').length;
     const terlambat = attendance.filter(a => a.date?.startsWith(yearMonth) && a.status === 'Terlambat').length;
-    const cuti = leaveRequests.filter(l => l.tanggalMulai?.startsWith(yearMonth)).length;
-    const izin = exitPermissions.filter(e => e.tanggalKeluar?.startsWith(yearMonth)).length;
+    const cuti = leaveRequests.filter(l => l.tanggalMulai?.startsWith(yearMonth) && (l.status === 'Disetujui' || l.status === 'Sedang Cuti' || l.status === 'Selesai')).length;
+    const izin = exitPermissions.filter(e => e.tanggalKeluar?.startsWith(yearMonth) && e.status !== 'Menunggu Persetujuan' && e.status !== 'Ditolak' && e.status !== 'Pending').length;
 
     trendData.push({
       name: monthName,
@@ -869,7 +922,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Rekap Keluar Pondok
           </div>
         </div>
-        {/* Total Izin Tidak Masuk */}
+        {/* Total Izin */}
         <div 
           onClick={() => setActiveListModal('izinTdkMasuk')}
           className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg cursor-pointer hover:scale-105 transition-transform"
@@ -891,7 +944,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Total Sakit */}
-        <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
+        <div onClick={() => setActiveListModal('sakit')} className="p-4 rounded-3xl cursor-pointer hover:scale-105 transition-transform bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
               Pejuang Sakit
@@ -909,7 +962,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Total Libur */}
-        <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
+        <div onClick={() => setActiveListModal('libur')} className="p-4 rounded-3xl cursor-pointer hover:scale-105 transition-transform bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
               Total Libur
@@ -927,7 +980,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Mengajukan Cuti */}
-        <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
+        <div onClick={() => setActiveListModal('pengajuanCuti')} className="p-4 rounded-3xl cursor-pointer hover:scale-105 transition-transform bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
               Pengajuan Cuti
@@ -945,7 +998,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Sedang Cuti */}
-        <div className="p-4 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
+        <div onClick={() => setActiveListModal('sedangCuti')} className="p-4 rounded-3xl cursor-pointer hover:scale-105 transition-transform bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
               Sedang Cuti
@@ -962,6 +1015,96 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ---------------- Admin Summary Visualizations ---------------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mt-6">
+        {/* Daily Attendance Trends */}
+        <div className="lg:col-span-2 p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <LineChartIcon className="w-5 h-5 text-indigo-500" />
+              Tren Kehadiran Harian (7 Hari Terakhir)
+            </h3>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsLineChart data={adminDailyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                <Line type="monotone" dataKey="hadir" name="Hadir Tepat Waktu" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="terlambat" name="Terlambat" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="tidakHadir" name="Tidak Hadir (Sakit/Libur)" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 lg:gap-6">
+          {/* Top Absenteeism Departments */}
+          <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex-1">
+            <h3 className="text-md font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+              <BarChartIcon className="w-5 h-5 text-rose-500" />
+              Divisi Paling Sering Absen
+            </h3>
+            <div className="h-40">
+              {adminAbsenteeismDept.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart data={adminAbsenteeismDept} layout="vertical" margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" opacity={0.3} />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="divisi" type="category" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={80} />
+                    <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Bar dataKey="absen" name="Jumlah Absen" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={16} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 text-sm italic">
+                  Belum ada data absensi
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pending Requests Metrics */}
+          <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex-1">
+            <h3 className="text-md font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+              <PieChartIcon className="w-5 h-5 text-amber-500" />
+              Permintaan Tertunda
+            </h3>
+            <div className="flex items-center justify-between h-full">
+              <div className="h-32 w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie data={pendingRequestsCount} cx="50%" cy="50%" innerRadius={25} outerRadius={40} paddingAngle={5} dataKey="value">
+                      {pendingRequestsCount.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-1/2 flex flex-col justify-center gap-3">
+                {pendingRequestsCount.map((item, idx) => (
+                  <div key={idx} className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.fill }}></div>
+                      {item.name}
+                    </span>
+                    <span className="text-xl font-bold text-slate-800 dark:text-white">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* ------------------------------------------------------------ */}
+
+
 
       {/* Charts Section */}
       
@@ -1041,7 +1184,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="divisi" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                 <RechartsTooltip
                   cursor={{ fill: '#f1f5f9', opacity: 0.4 }}
@@ -1142,38 +1285,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-            {/* Current User Weekly Attendance Consistency Trend */}
-      <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col">
-        <div className="flex items-center gap-2 mb-4">
-          <LineChartIcon className="w-5 h-5 text-amber-500" />
-          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Tren Konsistensi Kehadiran Mingguan (Anda)</h3>
-        </div>
-        <div className="flex-1 min-h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsLineChart
-              data={weeklyAttendanceData}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" opacity={0.3} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <YAxis 
-                tick={{ fontSize: 10 }} 
-                tickLine={false} 
-                axisLine={false} 
-                domain={[0, 2]} 
-                ticks={[0, 1, 2]} 
-                tickFormatter={(val) => val === 2 ? 'Hadir' : val === 1 ? 'Telat' : 'Absen'}
-              />
-              <RechartsTooltip
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                formatter={(value) => [value === 2 ? 'Hadir Tepat Waktu' : value === 1 ? 'Terlambat' : 'Tidak Hadir/Lainnya', 'Status']}
-              />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-              <Line type="stepAfter" dataKey="konsistensi" name="Konsistensi" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-            </RechartsLineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+            
 
       {/* Two Column Layout: List Pejuang Frequent Exit + List Pejuang & Amanah */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1348,6 +1460,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {activeListModal === 'libur' && 'Daftar Pejuang Libur/Cuti'}
                   {activeListModal === 'belumAbsen' && 'Daftar Belum Absen'}
                   {activeListModal === 'izinTdkMasuk' && 'Daftar Izin'}
+                  {activeListModal === 'pengajuanCuti' && 'Daftar Pengajuan Cuti'}
+                  {activeListModal === 'sedangCuti' && 'Daftar Sedang Cuti'}
                 </span>
               </h2>
               <button
@@ -1435,7 +1549,7 @@ const PejuangDashboardAnalytics: React.FC<{
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } 
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } 
         else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
-        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } 
+        else if (record.status === 'Izin' || record.status === 'Izin Tidak Masuk') { statusVal = 1; fill = '#8b5cf6'; } 
       }
       data.push({
         name: d.getDate(),
@@ -1465,7 +1579,7 @@ const last7DaysData = React.useMemo(() => {
         if (record.status === 'Hadir') { statusVal = 1; fill = '#10b981'; } // emerald
         else if (record.status === 'Terlambat') { statusVal = 1; fill = '#f59e0b'; } // amber
         else if (record.status === 'Sakit') { statusVal = 1; fill = '#3b82f6'; }
-        else if (record.status === 'Izin tidak masuk') { statusVal = 1; fill = '#8b5cf6'; } // blue
+        else if (record.status === 'Izin' || record.status === 'Izin Tidak Masuk') { statusVal = 1; fill = '#8b5cf6'; } // blue
       }
       
       data.push({
@@ -1497,7 +1611,7 @@ const last7DaysData = React.useMemo(() => {
           if (a.status === 'Hadir') hadir++;
           else if (a.status === 'Terlambat') terlambat++;
           else if (a.status === 'Sakit') sakit++;
-          else if (a.status === 'Izin tidak masuk') izin++;
+          else if (a.status === 'Izin' || a.status === 'Izin Tidak Masuk') izin++;
         }
       }
     });

@@ -1,10 +1,7 @@
-import { UserAccount } from '../types';
+with open("src/utils/dateUtils.ts", "r") as f:
+    content = f.read()
 
-export const getLocalDateString = (d: Date = new Date()) => {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Date()) => {
+new_logic = """export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Date()) => {
   if (user) {
     const isNightShift = user.subDivisi.includes('Banat') || 
                          user.subDivisi.includes('SDIQu') || 
@@ -20,4 +17,11 @@ export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Da
     }
   }
   return getLocalDateString(d);
-};
+};"""
+
+# Replace the old getLogicalAttendanceDateStr
+import re
+content = re.sub(r"export const getLogicalAttendanceDateStr = .*?;\n\};\n?", new_logic + "\n", content, flags=re.DOTALL)
+
+with open("src/utils/dateUtils.ts", "w") as f:
+    f.write(content)
