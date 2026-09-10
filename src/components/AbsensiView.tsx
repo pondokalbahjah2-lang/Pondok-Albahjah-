@@ -419,12 +419,19 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
         (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
       ) || schedules[0];
       const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || userSchedule?.jamPulang || "16:00";
+      const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || "08:00";
       
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schPulangH, schPulangM] = jamPulang.split(':').map(Number);
+      const [schMasukH] = jamMasuk.split(':').map(Number);
+      
       let pulangNotes = todayRecord!.notes;
       
-      const diffPulangMins = (schPulangH * 60 + schPulangM) - (currH * 60 + currM);
+      const isNightShift = schPulangH < schMasukH;
+      const effectiveSchPulangH = isNightShift ? schPulangH + 24 : schPulangH;
+      const effectiveCurrH = (isNightShift && currH < schMasukH) ? currH + 24 : currH;
+      
+      const diffPulangMins = (effectiveSchPulangH * 60 + schPulangM) - (effectiveCurrH * 60 + currM);
       if (diffPulangMins > 5) {
         alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${jamPulang}).`);
         return;
