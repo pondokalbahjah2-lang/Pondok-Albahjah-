@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default Leaflet icon missing issues in some build tools
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -72,7 +74,7 @@ export const LocationMap = ({
     : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
   return (
-    <div className={`w-full ${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0`}>
+    <div className={\`w-full \${height} rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 relative z-0\`}>
       <div className="absolute top-2 right-2 z-[400]">
         <button
           type="button"
@@ -129,3 +131,7 @@ export const LocationMap = ({
     </div>
   );
 };
+`;
+
+fs.writeFileSync('src/components/LocationMap.tsx', content);
+console.log("Rewrote LocationMap to use Leaflet");
