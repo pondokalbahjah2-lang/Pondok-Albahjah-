@@ -5,6 +5,7 @@ import { getLocalDateString } from '../utils/dateUtils';
 import { calculateDistanceMeters } from '../utils/storage';
 import { BookOpen, MapPin, Search, Download, AlertTriangle } from 'lucide-react';
 import { LocationMap } from './LocationMap';
+import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -305,14 +306,16 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleDownloadExcel} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Excel
-              </button>
-              <button onClick={handleDownloadPDF} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                PDF
-              </button>
+              <AnimatedDownloadButton 
+                onDownload={handleDownloadExcel} 
+                text="Excel"
+                className="bg-green-600 hover:bg-green-500 shadow-green-600/30"
+              />
+              <AnimatedDownloadButton 
+                onDownload={handleDownloadPDF} 
+                text="PDF"
+                className="bg-red-600 hover:bg-red-500 shadow-red-600/30"
+              />
             </div>
           </div>
 

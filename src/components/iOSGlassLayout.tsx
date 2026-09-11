@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -21,6 +22,8 @@ import { UserAccount } from '../types';
 import { getHijriDate, formatMasehiDate } from '../utils/hijriCalendar';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { useTheme } from '../contexts/ThemeContext';
+import { AnimatedThemeToggle } from './AnimatedThemeToggle';
+import { AnimatedLogoutButton } from './AnimatedLogoutButton';
 
 interface iOSGlassLayoutProps {
   appLogoUrl?: string;
@@ -233,20 +236,15 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              <AnimatedThemeToggle
+                isDarkMode={isDarkMode}
+                onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 hover:bg-slate-300/60 transition-colors"
-                title="Toggle Theme"
-              >
-                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={onLogout}
+              />
+              <AnimatedLogoutButton
+                onLogout={onLogout}
                 className="flex-1 flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Keluar</span>
-              </button>
+              />
             </div>
           </div>
         </aside>
@@ -301,19 +299,15 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              <AnimatedThemeToggle
+                isDarkMode={isDarkMode}
+                onToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-              >
-                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={onLogout}
+              />
+              <AnimatedLogoutButton
+                onLogout={onLogout}
                 className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              />
             </div>
           </div>
           <div className="px-4 pb-3 flex justify-center w-full">
@@ -339,7 +333,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
 
         {/* Mobile Navigation Glass Bottom Bar (iOS Liquid Bar) */}
         <div className="md:hidden fixed bottom-4 left-4 right-4 z-40">
-          <nav className="p-2 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/80 dark:border-white/20 shadow-2xl flex items-center gap-2 overflow-x-auto snap-x hide-scrollbar">
+          <nav className="p-2 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/80 dark:border-white/20 shadow-2xl flex items-center justify-between overflow-x-auto hide-scrollbar relative">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -347,23 +341,40 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex-shrink-0 snap-center flex items-center gap-2 px-4 py-2.5 rounded-2xl transition-all duration-300 ${
+                  className={`relative flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl transition-colors duration-300 z-10 ${
                     isActive
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-slate-100/50 dark:hover:bg-slate-800/50'
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-emerald-600'
                   }`}
                 >
-                  <div className="relative">
-                    <Icon className="w-5 h-5 shrink-0" />
-                    {item.badge ? (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-0.5 border border-white dark:border-slate-900">
-                        {item.badge}
-                      </span>
-                    ) : null}
+                  {isActive && (
+                    <motion.div
+                      layoutId="mobile-active-pill"
+                      className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/50 rounded-2xl shadow-sm z-0"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  <div className="relative z-10 flex items-center gap-2">
+                    <div className="relative">
+                      <Icon className="w-5 h-5 shrink-0" />
+                      {item.badge ? (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-0.5 border border-white dark:border-slate-900">
+                          {item.badge}
+                        </span>
+                      ) : null}
+                    </div>
+                    <motion.span 
+                      initial={false}
+                      animate={{ 
+                        width: isActive ? "auto" : 0, 
+                        opacity: isActive ? 1 : 0,
+                        marginLeft: isActive ? 4 : 0
+                      }}
+                      className="text-xs font-bold whitespace-nowrap overflow-hidden"
+                    >
+                      {item.label}
+                    </motion.span>
                   </div>
-                  <span className={`text-xs font-bold whitespace-nowrap overflow-hidden transition-all duration-300 ${isActive ? 'max-w-xs opacity-100 ml-1' : 'max-w-0 opacity-0 ml-0'}`}>
-                    {item.label}
-                  </span>
                 </button>
               );
             })}

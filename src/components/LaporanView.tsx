@@ -1,6 +1,7 @@
 import { getLocalDateString, getLogicalAttendanceDateStr } from '../utils/dateUtils';
 import { motion } from 'framer-motion';
 import React, { useState } from 'react';
+import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
@@ -634,27 +635,21 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleExportCSV}
-            className="py-2.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-2"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Unduh Excel</span>
-          </button>
-          <button
-            onClick={handleExportIndividualPDF}
-            className="py-2.5 px-4 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-2"
-          >
-            <FileDown className="w-4 h-4" />
-            <span>Unduh PDF</span>
-          </button>
-          <button
-            onClick={handlePrintReport}
-            className="py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-2"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Cetak Laporan</span>
-          </button>
+          <AnimatedDownloadButton 
+            onDownload={handleExportCSV}
+            text="Unduh Excel"
+            className="bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30 py-2.5"
+          />
+          <AnimatedDownloadButton 
+            onDownload={handleExportIndividualPDF}
+            text="Unduh PDF"
+            className="bg-red-600 hover:bg-red-500 shadow-red-600/30 py-2.5"
+          />
+          <AnimatedDownloadButton 
+            onDownload={handlePrintReport}
+            text="Cetak Laporan"
+            className="bg-slate-800 hover:bg-slate-700 shadow-slate-800/30 py-2.5"
+          />
         </div>
       </div>
 

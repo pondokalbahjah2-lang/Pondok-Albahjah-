@@ -1,6 +1,8 @@
 import { getLocalDateString } from '../utils/dateUtils';
 import { motion } from 'framer-motion';
 import React, { useState } from 'react';
+import { AnimatedDeleteButton } from './AnimatedDeleteButton';
+import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import {
   FileText,
   Download,
@@ -396,22 +398,18 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                           <Key className="w-3.5 h-3.5 inline mr-1" /> Sandi
                         </button>
                       )}
-                      <a href={slip.fileUrl} target="_blank" rel="noreferrer" className="py-1.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-[11px]">
-                        <Download className="w-3.5 h-3.5 inline mr-1" /> Buka
-                      </a>
+                      <AnimatedDownloadButton 
+                        onDownload={() => window.open(slip.fileUrl, '_blank')} 
+                        text="Buka"
+                        className="py-1.5 px-3 text-[11px]"
+                      />
                     </td>
                     {currentUser.role === 'Admin' && (
                       <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Yakin ingin menghapus dokumen ini?')) {
-                              onSaveSlipUbar(slipUbarList.filter(s => s.id !== slip.id));
-                            }
-                          }}
-                          className="py-1.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-[11px]"
-                        >
-                          Hapus
-                        </button>
+                        <AnimatedDeleteButton 
+                          onDelete={() => onSaveSlipUbar(slipUbarList.filter(s => s.id !== slip.id))}
+                          className="w-auto h-auto"
+                        />
                       </td>
                     )}
                   </tr>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock,
   User,
@@ -12,7 +12,9 @@ import {
   Fingerprint,
   Eye,
   EyeOff,
+  LogIn,
 } from 'lucide-react';
+import { AnimatedSignInButton } from './AnimatedSignInButton';
 import { UserAccount, ManhajiyyahClause } from '../types';
 import { getHijriDate, formatMasehiDate, getDailyClauseIndex } from '../utils/hijriCalendar';
 import { auth, db, handleFirestoreError, OperationType } from '../utils/firebase';
@@ -36,9 +38,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginStatus, setLoginStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const isLoading = loginStatus !== 'idle';
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [runawayX, setRunawayX] = useState(0);
   const [runawayY, setRunawayY] = useState(0);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (formRef.current && !formRef.current.contains(event.target as Node)) {
+        setIsFormOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleButtonHover = () => {
     if (!username || !password) {
@@ -66,7 +81,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    setIsLoading(true);
+    setLoginStatus('loading');
 
     const trimmedInput = username?.trim().toLowerCase() || '';
     let email = trimmedInput;
@@ -112,7 +127,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         // Auto-create for admin if not found
         if ((err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') && (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu') || email.includes('pondokalbahjah2'))) {
            try {
-                            const newCred = await createUserWithEmailAndPassword(auth, email, password);
+              const newCred = await createUserWithEmailAndPassword(auth, email, password);
               
               matchedUser = {
                 id: newCred.user.uid,
@@ -131,7 +146,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                  matchedUser.username = 'Abdu Salam';
                  matchedUser.amanah = 'Sekretaris Pondok Pesantren Al-Bahjah Cabang Cirebon 1';
               }
-                            await setDoc(doc(db, 'users', newCred.user.uid), matchedUser);
+              await setDoc(doc(db, 'users', newCred.user.uid), matchedUser);
            } catch (createErr: any) {
               console.error('Auto-create failed:', createErr);
               throw new Error('Gagal membuat akun admin secara otomatis: ' + createErr.message);
@@ -149,19 +164,23 @@ export const LoginView: React.FC<LoginViewProps> = ({
       }
 
       if (matchedUser) {
-        onLoginSuccess(matchedUser);
+        setLoginStatus('success');
+        setTimeout(() => {
+          onLoginSuccess(matchedUser!);
+        }, 1200);
+      } else {
+        setLoginStatus('idle');
       }
     } catch (error: any) {
       console.error(error);
       setErrorMsg(error.message || 'Terjadi kesalahan sistem.');
-    } finally {
-      setIsLoading(false);
+      setLoginStatus('idle');
     }
   };
 
   const handleBiometricLogin = async () => {
     try {
-      setIsLoading(true);
+      setLoginStatus('loading');
       setErrorMsg('');
       if (!window.PublicKeyCredential) {
         throw new Error('Perangkat atau browser Anda tidak mendukung autentikasi biometrik.');
@@ -188,7 +207,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
           if (matchedUser.email && matchedUser.password) {
             await signInWithEmailAndPassword(auth, matchedUser.email, matchedUser.password);
           }
-          onLoginSuccess(matchedUser);
+          setLoginStatus('success');
+          setTimeout(() => {
+            onLoginSuccess(matchedUser);
+          }, 1200);
         } else {
           throw new Error('Data biometrik tidak dikenali di sistem. Silakan login manual dan daftarkan sidik jari/Face ID Anda di menu Pengaturan Sistem.');
         }
@@ -202,8 +224,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       } else {
         setErrorMsg(error.message || 'Gagal memverifikasi biometrik.');
       }
-    } finally {
-      setIsLoading(false);
+      setLoginStatus('idle');
     }
   };
 
@@ -216,7 +237,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       <div className="w-full max-w-4xl relative z-10 my-auto py-2 sm:py-4 px-3 sm:px-4 mx-auto flex flex-col items-center">
         {/* Top Header & Real-time Dates Banner */}
-        <div className="mb-3 text-center space-y-1 w-full">
+        <motion.div 
+          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, type: "spring", bounce: 0.4 }}
+          className="mb-3 text-center space-y-1 w-full"
+        >
           <div className="flex items-center justify-center mb-2">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-center overflow-hidden p-1.5">
               {appLogoUrl ? (
@@ -247,12 +273,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
             <div className="text-slate-200 font-medium text-[11px] sm:text-xs text-center">{masehiDateStr}</div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Section: Wide Landscape Manhajiyyah + Login Card */}
         <div className="w-full flex flex-col items-center gap-3 sm:gap-4">
           {/* Daily Rotating Manhajiyyah Clause Card - Sleek Wide Landscape */}
-          <div className="w-full max-w-2xl p-3 sm:py-3 sm:px-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-amber-950/80 backdrop-blur-2xl border border-emerald-500/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 text-left">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="w-full max-w-2xl p-3 sm:py-3 sm:px-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-amber-950/80 backdrop-blur-2xl border border-emerald-500/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 text-left"
+          >
             <div className="flex-1 min-w-0 w-full">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <div className="flex items-center space-x-1.5 text-[10px] sm:text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
@@ -288,91 +319,125 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
+          </motion.div>
 
           {/* iOS Liquid Glass Login Card */}
-          <div className="w-full max-w-md p-4 sm:p-6 rounded-3xl bg-white/10 backdrop-blur-3xl border border-white/20 shadow-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3.5">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-white">Masuk Sistem</h2>
-                  <p className="text-[11px] sm:text-xs text-slate-300">Masukkan kredensial akun pejuang Anda</p>
-                </div>
-              </div>
+          <motion.div 
+            layout
+            ref={formRef}
+            className="w-full max-w-md mx-auto flex flex-col items-center justify-center relative"
+          >
+            <AnimatePresence mode="wait">
+              {!isFormOpen ? (
+                <motion.button
+                  key="login-button"
+                  layoutId="login-container"
+                  onClick={() => setIsFormOpen(true)}
+                  className="px-8 py-3.5 sm:py-4 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-3xl border border-white/30 text-white font-extrabold text-sm shadow-2xl flex items-center gap-3 transition-colors duration-300"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span>Log In ke Sistem</span>
+                </motion.button>
+              ) : (
+                <motion.div
+                  key="login-form"
+                  layoutId="login-container"
+                  className="w-full p-4 sm:p-6 rounded-3xl bg-white/10 backdrop-blur-3xl border border-white/20 shadow-2xl flex flex-col justify-between"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div>
+                        <h2 className="text-base sm:text-lg font-bold text-white">Masuk Sistem</h2>
+                        <p className="text-[11px] sm:text-xs text-slate-300">Masukkan kredensial akun pejuang Anda</p>
+                      </div>
+                    </div>
 
-              {errorMsg && (
-                <div className="mb-4 p-3 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-200 text-xs font-semibold">
-                  {errorMsg}
-                </div>
+                    {errorMsg && (
+                      <div className="mb-4 p-3 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-200 text-xs font-semibold">
+                        {errorMsg}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleLogin} className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-200 mb-1">
+                          Nama Pengguna (Username)
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            required
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Masukkan Username atau Email"
+                            className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-xs font-semibold text-slate-200">
+                            Kata Sandi (Password)
+                          </label>
+                          <button type="button" onClick={() => alert("Silakan hubungi admin untuk melakukan validasi lupa password dan mengatur ulang kata sandi Anda.")} className="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">Lupa Password?</button>
+                        </div>
+                        <div className="relative">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full pl-10 pr-11 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors focus:outline-none p-1"
+                            title={showPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-1.5 space-y-3 flex justify-center">
+                        <div className="relative w-full flex justify-center" onMouseEnter={handleButtonHover}>
+                          <motion.div
+                            animate={{ x: runawayX, y: runawayY }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                            className="w-full flex justify-center"
+                          >
+                            <AnimatedSignInButton 
+                              status={loginStatus}
+                              disabled={isLoading}
+                              className="rounded-2xl"
+                            />
+                          </motion.div>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </motion.div>
               )}
-
-              <form onSubmit={handleLogin} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-200 mb-1">
-                    Nama Pengguna (Username)
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Masukkan Username atau Email"
-                      className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-semibold text-slate-200">
-                      Kata Sandi (Password)
-                    </label>
-                    <button type="button" onClick={() => alert("Silakan hubungi admin untuk melakukan validasi lupa password dan mengatur ulang kata sandi Anda.")} className="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">Lupa Password?</button>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-10 pr-11 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors focus:outline-none p-1"
-                      title={showPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-1.5 space-y-3">
-                  <div className="relative w-full" onMouseEnter={handleButtonHover}>
-                    <motion.button
-                      type="submit"
-                      disabled={isLoading}
-                      animate={{ x: runawayX, y: runawayY }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className="w-full py-2.5 sm:py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition-colors duration-200 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed z-10"
-                    >
-                      <span>{isLoading ? 'Memproses...' : 'Masuk Ke Sistem'}</span>
-                      {!isLoading && <ArrowRight className="w-4 h-4" />}
-                    </motion.button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
+            </AnimatePresence>
+          </motion.div>
         </div>
       </div>
       {/* Modal View All Clauses */}
