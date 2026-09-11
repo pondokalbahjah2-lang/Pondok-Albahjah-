@@ -384,7 +384,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     
 
-    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin' && !isWithinRadius && currentUser.role === 'Pejuang') {
+    if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin' && !isWithinRadius) {
       alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
       return;
     }

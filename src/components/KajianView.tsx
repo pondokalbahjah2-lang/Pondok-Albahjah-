@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { UserAccount, KajianRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
@@ -36,40 +36,50 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
   const [filterStartDate, setFilterStartDate] = useState(getLocalDateString(new Date()));
   const [filterEndDate, setFilterEndDate] = useState(getLocalDateString(new Date()));
 
-  const getLocation = () => {
-    setLocationStatus('loading');
-    setLocError('');
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCoords({ lat, lng });
-          const dist = calculateDistanceMeters(
-            lat,
-            lng,
-            locationSettings.latitude,
-            locationSettings.longitude
-          );
-          setDistanceMeters(dist);
-          setLocationStatus('success');
-        },
-        (err) => {
-          let errMsg = 'Gagal mengambil lokasi.';
-          if (err.code === err.PERMISSION_DENIED) errMsg = 'Izin akses lokasi ditolak.';
-          if (err.code === err.POSITION_UNAVAILABLE) errMsg = 'Lokasi tidak tersedia.';
-          if (err.code === err.TIMEOUT) errMsg = 'Waktu permintaan habis.';
-          setLocError(errMsg);
-          setLocationStatus('error');
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    } else {
-      setLocError('Browser tidak mendukung Geolocation.');
-      setLocationStatus('error');
+  useEffect(() => {
+    let watchId: number;
+    if (mode === 'Offline') {
+      if ('geolocation' in navigator) {
+        setLocationStatus('loading');
+        setLocError('');
+        watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setCoords({ lat, lng });
+            const dist = calculateDistanceMeters(
+              lat,
+              lng,
+              locationSettings.latitude,
+              locationSettings.longitude
+            );
+            setDistanceMeters(dist);
+            setLocationStatus('success');
+          },
+          (err) => {
+            console.warn('Geolocation error:', err);
+            let errMsg = 'Gagal mengambil lokasi.';
+            if (err.code === err.PERMISSION_DENIED) errMsg = 'Izin akses lokasi ditolak.';
+            if (err.code === err.POSITION_UNAVAILABLE) errMsg = 'Lokasi tidak tersedia.';
+            if (err.code === err.TIMEOUT) errMsg = 'Waktu permintaan habis.';
+            setLocError(errMsg);
+            setLocationStatus('error');
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      } else {
+        setLocError('Browser tidak mendukung Geolocation.');
+        setLocationStatus('error');
+      }
     }
-  };
-  
+    
+    return () => {
+      if (watchId !== undefined && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [mode, locationSettings.latitude, locationSettings.longitude]);
+
   const isWithinRadius = distanceMeters !== null && distanceMeters <= locationSettings.radiusMaxMeters;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,7 +89,7 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
         alert("Harap ambil lokasi Anda terlebih dahulu untuk absen Offline.");
         return;
       }
-      if (!isWithinRadius && currentUser.role === 'Pejuang') {
+      if (!isWithinRadius) {
         alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
         return;
       }
@@ -201,17 +211,31 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
 
             {mode === 'Offline' && (
               <>
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">Lokasi Wajib Dikunci (GPS)</p>
-                <button
-                  type="button"
-                  onClick={getLocation}
-                  disabled={locationStatus === 'loading' || locationStatus === 'success'}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-2"
-                >
-                  <MapPin className="w-4 h-4" />
-                  {locationStatus === 'loading' ? 'Mengunci Lokasi...' : locationStatus === 'success' ? 'Lokasi Terkunci!' : 'Ambil Lokasi Saat Ini'}
-                </button>
+              <div className={`p-4 border rounded-xl flex items-center justify-between ${
+                locationStatus === 'success' 
+                  ? (isWithinRadius ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800')
+                  : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+              }`}>
+                <div>
+                  <p className={`text-xs font-bold mb-1 ${
+                    locationStatus === 'success' 
+                      ? (isWithinRadius ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400')
+                      : 'text-amber-700 dark:text-amber-400'
+                  }`}>
+                    {locationStatus === 'loading' ? 'Mencari Lokasi GPS...' : 
+                     locationStatus === 'success' ? 'Lokasi GPS Ditemukan' : 'Menunggu Akses GPS'}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">
+                    Sistem mendeteksi lokasi Anda secara otomatis.
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-white/50 dark:bg-black/20 shadow-sm border border-black/5 dark:border-white/5">
+                  <MapPin className={`w-5 h-5 ${
+                    locationStatus === 'loading' ? 'text-amber-500 animate-pulse' :
+                    locationStatus === 'success' ? (isWithinRadius ? 'text-emerald-500' : 'text-rose-500') :
+                    'text-slate-400'
+                  }`} />
+                </div>
               </div>
               {locError && <div className="mt-2 p-2 bg-rose-100 text-rose-700 text-xs rounded-lg font-bold">{locError}</div>}
               {coords.lat !== 0 && coords.lng !== 0 && (

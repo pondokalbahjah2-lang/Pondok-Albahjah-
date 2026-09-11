@@ -217,35 +217,35 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <div className="w-full max-w-4xl relative z-10 my-auto py-2 sm:py-4 px-3 sm:px-4 mx-auto flex flex-col items-center">
         {/* Top Header & Real-time Dates Banner */}
         <div className="mb-3 text-center space-y-1 w-full">
-          <div className="flex items-center justify-center mb-1">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-center overflow-hidden p-1.5">
+          <div className="flex items-center justify-center mb-2">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-center overflow-hidden p-1.5">
               {appLogoUrl ? (
                 <img src={appLogoUrl} alt="Logo Pondok Al-Bahjah" className="w-full h-full object-contain drop-shadow-md" />
               ) : (
-                <div className="w-full h-full rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-xl shadow-inner">
+                <div className="w-full h-full rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-2xl shadow-inner">
                   B
                 </div>
               )}
             </div>
           </div>
           
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white drop-shadow-md">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white drop-shadow-md mt-1">
             Portal Pejuang Al-Bahjah
           </h1>
-          <p className="text-[11px] sm:text-xs text-emerald-200/80 font-medium max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-emerald-200/80 font-medium max-w-xl mx-auto mt-0.5">
             Manajemen Terpadu Divisi Kepondokan Yayasan Al-Bahjah Cabang Cirebon 1
           </p>
 
           {/* Realtime Hijri & Masehi Widget Banner */}
-          <div className="mt-2 max-w-2xl mx-auto py-1.5 px-3.5 rounded-xl bg-white/10 backdrop-blur-2xl border border-white/15 shadow-lg flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center space-x-1.5 text-emerald-300 font-bold text-[11px] sm:text-xs">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">{hijriDate.formatted}</span>
+          <div className="mt-3 max-w-2xl mx-auto py-2 px-4 rounded-xl bg-white/10 backdrop-blur-2xl border border-white/15 shadow-lg flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2 sm:gap-4 text-xs">
+            <div className="flex items-center space-x-1.5 text-emerald-300 font-bold text-[11px] sm:text-xs text-center">
+              <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{hijriDate.formatted}</span>
             </div>
-            <div className="text-sm sm:text-lg font-black tracking-widest text-emerald-300 drop-shadow-md tabular-nums px-2 py-0.5 rounded-lg bg-black/20 border border-emerald-500/20">
+            <div className="text-base sm:text-lg font-black tracking-widest text-emerald-300 drop-shadow-md tabular-nums px-3 py-1 rounded-lg bg-black/20 border border-emerald-500/20">
               {now.getHours().toString().padStart(2, '0')}:{now.getMinutes().toString().padStart(2, '0')}:{now.getSeconds().toString().padStart(2, '0')}
             </div>
-            <div className="text-slate-300 font-medium text-[11px] sm:text-xs truncate">{masehiDateStr}</div>
+            <div className="text-slate-200 font-medium text-[11px] sm:text-xs text-center">{masehiDateStr}</div>
           </div>
         </div>
 
