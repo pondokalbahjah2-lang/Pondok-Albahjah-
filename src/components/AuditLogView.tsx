@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ShieldCheck, Calendar, Search, Filter } from 'lucide-react';
 import { getLocalDateString } from '../utils/dateUtils';
 
@@ -41,16 +42,21 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ logs }) => {
         </div>
       </div>
 
-      <div className="p-4 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-        <Search className="w-5 h-5 text-slate-400" />
-        <input 
-          type="text"
-          placeholder="Cari aktivitas, nama admin, atau detail..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 w-full placeholder-slate-400"
-        />
-      </div>
+      <motion.div 
+        whileHover={{ scale: 1.01 }}
+        className="rounded-2xl p-[2px] bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm"
+      >
+        <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-3">
+          <Search className="w-5 h-5 text-slate-400" />
+          <input 
+            type="text"
+            placeholder="Cari aktivitas, nama admin, atau detail..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-transparent border-none outline-none text-slate-700 dark:text-slate-200 w-full placeholder-slate-400"
+          />
+        </div>
+      </motion.div>
 
       <div className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl rounded-3xl overflow-hidden">
         <div className="overflow-x-auto">

@@ -32,47 +32,59 @@ service cloud.firestore {
 
     // attendance collection
     match /attendance/{docId} {
-      allow read: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow update: if isAdmin() || (isSignedIn() && resource.data.pejuangId == request.auth.uid);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     // exitPermissions collection
     match /exitPermissions/{docId} {
-      allow read: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow update: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // izinKeluar collection (alias)
+    match /izinKeluar/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     // leaveRequests collection
     match /leaveRequests/{docId} {
-      allow read: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow update: if isAdmin() || (isSignedIn() && resource.data.pejuangId == request.auth.uid);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // cuti collection (alias)
+    match /cuti/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     // warningLetters collection
     match /warningLetters/{docId} {
-      allow read: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // slipUbar collection
     match /slipUbar/{docId} {
-      allow read: if isSignedIn() && (resource.data.pejuangId == request.auth.uid || isAdmin());
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // schedules collection
     match /schedules/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -89,15 +101,14 @@ service cloud.firestore {
     }
 
     match /fcmTokens/{docId} {
-      allow read: if isOwner(docId) || isAdmin();
-      allow write: if isOwner(docId) || isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /auditLogs/{docId} {
       allow read: if isAdmin();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update, delete: if isAdmin();
     }
   }
 }

@@ -259,7 +259,7 @@ export default function App() {
 
     // Sync Cuti Notifications
     let firstCutiLoad = true;
-    unsubCutiNotif = onSnapshot(collection(db, 'cuti'), (snap) => {
+    unsubCutiNotif = onSnapshot(collection(db, 'leaveRequests'), (snap) => {
       if (!firstCutiLoad && currentUser?.role === 'Admin') {
          snap.docChanges().forEach(change => {
            if (change.type === 'added') {
@@ -280,7 +280,7 @@ export default function App() {
 
     // Sync Izin Notifications
     let firstIzinLoad = true;
-    unsubIzinNotif = onSnapshot(collection(db, 'izinKeluar'), (snap) => {
+    unsubIzinNotif = onSnapshot(collection(db, 'exitPermissions'), (snap) => {
       if (!firstIzinLoad && currentUser?.role === 'Admin') {
          snap.docChanges().forEach(change => {
            if (change.type === 'added') {
@@ -371,23 +371,33 @@ export default function App() {
       const sched = schedules.find(s => s.targetDivisi === currentUser.subDivisi) || 
                     schedules.find(s => s.targetDivisi === 'Semua Divisi');
       
-      if (sched && sched.hariKerja.includes(todayStr) && sched.jamMasuk) {
-        // Parse shift start time
-        const [shiftHour, shiftMin] = sched.jamMasuk.split(':').map(Number);
+      if (sched && sched.hariKerja.includes(todayStr)) {
+        if (sched.jamMasuk) {
+          const [shiftHour, shiftMin] = sched.jamMasuk.split(':').map(Number);
+          const shiftTime = new Date();
+          shiftTime.setHours(shiftHour, shiftMin, 0, 0);
+          
+          const diffMs = shiftTime.getTime() - now.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          
+          if (diffMins === 15) {
+            const msg = `Waktu shift kerja Anda untuk ${sched.targetDivisi} akan dimulai 15 menit lagi pada pukul ${sched.jamMasuk}.`;
+            new Notification('Pengingat Jadwal Masuk', { body: msg });
+          }
+        }
         
-        // Target shift time today
-        const shiftTime = new Date();
-        shiftTime.setHours(shiftHour, shiftMin, 0, 0);
-        
-        // Check if now is exactly 15 mins before
-        const diffMs = shiftTime.getTime() - now.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        // We trigger it if the difference is exactly 15 minutes
-        if (diffMins === 15) {
-          // Send notification
-          const msg = `Waktu shift kerja Anda untuk ${sched.targetDivisi} akan dimulai 15 menit lagi pada pukul ${sched.jamMasuk}.`;
-          new Notification('Pengingat Jadwal Masuk', { body: msg });
+        if (sched.jamPulang) {
+          const [outHour, outMin] = sched.jamPulang.split(':').map(Number);
+          const outTime = new Date();
+          outTime.setHours(outHour, outMin, 0, 0);
+          
+          const diffMs = outTime.getTime() - now.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          
+          if (diffMins === 15) {
+            const msg = `Waktu shift pulang Anda untuk ${sched.targetDivisi} adalah 15 menit lagi pada pukul ${sched.jamPulang}. Jangan lupa absen pulang!`;
+            new Notification('Pengingat Jadwal Pulang', { body: msg });
+          }
         }
       }
     };

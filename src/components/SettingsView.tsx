@@ -1,4 +1,5 @@
 import { DownloadCloud } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Image as ImageIcon } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -759,13 +760,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 )}
               </div>
-              <button 
+              <motion.button 
                 onClick={() => fileInputRef.current?.click()}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.3 }}
                 className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-500 transition-colors"
                 title="Unggah Foto"
               >
                 <Upload className="w-4 h-4" />
-              </button>
+              </motion.button>
               <input
                 type="file"
                 accept="image/*"
@@ -917,15 +923,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {appLogoUrl ? 'Logo Kustom Aktif' : 'Menggunakan Lambang Bawaan (Default)'}
                   </div>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <button
+                    <motion.button
                       type="button"
                       disabled={isUploadingLogo}
                       onClick={() => logoInputRef.current?.click()}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>{isUploadingLogo ? 'Mengunggah...' : 'Unggah Logo Baru (JPG/PNG)'}</span>
-                    </button>
+                    </motion.button>
                     {appLogoUrl && (
                       <button
                         type="button"
@@ -973,15 +984,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {suratIzinTemplateUrl ? 'Template Surat Aktif' : 'Gunakan Format Standar A5 Kosong'}
                   </div>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <button
+                    <motion.button
                       type="button"
                       disabled={isUploadingTemplate}
                       onClick={() => templateInputRef.current?.click()}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>{isUploadingTemplate ? 'Mengunggah...' : 'Unggah Template (JPG/PNG)'}</span>
-                    </button>
+                    </motion.button>
                     {suratIzinTemplateUrl && (
                       <button
                         type="button"
@@ -1044,15 +1060,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {suratCutiTemplateUrl ? 'Template Surat Cuti Aktif' : 'Gunakan Format Standar A5 Kosong (Cuti)'}
                     </div>
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                      <button
+                      <motion.button
                         type="button"
                         disabled={isUploadingTemplateCuti}
                         onClick={() => templateCutiInputRef.current?.click()}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>{isUploadingTemplateCuti ? 'Mengunggah...' : 'Unggah Template Cuti (JPG/PNG)'}</span>
-                      </button>
+                      </motion.button>
                       {suratCutiTemplateUrl && (
                         <button
                           type="button"
@@ -1491,16 +1512,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>Manajemen Data Pejuang & Admin ({accounts.length} Akun)</span>
             </h2>
             <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                placeholder="Cari nama, username, atau ID..."
-                value={pejuangSearchQuery}
-                onChange={(e) => {
-                  setPejuangSearchQuery(e.target.value);
-                  setPejuangCurrentPage(1);
-                }}
-                className="w-48 py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
-              />
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="w-48 rounded-xl p-[2px] bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm"
+              >
+                <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Cari nama, username, atau ID..."
+                    value={pejuangSearchQuery}
+                    onChange={(e) => {
+                      setPejuangSearchQuery(e.target.value);
+                      setPejuangCurrentPage(1);
+                    }}
+                    className="w-full py-1.5 px-3 bg-transparent text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
+                  />
+                </div>
+              </motion.div>
               <button
                 onClick={() => setShowAddUserModal(true)}
                 className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5 whitespace-nowrap"

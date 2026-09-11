@@ -1,4 +1,5 @@
 import { getLocalDateString, getLogicalAttendanceDateStr } from '../utils/dateUtils';
+import { motion } from 'framer-motion';
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera as CameraIcon } from 'lucide-react';
 import jsQR from 'jsqr';
@@ -734,16 +735,23 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
               Riwayat & Log Presensi Kehadiran
             </h2>
             <div className="flex items-center space-x-3">
-              <input
-                type="text"
-                placeholder="Cari nama atau tanggal..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full md:w-48 py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="w-full md:w-48 rounded-xl p-[2px] bg-gradient-to-r from-emerald-400 to-teal-500"
+              >
+                <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Cari nama atau tanggal..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full py-1.5 px-3 bg-transparent text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
+                  />
+                </div>
+              </motion.div>
               <span className="text-xs text-slate-500 whitespace-nowrap">
                 Total {myAttendance.length} Entri
               </span>

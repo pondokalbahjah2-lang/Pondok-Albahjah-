@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { UserAccount, KajianRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
 import { calculateDistanceMeters } from '../utils/storage';

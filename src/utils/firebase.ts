@@ -38,7 +38,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 
-export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+export const db = initializeFirestore(app, { 
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true
+});
 export const auth = initializeAuth(app, {
   persistence: [
     browserLocalPersistence,

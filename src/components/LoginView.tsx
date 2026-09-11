@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Lock,
   User,
@@ -36,8 +37,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [runawayX, setRunawayX] = useState(0);
+  const [runawayY, setRunawayY] = useState(0);
+
+  const handleButtonHover = () => {
+    if (!username || !password) {
+      setRunawayX(Math.random() * 200 - 100);
+      setRunawayY(Math.random() * 80 - 40);
+    } else {
+      setRunawayX(0);
+      setRunawayY(0);
+    }
+  };
   const [showClauseModal, setShowClauseModal] = useState(false);
-  const [now, setNow] = useState(new Date());
+    const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -201,57 +214,89 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-amber-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-3xl" />
 
-      <div className="w-full max-w-4xl relative z-10 my-auto py-6">
+      <div className="w-full max-w-4xl relative z-10 my-auto py-2 sm:py-4 px-3 sm:px-4 mx-auto flex flex-col items-center">
         {/* Top Header & Real-time Dates Banner */}
-        <div className="mb-6 text-center space-y-2">
-          <div className="flex items-center justify-center mb-3">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-center overflow-hidden p-2">
+        <div className="mb-3 text-center space-y-1 w-full">
+          <div className="flex items-center justify-center mb-1">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl flex items-center justify-center overflow-hidden p-1.5">
               {appLogoUrl ? (
                 <img src={appLogoUrl} alt="Logo Pondok Al-Bahjah" className="w-full h-full object-contain drop-shadow-md" />
               ) : (
-                <div className="w-full h-full rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-2xl shadow-inner">
+                <div className="w-full h-full rounded-xl bg-gradient-to-tr from-emerald-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-xl shadow-inner">
                   B
                 </div>
               )}
             </div>
           </div>
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 text-xs font-semibold text-emerald-300 shadow-xl">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Sistem Kepondokan Al-Bahjah Cirebon 1</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
+          
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white drop-shadow-md">
             Portal Pejuang Al-Bahjah
           </h1>
-          <p className="text-xs sm:text-sm text-emerald-200/80 font-medium max-w-md mx-auto">
+          <p className="text-[11px] sm:text-xs text-emerald-200/80 font-medium max-w-xl mx-auto">
             Manajemen Terpadu Divisi Kepondokan Yayasan Al-Bahjah Cabang Cirebon 1
           </p>
 
           {/* Realtime Hijri & Masehi Widget Banner */}
-          <div className="mt-4 max-w-lg mx-auto p-3.5 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/15 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-            <div className="flex items-center space-x-2 text-emerald-300 font-bold">
-              <Calendar className="w-4 h-4 text-emerald-400" />
-              <span>{hijriDate.formatted}</span>
+          <div className="mt-2 max-w-2xl mx-auto py-1.5 px-3.5 rounded-xl bg-white/10 backdrop-blur-2xl border border-white/15 shadow-lg flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center space-x-1.5 text-emerald-300 font-bold text-[11px] sm:text-xs">
+              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="truncate">{hijriDate.formatted}</span>
             </div>
-            <div className="text-slate-300 font-medium">{masehiDateStr}</div>
+            <div className="text-sm sm:text-lg font-black tracking-widest text-emerald-300 drop-shadow-md tabular-nums px-2 py-0.5 rounded-lg bg-black/20 border border-emerald-500/20">
+              {now.getHours().toString().padStart(2, '0')}:{now.getMinutes().toString().padStart(2, '0')}:{now.getSeconds().toString().padStart(2, '0')}
+            </div>
+            <div className="text-slate-300 font-medium text-[11px] sm:text-xs truncate">{masehiDateStr}</div>
           </div>
         </div>
 
-        {/* Main Grid: Login Card + Pasal Manhajiyyah Card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-          {/* iOS Liquid Glass Login Card */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-white/10 backdrop-blur-3xl border border-white/20 shadow-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white">Masuk Sistem</h2>
-                  <p className="text-xs text-slate-300">Masukkan kredensial akun pejuang Anda</p>
+        {/* Main Section: Wide Landscape Manhajiyyah + Login Card */}
+        <div className="w-full flex flex-col items-center gap-3 sm:gap-4">
+          {/* Daily Rotating Manhajiyyah Clause Card - Sleek Wide Landscape */}
+          <div className="w-full max-w-2xl p-3 sm:py-3 sm:px-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-amber-950/80 backdrop-blur-2xl border border-emerald-500/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 text-left">
+            <div className="flex-1 min-w-0 w-full">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <div className="flex items-center space-x-1.5 text-[10px] sm:text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  <span>Pasal Hari Ini</span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 overflow-hidden">
-                  {appLogoUrl ? (
-                    <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
-                  ) : (
-                    <ShieldCheck className="w-5 h-5" />
-                  )}
+                {clauseToday && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-400/30 truncate">
+                    Pasal {clauseToday.pasalNumber}: {clauseToday.title}
+                  </span>
+                )}
+                {clauseToday?.category && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-400/30">
+                    {clauseToday.category}
+                  </span>
+                )}
+              </div>
+
+              {clauseToday && (
+                <p className="text-[11px] sm:text-xs text-slate-200 leading-relaxed italic line-clamp-2">
+                  "{clauseToday.content}"
+                </p>
+              )}
+            </div>
+
+            <div className="w-full sm:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowClauseModal(true)}
+                className="w-full sm:w-auto py-1.5 px-3 rounded-xl bg-white/10 hover:bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-bold text-[10px] sm:text-xs transition-colors flex items-center justify-center sm:justify-start space-x-1.5 whitespace-nowrap shadow-sm"
+              >
+                <span>Daftar Semua Pasal</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* iOS Liquid Glass Login Card */}
+          <div className="w-full max-w-md p-4 sm:p-6 rounded-3xl bg-white/10 backdrop-blur-3xl border border-white/20 shadow-2xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3.5">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-white">Masuk Sistem</h2>
+                  <p className="text-[11px] sm:text-xs text-slate-300">Masukkan kredensial akun pejuang Anda</p>
                 </div>
               </div>
 
@@ -261,9 +306,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-200 mb-1">
                     Nama Pengguna (Username)
                   </label>
                   <div className="relative">
@@ -274,15 +319,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Masukkan Username atau Email"
-                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-200 mb-1.5">
-                    Kata Sandi (Password)
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-xs font-semibold text-slate-200">
+                      Kata Sandi (Password)
+                    </label>
+                    <button type="button" onClick={() => alert("Silakan hubungi admin untuk melakukan validasi lupa password dan mengatur ulang kata sandi Anda.")} className="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">Lupa Password?</button>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -291,7 +339,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-11 py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
+                      className="w-full pl-10 pr-11 py-2.5 sm:py-3 rounded-2xl bg-white/10 border border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 text-white placeholder-slate-400 text-xs outline-none transition-all"
                     />
                     <button
                       type="button"
@@ -308,74 +356,25 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 space-y-3">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition-all duration-200 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    <span>{isLoading ? 'Memproses...' : 'Masuk Ke Sistem'}</span>
-                    {!isLoading && <ArrowRight className="w-4 h-4" />}
-                  </button>
-
-                  <div className="relative flex items-center py-2">
-                    <div className="flex-grow border-t border-white/10"></div>
-                    <span className="flex-shrink-0 mx-4 text-white/40 text-[10px] uppercase font-bold tracking-widest">
-                      Atau
-                    </span>
-                    <div className="flex-grow border-t border-white/10"></div>
-                  </div>
-
-                  {accounts.some(a => a.webAuthnCredentialId) && (
-                    <button
-                      type="button"
+                <div className="pt-1.5 space-y-3">
+                  <div className="relative w-full" onMouseEnter={handleButtonHover}>
+                    <motion.button
+                      type="submit"
                       disabled={isLoading}
-                      onClick={handleBiometricLogin}
-                      className="w-full py-3 px-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs transition-all duration-200 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                      animate={{ x: runawayX, y: runawayY }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className="w-full py-2.5 sm:py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition-colors duration-200 flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed z-10"
                     >
-                      <Fingerprint className="w-5 h-5 text-emerald-400" />
-                      <span>Masuk dengan Biometrik</span>
-                    </button>
-                  )}
+                      <span>{isLoading ? 'Memproses...' : 'Masuk Ke Sistem'}</span>
+                      {!isLoading && <ArrowRight className="w-4 h-4" />}
+                    </motion.button>
+                  </div>
                 </div>
               </form>
             </div>
           </div>
-
-          {/* Daily Rotating Manhajiyyah Clause Card */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-900/40 via-amber-900/30 to-slate-900/40 backdrop-blur-3xl border border-emerald-500/30 shadow-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center space-x-2 text-xs font-extrabold text-emerald-400 uppercase tracking-wider mb-2">
-                <BookOpen className="w-4 h-4" />
-                <span>Pasal Manhajiyyah Hari Ini (1 Pasal 1 Hari)</span>
-              </div>
-
-              {clauseToday && (
-                <div className="space-y-3 mt-4">
-                  <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-400/30">
-                    Pasal {clauseToday.pasalNumber}: {clauseToday.title}
-                  </div>
-                  <h3 className="text-base font-bold text-white">{clauseToday.category}</h3>
-                  <p className="text-xs text-slate-200 leading-relaxed italic line-clamp-6">
-                    "{clauseToday.content}"
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6">
-              <button
-                onClick={() => setShowClauseModal(true)}
-                className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-emerald-300 font-bold text-xs transition-colors flex items-center justify-between"
-              >
-                <span>Baca Selengkapnya / Cari Pasal</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-
       {/* Modal View All Clauses */}
       {showClauseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">

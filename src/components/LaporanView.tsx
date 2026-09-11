@@ -1,4 +1,5 @@
 import { getLocalDateString, getLogicalAttendanceDateStr } from '../utils/dateUtils';
+import { motion } from 'framer-motion';
 import React, { useState } from 'react';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
@@ -737,13 +738,20 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                placeholder="Cari nama pejuang..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-1/3 p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500"
-              />
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="w-full sm:w-1/3 rounded-2xl p-[2px] bg-gradient-to-r from-emerald-400 to-teal-500"
+              >
+                <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Cari nama pejuang..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full p-2.5 bg-transparent text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                  />
+                </div>
+              </motion.div>
               
               <select
                 value={divisiFilter}

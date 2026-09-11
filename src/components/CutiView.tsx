@@ -1,4 +1,5 @@
 import { getLocalDateString } from '../utils/dateUtils';
+import { motion } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -326,18 +327,23 @@ export const CutiView: React.FC<CutiViewProps> = ({
 
       {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="w-4 h-4 text-slate-400" />
+        <motion.div 
+          whileHover={{ scale: 1.02 }}
+          className="relative rounded-2xl p-[2px] bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm"
+        >
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden flex items-center">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+              <Search className="w-4 h-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Cari nama pejuang atau alasan cuti..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="w-full pl-10 pr-4 py-3 bg-transparent text-sm focus:outline-none text-slate-700 dark:text-slate-200"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Cari nama pejuang atau alasan cuti..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none text-slate-700 dark:text-slate-200"
-          />
-        </div>
+        </motion.div>
         <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
           {(currentUser.role === 'Admin' ? ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai', 'Rekap Kuota Cuti'] : ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai']).map((status) => (
             <button
