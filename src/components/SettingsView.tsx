@@ -1569,23 +1569,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {acc.username}
                     </td>
                     <td className="py-3 px-3">
-                      <select
-                        value={acc.role}
-                        onChange={(e) => {
-                          if (confirm(`Apakah Anda yakin ingin mengubah role ${acc.name} menjadi ${e.target.value}?`)) {
-                            const updated = accounts.map(a => a.id === acc.id ? { ...a, role: e.target.value as 'Admin' | 'Pejuang' } : a);
-                            onSaveAccounts(updated);
-                          }
-                        }}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold outline-none cursor-pointer appearance-none text-center ${
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                           acc.role === 'Admin'
                             ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
                             : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
                         }`}
                       >
-                        <option value="Admin">Admin</option>
-                        <option value="Pejuang">Pejuang</option>
-                      </select>
+                        {acc.role}
+                      </span>
                     </td>
                     <td className="py-3 px-3 font-bold text-emerald-700 dark:text-emerald-400">
                       {acc.subDivisi}
@@ -1597,19 +1589,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {acc.nipy || '-'}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Reset kata sandi ${acc.name} ke default (User123)?`)) {
-                            const updated = accounts.map(a => a.id === acc.id ? { ...a, password: 'User123' } : a);
-                            onSaveAccounts(updated);
-                            alert(`Kata sandi untuk ${acc.name} berhasil direset ke: User123\n\nCatatan: Reset ini mengubah password di profil database, jika gagal login silakan Admin membuat ulang akunnya.`);
-                          }
-                        }}
-                        className="p-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 mr-2"
-                        title="Reset Sandi"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
                       <button
                         onClick={() => {
                           setEditingUserId(acc.id);
