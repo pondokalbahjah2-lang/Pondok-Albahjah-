@@ -12,9 +12,9 @@ export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Da
                          sub.includes('smpiqu') || 
                          sub.includes('smaiqu');
     
-    // If it's a night shift and the time is before 09:00 AM (giving some buffer after 07:00), 
-    // it counts as the previous day's shift
-    if (isNightShift && d.getHours() < 9) {
+    // Only count as yesterday if it's before 5:00 AM. 
+    // Normal morning shifts often start around 06:00 or 07:00, so we shouldn't shift them to yesterday.
+    if (isNightShift && d.getHours() < 5) {
       const prevDate = new Date(d);
       prevDate.setDate(prevDate.getDate() - 1);
       return getLocalDateString(prevDate);

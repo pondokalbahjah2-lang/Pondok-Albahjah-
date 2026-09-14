@@ -178,6 +178,7 @@ export interface KajianRecord {
   isWithinRadius?: boolean;
   attendancePhotoUrl?: string; // Gdrive Link
   notesPhotoUrl?: string; // Gdrive Link
+  statusCatatan?: 'Valid' | 'Ditolak' | 'Pending';
 }
 
 export interface HolidayRecord {

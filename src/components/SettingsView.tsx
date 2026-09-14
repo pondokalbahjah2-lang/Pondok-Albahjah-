@@ -71,6 +71,7 @@ interface SettingsViewProps {
 }
 
 import { LocationMap } from './LocationMap';
+import { AdminEditAbsensi } from './AdminEditAbsensi';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   currentUser,
@@ -110,6 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [manContent, setManContent] = useState('');
 
   const [activeTab, setActiveTab] = useState<'profil' | 'lokasi' | 'jadwal' | 'pejuang' | 'manhajiah' | 'backup'>(isAdmin ? 'lokasi' : 'profil');
+  const [showEditAbsensi, setShowEditAbsensi] = useState(false);
 
   // Profile settings states & Logo upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -656,6 +658,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
+    <>
+    {showEditAbsensi && <AdminEditAbsensi onClose={() => setShowEditAbsensi(false)} />}
     <div className="space-y-6">
       {/* Header Banner */}
       <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1565,15 +1569,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {acc.username}
                     </td>
                     <td className="py-3 px-3">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      <select
+                        value={acc.role}
+                        onChange={(e) => {
+                          if (confirm(`Apakah Anda yakin ingin mengubah role ${acc.name} menjadi ${e.target.value}?`)) {
+                            const updated = accounts.map(a => a.id === acc.id ? { ...a, role: e.target.value as 'Admin' | 'Pejuang' } : a);
+                            onSaveAccounts(updated);
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold outline-none cursor-pointer appearance-none text-center ${
                           acc.role === 'Admin'
                             ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
                             : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
                         }`}
                       >
-                        {acc.role}
-                      </span>
+                        <option value="Admin">Admin</option>
+                        <option value="Pejuang">Pejuang</option>
+                      </select>
                     </td>
                     <td className="py-3 px-3 font-bold text-emerald-700 dark:text-emerald-400">
                       {acc.subDivisi}
@@ -1585,6 +1597,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {acc.nipy || '-'}
                     </td>
                     <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => {
+                          if (confirm(`Reset kata sandi ${acc.name} ke default (User123)?`)) {
+                            const updated = accounts.map(a => a.id === acc.id ? { ...a, password: 'User123' } : a);
+                            onSaveAccounts(updated);
+                            alert(`Kata sandi untuk ${acc.name} berhasil direset ke: User123\n\nCatatan: Reset ini mengubah password di profil database, jika gagal login silakan Admin membuat ulang akunnya.`);
+                          }
+                        }}
+                        className="p-1.5 rounded-xl bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 mr-2"
+                        title="Reset Sandi"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => {
                           setEditingUserId(acc.id);
@@ -2367,6 +2392,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
+            <div className="p-5 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 flex flex-col justify-between mt-4">
+              <div>
+                <h3 className="font-bold text-sm text-indigo-700 dark:text-indigo-400 mb-2">Edit Data Absensi Pejuang</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                  Fitur ini memungkinkan Admin untuk mengoreksi data absensi yang salah (seperti salah tanggal atau status kehadiran) langsung dari database.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowEditAbsensi(true)}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-all"
+              >
+                Buka Editor Absensi
+              </button>
+            </div>
+
             <div className="p-5 border border-rose-200 dark:border-rose-900/50 rounded-2xl bg-rose-50 dark:bg-rose-900/10 flex flex-col justify-between mt-4">
               <div>
                 <h3 className="font-bold text-sm text-rose-700 dark:text-rose-400 mb-2">Hapus Database Absensi (Per Bulan)</h3>
@@ -2453,6 +2493,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
     </div>
+    </>
   );
 };
 
