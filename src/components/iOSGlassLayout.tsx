@@ -174,7 +174,18 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                      <motion.div
+                        animate={isActive ? {
+                          y: item.id === 'absensi' ? [0, -5, 0] : 0,
+                          rotate: item.id === 'settings' ? 180 : (item.id === 'sp' ? [0, -10, 10, -10, 10, 0] : 0),
+                          scale: (item.id === 'dashboard' || item.id === 'kajian') ? [1, 1.2, 1] : 1,
+                          rotateX: item.id === 'izin' || item.id === 'cuti' ? [0, 20, 0] : 0,
+                          rotateY: item.id === 'ubar' || item.id === 'kalender' || item.id === 'laporan' ? [0, 20, 0] : 0
+                        } : {}}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                      >
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                      </motion.div>
                       <span>{item.label}</span>
                     </div>
                     {item.badge ? (
@@ -356,7 +367,18 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                   )}
                   <div className="relative z-10 flex items-center gap-2">
                     <div className="relative">
-                      <Icon className="w-5 h-5 shrink-0" />
+                      <motion.div
+                        animate={isActive ? {
+                          y: item.id === 'absensi' ? [0, -5, 0] : 0,
+                          rotate: item.id === 'settings' ? 180 : (item.id === 'sp' ? [0, -10, 10, -10, 10, 0] : 0),
+                          scale: (item.id === 'dashboard' || item.id === 'kajian') ? [1, 1.2, 1] : 1,
+                          rotateX: item.id === 'izin' || item.id === 'cuti' ? [0, 20, 0] : 0,
+                          rotateY: item.id === 'ubar' || item.id === 'kalender' || item.id === 'laporan' ? [0, 20, 0] : 0
+                        } : {}}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                      >
+                        <Icon className="w-5 h-5 shrink-0" />
+                      </motion.div>
                       {item.badge ? (
                         <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-0.5 border border-white dark:border-slate-900">
                           {item.badge}
