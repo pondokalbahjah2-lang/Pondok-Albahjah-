@@ -969,8 +969,9 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
       {/* Map Modal Viewer */}
       {isMapModalOpen && selectedMapRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setIsMapModalOpen(false)}>
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setIsMapModalOpen(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-emerald-500" />
@@ -992,8 +993,8 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
               <span className="font-bold">Koordinat:</span> {selectedMapRecord.latitude}, {selectedMapRecord.longitude} <br/>
               <span className="font-bold">Jarak dari Pondok:</span> {selectedMapRecord.distanceFromPondok} meter
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

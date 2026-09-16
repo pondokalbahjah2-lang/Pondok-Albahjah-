@@ -558,7 +558,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Warning Letter Popup */}
       {activeWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl relative border-t-8 border-rose-500 animate-in fade-in zoom-in duration-300">
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl relative border-t-8 border-rose-500 animate-in fade-in zoom-in duration-300">
             <button onClick={dismissWarning} className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
               <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
             </button>
@@ -584,7 +585,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               Saya Mengerti
             </button>
-          </div>
+          </motion.div>
         </div>
       )}
 
@@ -1455,7 +1456,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Active List Modal */}
       {activeListModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
               <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
                 <Users className="w-4 h-4 text-emerald-600" />
@@ -1502,7 +1504,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 })
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

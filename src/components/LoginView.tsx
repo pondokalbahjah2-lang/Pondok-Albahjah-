@@ -443,7 +443,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
       {/* Modal View All Clauses */}
       {showClauseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl text-slate-100">
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+            className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl text-slate-100">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-2">
                 <BookOpen className="w-5 h-5 text-emerald-400" />
@@ -486,7 +487,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 Tutup
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>

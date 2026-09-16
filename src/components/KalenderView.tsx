@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalDateString } from '../utils/dateUtils';
 import React, { useState } from 'react';
 import {
@@ -290,7 +291,8 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
       {/* Selected Day Inspector Modal */}
       {isModalOpen && selectedDayDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
               <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
                 <Users className="w-4 h-4 text-emerald-600" />
@@ -366,7 +368,7 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
                 <span>Kalender Hijriyah menyesuaikan parameter lokal.</span>
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>

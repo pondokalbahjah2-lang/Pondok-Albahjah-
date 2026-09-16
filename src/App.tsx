@@ -659,7 +659,7 @@ export default function App() {
   return (
     <>
       
-      <IOSGlassLayout
+      <IOSGlassLayout appLogoUrl={generalSettings.appLogoUrl}
         currentUser={currentUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -733,7 +733,6 @@ export default function App() {
                 slipUbarList={slipUbarList}
                 onSaveSlipUbar={handleSaveSlipUbar}
                 onDeleteAllSlipUbar={handleDeleteAllSlipUbar}
-                isLoading={isLoadingData}
                 isLoading={isLoadingData}
               />
             )}
