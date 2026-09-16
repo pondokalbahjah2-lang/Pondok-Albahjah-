@@ -26,6 +26,7 @@ interface SlipUbarViewProps {
   onSaveSlipUbar: (records: SlipUbarRecord[]) => void;
   onUpdateAccountPassword?: (pejuangId: string, newPass: string) => void;
   onDeleteAllSlipUbar?: () => void;
+  isLoading?: boolean;
 }
 
 interface StagedBulkUpload {
@@ -44,6 +45,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   onSaveSlipUbar,
   onUpdateAccountPassword,
   onDeleteAllSlipUbar,
+  isLoading,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPejuangId, setSelectedPejuangId] = useState('');

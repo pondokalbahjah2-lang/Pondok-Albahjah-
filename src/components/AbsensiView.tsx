@@ -32,6 +32,7 @@ interface AbsensiViewProps {
   locationSettings: LocationSettings;
   schedules: WorkSchedule[];
   onSaveAttendance: (records: AttendanceRecord[]) => void;
+  isLoading?: boolean;
 }
 
 export const AbsensiView: React.FC<AbsensiViewProps> = ({
@@ -40,6 +41,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   locationSettings,
   schedules,
   onSaveAttendance,
+  isLoading,
 }) => {
   const [currentLat, setCurrentLat] = useState<number | null>(null);
   const [currentLng, setCurrentLng] = useState<number | null>(null);
@@ -49,6 +51,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [attendanceStatus, setAttendanceStatus] = useState<'Hadir' | 'Sakit' | 'Libur' | 'Pulang' | 'Izin'>('Hadir');
+  const [suratSakitUrl, setSuratSakitUrl] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const itemsPerPage = 10;
@@ -504,6 +507,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       status: finalStatus,
       isWithinRadius: isWithinRadius,
       notes: notes || `Absensi melalui sistem web app (${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})`,
+      suratSakitUrl: attendanceStatus === 'Sakit' && suratSakitUrl ? suratSakitUrl : undefined,
     };
 
     onSaveAttendance([newRecord, ...attendance]);
@@ -712,6 +716,20 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                     )}
                   </div>
                 )}
+                {attendanceStatus === 'Sakit' && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                      Link GDrive Foto Surat Sakit (Opsional)
+                    </label>
+                    <input
+                      type="url"
+                      value={suratSakitUrl}
+                      onChange={(e) => setSuratSakitUrl(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
+                    />
+                  </div>
+                )}
                 <button
                   type="submit"
                   className={`w-full py-3 rounded-2xl shadow-lg font-extrabold text-xs transition-all active:scale-98 text-white flex items-center justify-center space-x-2 ${
@@ -771,7 +789,33 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {myAttendance.length === 0 ? (
+
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={'skeleton-'+i} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                      <td className="py-2.5 px-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700"></div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24 mb-2"></div>
+                        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 mb-2"></div>
+                        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                      </td>
+                    </tr>
+                  ))
+                ) : myAttendance.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-slate-400 italic">
                       Belum ada catatan presensi kehadiran.
@@ -861,7 +905,12 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 text-[11px] max-w-[150px] truncate">
-                        {rec.notes || '-'}
+                        <div>{rec.notes || '-'}</div>
+                        {rec.suratSakitUrl && (
+                          <a href={rec.suratSakitUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline mt-1 block">
+                            Lihat Surat Sakit
+                          </a>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -869,6 +918,34 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {myAttendance.filter(rec => 
+            rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            rec.date.toLowerCase().includes(searchQuery.toLowerCase())
+          ).length > itemsPerPage && (
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs text-slate-500">
+                Menampilkan halaman {currentPage} dari {Math.ceil(myAttendance.filter(rec => rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || rec.date.toLowerCase().includes(searchQuery.toLowerCase())).length / itemsPerPage)}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+                >
+                  Sebelumnya
+                </button>
+                <button
+                  disabled={currentPage >= Math.ceil(myAttendance.filter(rec => rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || rec.date.toLowerCase().includes(searchQuery.toLowerCase())).length / itemsPerPage)}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+                >
+                  Berikutnya
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       

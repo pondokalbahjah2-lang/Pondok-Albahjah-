@@ -54,6 +54,7 @@ export interface AttendanceRecord {
   status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin';
   isWithinRadius: boolean;
   notes?: string;
+  suratSakitUrl?: string;
 }
 
 export interface ExitPermissionRecord {
@@ -170,7 +171,7 @@ export interface KajianRecord {
   pejuangId: string;
   pejuangName: string;
   subDivisi: string;
-  date: string;
+  date: string; // The date the Kajian was attended
   kajianName: string;
   mode: 'Offline' | 'Online';
   latitude?: number;
@@ -178,7 +179,7 @@ export interface KajianRecord {
   isWithinRadius?: boolean;
   attendancePhotoUrl?: string; // Gdrive Link
   notesPhotoUrl?: string; // Gdrive Link
-  statusCatatan?: 'Valid' | 'Ditolak' | 'Pending';
+  statusValidasi?: 'Valid' | 'Ditolak';
 }
 
 export interface HolidayRecord {

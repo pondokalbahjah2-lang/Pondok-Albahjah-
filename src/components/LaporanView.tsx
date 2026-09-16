@@ -569,7 +569,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time,
       ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLogicalAttendanceDateStr(accounts.find(u => u.id === a.pejuangId)) ? 'Tidak Absen Pulang' : '-')),
       a.status,
-      a.notes || '-'
+      (a.notes || '-') + (a.suratSakitUrl ? ' (Ada Surat Sakit)' : '')
     ]);
     autoTable(doc, {
       startY: finalY + 5,
@@ -954,7 +954,14 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                           {a.status}
                         </span>
                       </td>
-                      <td className="p-2.5 truncate max-w-[150px]">{a.notes || '-'}</td>
+                      <td className="p-2.5 max-w-[150px]">
+                        <div className="truncate">{a.notes || '-'}</div>
+                        {a.suratSakitUrl && (
+                          <a href={a.suratSakitUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[10px] block mt-1">
+                            Lihat Surat Sakit
+                          </a>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

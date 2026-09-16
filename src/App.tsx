@@ -22,6 +22,7 @@ import { getToken, onMessage } from 'firebase/messaging';
 import { RefreshCcw, AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { INITIAL_LOCATION_SETTINGS } from './data/mockData';
+import { getLocalDateString } from './utils/dateUtils';
 
 export default function App() {
   console.log('App: Component rendering...');
@@ -39,6 +40,7 @@ export default function App() {
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
     const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
@@ -162,13 +164,14 @@ export default function App() {
         const attQ = isAd 
           ? query(collection(db, 'attendance'), orderBy('id', 'desc'), limit(10000))
           : query(collection(db, 'attendance'), where('pejuangId', '==', uid));
+        let firstAttLoad = true;
         unsubAtt = onSnapshot(attQ, (snap) => {
           let data = snap.docs.map(d => d.data() as any);
           if (!isAd) {
             data = data.sort((a: any, b: any) => new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime());
           }
           setAttendance(data);
-          
+          if (firstAttLoad) { setIsLoadingData(false); firstAttLoad = false; }
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'attendance'));
 
         // Sync Exit Permissions
@@ -368,8 +371,8 @@ export default function App() {
       const todayStr = days[currentDayIndex];
       
       // Find user's schedule
-      const sched = schedules.find(s => s.targetDivisi === currentUser.subDivisi) || 
-                    schedules.find(s => s.targetDivisi === 'Semua Divisi');
+      const sched = schedules.find(s => s.targetName === currentUser.subDivisi) || 
+                    schedules.find(s => s.targetName === 'Semua Divisi');
       
       if (sched && sched.hariKerja.includes(todayStr)) {
         if (sched.jamMasuk) {
@@ -380,9 +383,14 @@ export default function App() {
           const diffMs = shiftTime.getTime() - now.getTime();
           const diffMins = Math.floor(diffMs / 60000);
           
-          if (diffMins === 15) {
-            const msg = `Waktu shift kerja Anda untuk ${sched.targetDivisi} akan dimulai 15 menit lagi pada pukul ${sched.jamMasuk}.`;
-            new Notification('Pengingat Jadwal Masuk', { body: msg });
+          if (diffMins === 15 || diffMins === 30 || diffMins === 60) {
+            // Check if already absented
+            const todayDateStr = getLocalDateString(now);
+            const hasAbsented = attendance.some(a => a.pejuangId === currentUser.id && a.date === todayDateStr);
+            if (!hasAbsented) {
+              const msg = `Waktu shift kerja Anda untuk ${sched.targetName} akan dimulai ${diffMins} menit lagi pada pukul ${sched.jamMasuk}. Silakan lakukan absensi!`;
+              new Notification('Pengingat Absensi Masuk', { body: msg, icon: '/icon.png' });
+            }
           }
         }
         
@@ -395,8 +403,13 @@ export default function App() {
           const diffMins = Math.floor(diffMs / 60000);
           
           if (diffMins === 15) {
-            const msg = `Waktu shift pulang Anda untuk ${sched.targetDivisi} adalah 15 menit lagi pada pukul ${sched.jamPulang}. Jangan lupa absen pulang!`;
-            new Notification('Pengingat Jadwal Pulang', { body: msg });
+            const todayDateStr = getLocalDateString(now);
+            // Wait, for check out we need to make sure they haven't checked out yet.
+            const todayAttendance = attendance.find(a => a.pejuangId === currentUser.id && a.date === todayDateStr);
+            if (!todayAttendance || !todayAttendance.timePulang) {
+              const msg = `Waktu shift pulang Anda untuk ${sched.targetName} adalah 15 menit lagi pada pukul ${sched.jamPulang}. Jangan lupa absen pulang!`;
+              new Notification('Pengingat Jadwal Pulang', { body: msg, icon: '/icon.png' });
+            }
           }
         }
       }
@@ -696,6 +709,7 @@ export default function App() {
                 schedules={schedules}
 
                 onSaveAttendance={handleSaveAttendance}
+                isLoading={isLoadingData}
               />
             )}
             {activeTab === 'cuti' && (
@@ -719,6 +733,8 @@ export default function App() {
                 slipUbarList={slipUbarList}
                 onSaveSlipUbar={handleSaveSlipUbar}
                 onDeleteAllSlipUbar={handleDeleteAllSlipUbar}
+                isLoading={isLoadingData}
+                isLoading={isLoadingData}
               />
             )}
             {activeTab === 'sp' && (
