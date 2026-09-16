@@ -54,7 +54,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [suratSakitUrl, setSuratSakitUrl] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -919,16 +919,31 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
             </table>
           </div>
           
+          
           {/* Pagination Controls */}
-          {myAttendance.filter(rec => 
-            rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            rec.date.toLowerCase().includes(searchQuery.toLowerCase())
-          ).length > itemsPerPage && (
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs text-slate-500">
-                Menampilkan halaman {currentPage} dari {Math.ceil(myAttendance.filter(rec => rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || rec.date.toLowerCase().includes(searchQuery.toLowerCase())).length / itemsPerPage)}
-              </span>
-              <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Tampilkan:</span>
+              <select 
+                value={itemsPerPage} 
+                onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-xs border-none"
+              >
+                <option value={10}>10</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={1000000}>Semua</option>
+              </select>
+            </div>
+            
+            {myAttendance.filter(rec => 
+              rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+              rec.date.toLowerCase().includes(searchQuery.toLowerCase())
+            ).length > itemsPerPage && (
+              <div className="flex gap-2 items-center">
+                <span className="text-xs text-slate-500 mr-2">
+                  Halaman {currentPage} dari {Math.ceil(myAttendance.filter(rec => rec.pejuangName.toLowerCase().includes(searchQuery.toLowerCase()) || rec.date.toLowerCase().includes(searchQuery.toLowerCase())).length / itemsPerPage)}
+                </span>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -944,8 +959,8 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                   Berikutnya
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
       

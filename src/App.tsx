@@ -97,7 +97,8 @@ export default function App() {
       return;
     }
 
-        let unsubCutiNotif = () => {};
+        let unsubKajian = () => {};
+    let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
     let unsubAtt = () => {};
@@ -202,6 +203,19 @@ export default function App() {
           setExitPermissions(data);
           
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'exitPermissions'));
+
+        // Sync Kajian
+        const kajianQ = isAd 
+          ? query(collection(db, 'kajian'), orderBy('id', 'desc'), limit(3000))
+          : query(collection(db, 'kajian'), where('pejuangId', '==', uid));
+        unsubKajian = onSnapshot(kajianQ, (snap) => {
+          let data = snap.docs.map(d => d.data() as KajianRecord);
+          if (!isAd) {
+            data = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          }
+          setKajianRecords(data);
+        }, (err) => handleFirestoreError(err, OperationType.LIST, 'kajian'));
+
 
         // Sync Leave Requests
         const leaveQ = isAd 
@@ -330,7 +344,7 @@ export default function App() {
 
     return () => {
       unsubAuth();
-      unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip();
+      unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip(); unsubKajian();
       unsubSchedules(); unsubLoc(); unsubManhaj();
        unsubCutiNotif(); unsubIzinNotif();
       
@@ -617,9 +631,19 @@ export default function App() {
     }
   };
 
-  const handleSaveKajian = (newRecords: KajianRecord[]) => {
+  const handleSaveKajian = async (newRecords: KajianRecord[]) => {
     setKajianRecords(newRecords);
     AppStorage.saveKajianRecords(newRecords);
+    
+    try {
+      const addedOrUpdated = newRecords.filter(a => {
+        const existing = kajianRecords.find(ex => ex.id === a.id);
+        return !existing || JSON.stringify(existing) !== JSON.stringify(a);
+      });
+      const deleted = kajianRecords.filter(a => !newRecords.find(ac => ac.id === a.id));
+      for (const a of addedOrUpdated) await setDoc(doc(db, 'kajian', a.id), a);
+      for (const a of deleted) await deleteDoc(doc(db, 'kajian', a.id));
+    } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'kajian'); }
   };
 
   const handleSaveManhajiyyahClauses = async (cls: typeof manhajiyyahClauses) => {

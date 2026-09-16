@@ -1,21 +1,10 @@
+import { FileText, Calendar, Clock, Search, Filter, CheckCircle, XCircle, LogOut, LogIn, AlertTriangle, Plus } from 'lucide-react';
 import { getLocalDateString } from '../utils/dateUtils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
-import {
-  Clock,
-  Plus,
-  Search,
-  CheckCircle,
-  AlertCircle,
-  Calendar,
-  User,
-  Filter,
-  Check,
-  X,
-  Hourglass,
-} from 'lucide-react';
+
 import { UserAccount, ExitPermissionRecord } from '../types';
 
 interface IzinKeluarViewProps {
@@ -47,6 +36,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   const [selectedRecordForReturn, setSelectedRecordForReturn] = useState<ExitPermissionRecord | null>(null);
 
   // Approval modal states
+  const [confirmIzinAction, setConfirmIzinAction] = useState<{isRejected: boolean, event: any} | null>(null);
   const [approvalRecord, setApprovalRecord] = useState<ExitPermissionRecord | null>(null);
   const [approvalTanggalKeluar, setApprovalTanggalKeluar] = useState('');
   const [approvalTanggalIzinSampai, setApprovalTanggalIzinSampai] = useState('');
@@ -267,25 +257,29 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     setApprovalJamHarusKembali(rec.jamHarusKembali);
   };
 
-  const handleSubmitApproval = (e: React.FormEvent, isRejected: boolean = false) => {
+  const handleSubmitApprovalClick = (e: React.FormEvent, isRejected: boolean = false) => {
     e.preventDefault();
-    if (!approvalRecord) return;
+    if (navigator.vibrate) navigator.vibrate(50);
+    setConfirmIzinAction({ isRejected, event: e });
+  };
+
+  const confirmSubmitApproval = () => {
+    if (!confirmIzinAction || !approvalRecord) return;
+    const { isRejected } = confirmIzinAction;
     const now = new Date();
     const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
        
     const updated = exitPermissions.map(p => p.id === approvalRecord.id ? { 
       ...p, 
-      status: isRejected ? 'Ditolak' as const : 'Di Luar' as const, 
+            status: isRejected ? 'Ditolak' as const : 'Di Luar' as const, 
       tanggalKeluar: approvalTanggalKeluar,
-      tanggalIzinSampai: approvalTanggalIzinSampai,
-      jamKeluar: approvalJamKeluar,
-      jamHarusKembali: approvalJamHarusKembali,
-      approvedBy: currentUser.name,
-      approvedAt: `${approvedDateStr} pukul ${approvedTimeStr}`
+      tanggalKembali: approvalTanggalIzinSampai,
+      waktuKeluar: isRejected ? undefined : approvedTimeStr
     } : p);
     onSaveExitPermissions(updated);
     setApprovalRecord(null);
+    setConfirmIzinAction(null);
   };
 
   return (
@@ -670,7 +664,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
               </button>
             </div>
             
-            <form onSubmit={handleSubmitApproval} className="space-y-4">
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
               <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 text-xs text-slate-300">
                 <span className="block font-bold text-slate-100 mb-1">Alasan Izin:</span>
                 {approvalRecord.alasan}
@@ -733,14 +727,14 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
               <div className="flex space-x-2 mt-4">
                 <button
                   type="button"
-                  onClick={(e) => handleSubmitApproval(e, true)}
+                  onClick={(e) => handleSubmitApprovalClick(e, true)}
                   className="w-1/3 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all"
                 >
                   Tolak
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => handleSubmitApproval(e, false)}
+                  onClick={(e) => handleSubmitApprovalClick(e, false)}
                   className="w-2/3 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all"
                 >
                   Setujui & Simpan
@@ -750,6 +744,46 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
           </motion.div>
         </div>
       )}
+
+
+      {/* Confirmation Modal for Izin */}
+      <AnimatePresence>
+        {confirmIzinAction && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-white/20 dark:border-slate-700"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${!confirmIzinAction.isRejected ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-lg mb-2 text-slate-800 dark:text-white">Konfirmasi Persetujuan</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                  Apakah Anda yakin ingin <strong className={!confirmIzinAction.isRejected ? 'text-emerald-600' : 'text-rose-600'}>{!confirmIzinAction.isRejected ? 'Menyetujui' : 'Menolak'}</strong> izin keluar ini?
+                </p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setConfirmIzinAction(null)}
+                    className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={confirmSubmitApproval}
+                    className={`flex-1 py-3 rounded-2xl text-white font-bold text-xs shadow-lg ${!confirmIzinAction.isRejected ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30' : 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/30'}`}
+                  >
+                    Ya, {!confirmIzinAction.isRejected ? 'Setuju' : 'Tolak'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
