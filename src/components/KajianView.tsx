@@ -15,11 +15,12 @@ interface KajianViewProps {
   currentUser: UserAccount;
   kajianRecords: KajianRecord[];
   onSaveKajian: (records: KajianRecord[]) => void;
+  onForceSync?: () => Promise<void>;
   accounts: UserAccount[];
   locationSettings: any;
 }
 
-export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecords, onSaveKajian, accounts, locationSettings }) => {
+export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecords, onSaveKajian, accounts, locationSettings, onForceSync }) => {
   const isAdmin = currentUser.role === 'Admin';
   
   const [kajianName, setKajianName] = useState("Kajian Tafsir Al-Qur'an Setiap Sabtu Pagi");
@@ -36,9 +37,18 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
   
   // Admin Search
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState(getLocalDateString(new Date()));
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return getLocalDateString(d);
+});
   const [filterEndDate, setFilterEndDate] = useState(getLocalDateString(new Date()));
   const [confirmAction, setConfirmAction] = useState<{id: string, status: "Valid" | "Ditolak"} | null>(null);
+
+    const isAlHikam = kajianName === "Kajian Al-Hikam Senin Malam";
+  const targetLat = isAlHikam ? -6.7100287 : (locationSettings.latitude || 0);
+  const targetLng = isAlHikam ? 108.5583596 : (locationSettings.longitude || 0);
+  const targetRadius = isAlHikam ? 300 : (locationSettings.radiusMaxMeters || 150);
 
   useEffect(() => {
     let watchId: number;
@@ -54,8 +64,8 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
             const dist = calculateDistanceMeters(
               lat,
               lng,
-              locationSettings.latitude,
-              locationSettings.longitude
+              targetLat,
+              targetLng
             );
             setDistanceMeters(dist);
             setLocationStatus('success');
@@ -76,15 +86,14 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
         setLocationStatus('error');
       }
     }
-    
     return () => {
       if (watchId !== undefined && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [mode, locationSettings.latitude, locationSettings.longitude]);
+  }, [mode, kajianName, targetLat, targetLng]);
 
-  const isWithinRadius = distanceMeters !== null && distanceMeters <= locationSettings.radiusMaxMeters;
+  const isWithinRadius = distanceMeters !== null && distanceMeters <= targetRadius;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +103,7 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
         return;
       }
       if (!isWithinRadius) {
-        alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
+        alert(`Absen ditolak: Anda berada di luar radius lokasi (${distanceMeters}m / Maks ${targetRadius}m).`);
         return;
       }
     }
@@ -127,8 +136,9 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
   };
 
   const filteredRecords = kajianRecords.filter(r => {
-    if (r.date < filterStartDate || r.date > filterEndDate) return false;
-    if (searchQuery && !r.pejuangName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    const rDate = r.date || '';
+    if (rDate < filterStartDate || rDate > filterEndDate) return false;
+    if (searchQuery && !(r.pejuangName || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -145,6 +155,83 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
     setConfirmAction(null);
   };
 
+  const generateSummary = (records: KajianRecord[]) => {
+    const summary: Record<string, any> = {};
+    records.forEach(r => {
+      const pn = r.pejuangName || 'Unknown';
+      if (!summary[pn]) {
+        summary[pn] = {
+          'Nama Pejuang': pn,
+          'Sub Divisi': r.subDivisi || '-',
+          'Total Absen': 0,
+          'Total Catatan': 0,
+          'Tafsir (Offline)': 0,
+          'Tafsir (Offline) Catatan': 0,
+          'Tafsir (Offline) Tanpa Catatan': 0,
+          'Tafsir (Online)': 0,
+          'Tafsir (Online) Catatan': 0,
+          'Tafsir (Online) Tanpa Catatan': 0,
+          'Mukhtasor (Offline)': 0,
+          'Mukhtasor (Offline) Catatan': 0,
+          'Mukhtasor (Offline) Tanpa Catatan': 0,
+          'Mukhtasor (Online)': 0,
+          'Mukhtasor (Online) Catatan': 0,
+          'Mukhtasor (Online) Tanpa Catatan': 0,
+          'Al-Hikam (Offline)': 0,
+          'Al-Hikam (Offline) Catatan': 0,
+          'Al-Hikam (Offline) Tanpa Catatan': 0,
+          'Al-Hikam (Online)': 0,
+          'Al-Hikam (Online) Catatan': 0,
+          'Al-Hikam (Online) Tanpa Catatan': 0
+        };
+      }
+      
+      summary[pn]['Total Absen'] += 1;
+      const hasCatatan = r.statusValidasi !== 'Ditolak' && !!r.notesPhotoUrl;
+      if (hasCatatan) summary[pn]['Total Catatan'] += 1;
+  
+      let kName = r.kajianName || '';
+      let isOffline = r.mode === 'Offline';
+      let isTafsir = kName.includes('Tafsir');
+      let isMukhtasor = kName.includes('Mukhtasor');
+      let isHikam = kName.includes('Al-Hikam');
+  
+      if (isTafsir) {
+          if (isOffline) {
+              summary[pn]['Tafsir (Offline)'] += 1;
+              if (hasCatatan) summary[pn]['Tafsir (Offline) Catatan'] += 1;
+              else summary[pn]['Tafsir (Offline) Tanpa Catatan'] += 1;
+          } else {
+              summary[pn]['Tafsir (Online)'] += 1;
+              if (hasCatatan) summary[pn]['Tafsir (Online) Catatan'] += 1;
+              else summary[pn]['Tafsir (Online) Tanpa Catatan'] += 1;
+          }
+      } else if (isMukhtasor) {
+          if (isOffline) {
+              summary[pn]['Mukhtasor (Offline)'] += 1;
+              if (hasCatatan) summary[pn]['Mukhtasor (Offline) Catatan'] += 1;
+              else summary[pn]['Mukhtasor (Offline) Tanpa Catatan'] += 1;
+          } else {
+              summary[pn]['Mukhtasor (Online)'] += 1;
+              if (hasCatatan) summary[pn]['Mukhtasor (Online) Catatan'] += 1;
+              else summary[pn]['Mukhtasor (Online) Tanpa Catatan'] += 1;
+          }
+      } else if (isHikam) {
+          if (isOffline) {
+              summary[pn]['Al-Hikam (Offline)'] += 1;
+              if (hasCatatan) summary[pn]['Al-Hikam (Offline) Catatan'] += 1;
+              else summary[pn]['Al-Hikam (Offline) Tanpa Catatan'] += 1;
+          } else {
+              summary[pn]['Al-Hikam (Online)'] += 1;
+              if (hasCatatan) summary[pn]['Al-Hikam (Online) Catatan'] += 1;
+              else summary[pn]['Al-Hikam (Online) Tanpa Catatan'] += 1;
+          }
+      }
+    });
+  
+    return Object.values(summary).sort((a: any, b: any) => a['Nama Pejuang'].localeCompare(b['Nama Pejuang']));
+  };
+
   const handleDownloadExcel = () => {
     if (filteredRecords.length === 0) {
       alert("Tidak ada data untuk diekspor.");
@@ -159,9 +246,16 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
       'Link Hadir': r.attendancePhotoUrl || '-',
       'Link Catatan': r.statusValidasi === 'Ditolak' ? 'Tidak Ada' : (r.notesPhotoUrl || '-')
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
+    
+    const summaryData = generateSummary(filteredRecords);
+
+    const wsData = XLSX.utils.json_to_sheet(data);
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Kajian");
+    XLSX.utils.book_append_sheet(wb, wsData, "Kajian");
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Rekapitulasi");
+    
     XLSX.writeFile(wb, `Laporan_Kajian_${filterStartDate}_sd_${filterEndDate}.xlsx`);
   };
 
@@ -171,6 +265,8 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
       return;
     }
     const doc = new jsPDF('landscape');
+    
+    // First Page: Raw Data
     doc.text(`Laporan Absensi Kajian Buya Yahya (${filterStartDate} s/d ${filterEndDate})`, 14, 15);
     
     const tableData = filteredRecords.map(r => [
@@ -182,9 +278,47 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
       head: [['Tanggal', 'Nama Pejuang', 'Sub Divisi', 'Kajian', 'Mode', 'Link Hadir', 'Link Catatan']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] }
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 8 }
     });
     
+    // Second Page: Summary
+    doc.addPage();
+    doc.text(`Rekapitulasi Absensi Kajian (${filterStartDate} s/d ${filterEndDate})`, 14, 15);
+    
+    const summaryData = generateSummary(filteredRecords);
+    const summaryHeaders = [
+      'Nama', 'Total Hadir', 'Total Catat',
+      'Tafsir (Off)', 'Tafsir (On)',
+      'Mukhtasor (Off)', 'Mukhtasor (On)',
+      'Al-Hikam (Off)', 'Al-Hikam (On)'
+    ];
+    
+    // To fit in PDF, we simplify the summary table slightly or split it. Let's do a dense table.
+    const summaryTableData = summaryData.map((s: any) => [
+      s['Nama Pejuang'],
+      s['Total Absen'],
+      s['Total Catatan'],
+      `${s['Tafsir (Offline)']} (${s['Tafsir (Offline) Catatan']}C / ${s['Tafsir (Offline) Tanpa Catatan']}T)`,
+      `${s['Tafsir (Online)']} (${s['Tafsir (Online) Catatan']}C / ${s['Tafsir (Online) Tanpa Catatan']}T)`,
+      `${s['Mukhtasor (Offline)']} (${s['Mukhtasor (Offline) Catatan']}C / ${s['Mukhtasor (Offline) Tanpa Catatan']}T)`,
+      `${s['Mukhtasor (Online)']} (${s['Mukhtasor (Online) Catatan']}C / ${s['Mukhtasor (Online) Tanpa Catatan']}T)`,
+      `${s['Al-Hikam (Offline)']} (${s['Al-Hikam (Offline) Catatan']}C / ${s['Al-Hikam (Offline) Tanpa Catatan']}T)`,
+      `${s['Al-Hikam (Online)']} (${s['Al-Hikam (Online) Catatan']}C / ${s['Al-Hikam (Online) Tanpa Catatan']}T)`
+    ]);
+
+    autoTable(doc, {
+      startY: 20,
+      head: [summaryHeaders],
+      body: summaryTableData,
+      theme: 'grid',
+      headStyles: { fillColor: [46, 204, 113] },
+      styles: { fontSize: 7, cellPadding: 1 },
+      columnStyles: {
+        0: { cellWidth: 30 }
+      }
+    });
+
     doc.save(`Laporan_Kajian_${filterStartDate}_sd_${filterEndDate}.pdf`);
   };
 
@@ -271,15 +405,15 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
               {coords.lat !== 0 && coords.lng !== 0 && (
                 <div className="mt-3">
                   <div className="text-xs mb-2">
-                    Jarak dari pondok: <strong className={isWithinRadius ? 'text-emerald-600' : 'text-rose-600'}>{distanceMeters} meter</strong> (Maks: {locationSettings.radiusMaxMeters}m)
+                    Jarak dari pondok: <strong className={isWithinRadius ? 'text-emerald-600' : 'text-rose-600'}>{distanceMeters} meter</strong> (Maks: {targetRadius}m)
                   </div>
                   <div className="relative z-0 h-48 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
                     <LocationMap 
                       userLat={coords.lat}
                       userLng={coords.lng}
-                      pondokLat={locationSettings.latitude}
-                      pondokLng={locationSettings.longitude}
-                      radius={locationSettings.radiusMaxMeters}
+                      pondokLat={targetLat}
+                      pondokLng={targetLng}
+                      radius={targetRadius}
                     />
                   </div>
                 </div>
@@ -370,6 +504,22 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
               </div>
               <div className="flex items-end">
                 <input type="text" placeholder="Cari nama..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-xs" />
+              </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={async () => {
+                     if (onForceSync) {
+                        const btn = document.getElementById('forceSyncBtn');
+                        if (btn) btn.innerHTML = 'Menyinkronkan...';
+                        await onForceSync();
+                        if (btn) btn.innerHTML = 'Force Sync';
+                     }
+                  }}
+                  id="forceSyncBtn"
+                  className="p-2 px-4 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold text-xs hover:bg-blue-200 transition-colors"
+                >
+                  Force Sync
+                </button>
               </div>
             </div>
             <div className="flex gap-2">

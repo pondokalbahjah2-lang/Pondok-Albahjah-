@@ -39,7 +39,7 @@ export default function App() {
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({});
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
-  const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>([]);
+  const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>(AppStorage.getKajianRecords());
   const [isLoadingData, setIsLoadingData] = useState(true);
   
     const [showDesyncBanner, setShowDesyncBanner] = useState(false);
@@ -204,17 +204,36 @@ export default function App() {
           
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'exitPermissions'));
 
-        // Sync Kajian
+        
+        // Migrate local kajian records to Firestore
+        const localKajian = AppStorage.getKajianRecords();
+        if (localKajian.length > 0) {
+           localKajian.forEach(async (record) => {
+             try {
+                await setDoc(doc(db, 'kajian', record.id), record, { merge: true });
+             } catch(e) { console.error('Migration error:', e); }
+           });
+        }
+
+// Sync Kajian
         const kajianQ = isAd 
-          ? query(collection(db, 'kajian'), orderBy('id', 'desc'), limit(3000))
+          ? query(collection(db, 'kajian'), limit(3000))
           : query(collection(db, 'kajian'), where('pejuangId', '==', uid));
         unsubKajian = onSnapshot(kajianQ, (snap) => {
           let data = snap.docs.map(d => d.data() as KajianRecord);
-          if (!isAd) {
-            data = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          }
+          data = data.sort((a, b) => {
+            const dateDiff = new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return (b.id || '').localeCompare(a.id || '');
+          });
           setKajianRecords(data);
-        }, (err) => handleFirestoreError(err, OperationType.LIST, 'kajian'));
+        }, (err) => {
+          console.error('[DIAGNOSTIC] Kajian onSnapshot Error:', err);
+          if (err.code === 'permission-denied') {
+            console.error('[DIAGNOSTIC] Permission denied reading Kajian. User:', uid, 'Role:', currentUser?.role);
+          }
+          handleFirestoreError(err, OperationType.LIST, 'kajian');
+        });
 
 
         // Sync Leave Requests
@@ -631,6 +650,30 @@ export default function App() {
     }
   };
 
+    const handleForceSyncKajian = async () => {
+    try {
+      const { collection, query, getDocs, limit, where } = await import('firebase/firestore');
+      const db = (await import('./utils/firebase')).db;
+      const isAd = currentUser?.role === 'Admin';
+      const kajianQ = isAd 
+          ? query(collection(db, 'kajian'), limit(3000))
+          : query(collection(db, 'kajian'), where('pejuangId', '==', currentUser?.id));
+      const snap = await getDocs(kajianQ);
+      let data = snap.docs.map(d => d.data() as KajianRecord);
+      data = data.sort((a, b) => {
+        const dateDiff = new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (b.id || '').localeCompare(a.id || '');
+      });
+      setKajianRecords(data);
+      console.log('Force synced kajian records, found:', data.length);
+      alert('Data Kajian berhasil disinkronisasi paksa dari server.');
+    } catch (e) {
+      console.error('Error force syncing kajian:', e);
+      alert('Gagal menyinkronisasi data.');
+    }
+  };
+
   const handleSaveKajian = async (newRecords: KajianRecord[]) => {
     setKajianRecords(newRecords);
     AppStorage.saveKajianRecords(newRecords);
@@ -950,9 +993,10 @@ export default function App() {
             {activeTab === 'kajian' && (
               <KajianView 
                 currentUser={currentUser}
-                locationSettings={locationSettings}
+                locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 kajianRecords={kajianRecords}
                 onSaveKajian={handleSaveKajian}
+                onForceSync={handleForceSyncKajian}
                 accounts={accounts}
               />
             )}

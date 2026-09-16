@@ -100,6 +100,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+
+    // kajian collection
+    match /kajian/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
     match /fcmTokens/{docId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
