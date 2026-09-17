@@ -1,61 +1,80 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/components/IzinKeluarView.tsx', 'utf8');
+let code = fs.readFileSync('src/components/IzinKeluarView.tsx', 'utf8');
 
-// Insert pagination states
-content = content.replace(
-  "const [statusFilter, setStatusFilter] = useState('Semua');",
-  "const [statusFilter, setStatusFilter] = useState('Semua');\n  const [currentPage, setCurrentPage] = useState(1);\n  const itemsPerPage = 10;"
+code = code.replace(
+  "import { getLocalDateString, getFormattedTime } from '../utils/dateUtils';",
+  "import { getLocalDateString, getFormattedTime } from '../utils/dateUtils';\nimport { doc, setDoc, collection } from 'firebase/firestore';\nimport { db } from '../utils/firebase';"
 );
 
-// Reset page on search or filter
-content = content.replace(
-  "onChange={(e) => setSearchQuery(e.target.value)}",
-  "onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}"
-);
-content = content.replace(
-  "onChange={(e) => setStatusFilter(e.target.value)}",
-  "onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}"
+const handleApproveLogic = `
+  const confirmSubmitApproval = async () => {
+    if (!confirmIzinAction || !approvalRecord) return;
+    const { isRejected } = confirmIzinAction;
+    const now = new Date();
+    const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+       
+    const newStatus = isRejected ? 'Ditolak' as const : 'Di Luar' as const;
+    const newHistory = [...(approvalRecord.history || []), {
+      status: newStatus,
+      by: currentUser.name,
+      timestamp: new Date().toISOString()
+    }];
+
+    const updated = exitPermissions.map(p => p.id === approvalRecord.id ? { 
+      ...p, 
+      status: newStatus, 
+      tanggalKeluar: approvalTanggalKeluar,
+      tanggalIzinSampai: approvalTanggalIzinSampai,
+      jamKeluar: approvalJamKeluar,
+      jamHarusKembali: approvalJamHarusKembali,
+      approvedBy: currentUser.name,
+      approvedAt: \`\${approvedDateStr} pukul \${approvedTimeStr}\`,
+      history: newHistory
+    } : p);
+    onSaveExitPermissions(updated);
+
+    try {
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        userId: approvalRecord.pejuangId,
+        title: \`Pengajuan Izin Keluar \${newStatus}\`,
+        message: \`Pengajuan izin keluar Anda (\${approvalTanggalKeluar}) telah \${newStatus} oleh \${currentUser.name}.\`,
+        timestamp: new Date().toISOString(),
+        read: false
+      });
+    } catch (e) {
+      console.error('Error sending notification', e);
+    }
+
+    setApprovalRecord(null);
+    setConfirmIzinAction(null);
+  };
+`;
+
+code = code.replace(
+  /const confirmSubmitApproval = \(\) => \{[\s\S]*?setConfirmIzinAction\(null\);\n  \};/,
+  handleApproveLogic
 );
 
-// Slice filteredIzin
-content = content.replace(
-  "filteredIzin.map((izin) =>",
-  "filteredIzin.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((izin) =>"
+
+const renderHistory = `
+                      {rec.history && rec.history.length > 0 && (
+                        <div className="mt-2 text-left">
+                          <p className="text-[9px] font-bold text-slate-500 mb-1">Riwayat Status:</p>
+                          <ul className="text-[9px] text-slate-400 space-y-0.5 list-disc pl-3">
+                            {rec.history.map((h, i) => (
+                              <li key={i}>{h.status} oleh {h.by} pada {new Date(h.timestamp).toLocaleString('id-ID')}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+`;
+
+code = code.replace(
+  "                      {rec.keteranganKeterlambatan && (\n                        <span className=\"text-[10px] text-rose-500 block\">\n                          {rec.keteranganKeterlambatan}\n                        </span>\n                      )}",
+  "                      {rec.keteranganKeterlambatan && (\n                        <span className=\"text-[10px] text-rose-500 block\">\n                          {rec.keteranganKeterlambatan}\n                        </span>\n                      )}\n" + renderHistory
 );
 
-// Add Pagination Controls
-const paginationHtml = `</table>
-        </div>
-        
-        {/* Pagination Controls */}
-        {Math.ceil(filteredIzin.length / itemsPerPage) > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
-            <span className="text-xs text-slate-500">
-              Halaman {currentPage} dari {Math.ceil(filteredIzin.length / itemsPerPage)}
-            </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                Sebelumnya
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredIzin.length / itemsPerPage), prev + 1))}
-                disabled={currentPage === Math.ceil(filteredIzin.length / itemsPerPage)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                Selanjutnya
-              </button>
-            </div>
-          </div>
-        )}
-      </div>`;
-
-content = content.replace(
-  "</table>\n        </div>\n      </div>",
-  paginationHtml
-);
-
-fs.writeFileSync('src/components/IzinKeluarView.tsx', content);
+fs.writeFileSync('src/components/IzinKeluarView.tsx', code);
+console.log('Patched IzinKeluarView');

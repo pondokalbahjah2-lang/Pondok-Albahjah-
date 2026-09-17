@@ -1,4 +1,6 @@
 import { getLocalDateString } from '../utils/dateUtils';
+import { doc, setDoc, collection } from 'firebase/firestore';
+import { db } from '../utils/firebase';
 import { motion } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
@@ -176,27 +178,54 @@ export const CutiView: React.FC<CutiViewProps> = ({
     alert('Pengajuan cuti berhasil dikirim dan menunggu persetujuan.');
   };
 
-  const handleApproveReject = (
+  
+  const handleApproveReject = async (
     id: string,
     newStatus: 'Disetujui' | 'Ditolak' | 'Sedang Cuti'
   ) => {
+    let targetPejuangId = '';
+    let jenisCutiNotif = '';
     const updated = leaveRequests.map((l) => {
       if (l.id === id) {
+        targetPejuangId = l.pejuangId;
+        jenisCutiNotif = l.jenisCuti;
         const now = new Date();
         const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+        const newHistory = [...(l.history || []), {
+          status: newStatus,
+          by: currentUser.name,
+          timestamp: new Date().toISOString()
+        }];
         return {
           ...l,
           status: newStatus,
           approvedBy: currentUser.name,
           approvedAt: `${approvedDateStr} pukul ${approvedTimeStr}`,
           catatanAdmin: `Diverifikasi oleh ${currentUser.name} pada ${new Date().toLocaleDateString('id-ID')}`,
+          history: newHistory
         };
       }
       return l;
     });
     onSaveLeaveRequests(updated);
+
+    if (targetPejuangId && (newStatus === 'Disetujui' || newStatus === 'Ditolak')) {
+      try {
+        const notifRef = doc(collection(db, 'notifications'));
+        await setDoc(notifRef, {
+          userId: targetPejuangId,
+          title: `Pengajuan Cuti ${newStatus}`,
+          message: `Pengajuan cuti ${jenisCutiNotif} Anda telah ${newStatus} oleh ${currentUser.name}.`,
+          timestamp: new Date().toISOString(),
+          read: false
+        });
+      } catch (e) {
+        console.error('Error sending notification', e);
+      }
+    }
   };
+
 
   const handleGenerateCetakPDF = async (rec: LeaveRequestRecord) => {
     try {
@@ -345,7 +374,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
           </div>
         </motion.div>
         <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          {(currentUser.role === 'Admin' ? ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai', 'Rekap Kuota Cuti'] : ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai']).map((status) => (
+          {(currentUser.role === 'Admin' || cutiApprovers.includes(currentUser.id) ? ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai', 'Rekap Kuota Cuti'] : ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai']).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -539,7 +568,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                         </>
                       )}
                       
-                      {req.status === 'Disetujui' && (currentUser.role === 'Admin' || req.pejuangId === currentUser.id) && (
+                      {req.status === 'Disetujui' && (currentUser.role === 'Admin' || cutiApprovers.includes(currentUser.id) || req.pejuangId === currentUser.id) && (
                         <button
                           onClick={() => handleGenerateCetakPDF(req)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-sm"
@@ -553,6 +582,18 @@ export const CutiView: React.FC<CutiViewProps> = ({
                           {req.catatanAdmin || 'Selesai'}
                         </span>
                       )}
+
+                      {req.history && req.history.length > 0 && (
+                        <div className="mt-2 text-left">
+                          <p className="text-[9px] font-bold text-slate-500 mb-1">Riwayat Status:</p>
+                          <ul className="text-[9px] text-slate-400 space-y-0.5 list-disc pl-3">
+                            {req.history.map((h, i) => (
+                              <li key={i}>{h.status} oleh {h.by} pada {new Date(h.timestamp).toLocaleString('id-ID')}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
                     </div>
                   </td>
                 </tr>

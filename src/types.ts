@@ -73,6 +73,7 @@ export interface ExitPermissionRecord {
   keteranganKeterlambatan?: string; // e.g. "1 Jam 15 Menit"
   approvedBy?: string;
   approvedAt?: string;
+  history?: { status: string, by: string, timestamp: string }[];
 }
 
 export interface LeaveRequestRecord {
@@ -131,6 +132,7 @@ export interface WorkSchedule {
 }
 
 export interface AppNotification {
+  userId?: string;
   id: string;
   title: string;
   message: string;

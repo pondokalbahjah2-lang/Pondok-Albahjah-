@@ -1,46 +1,48 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/components/iOSGlassLayout.tsx', 'utf8');
+let code = fs.readFileSync('src/components/iOSGlassLayout.tsx', 'utf8');
 
-// 1. Add broadcastMessage to props
-content = content.replace(
-  "appLogoUrl?: string;",
-  "appLogoUrl?: string;\n  broadcastMessage?: string;"
-);
-content = content.replace(
-  "appLogoUrl,",
-  "appLogoUrl,\n  broadcastMessage,"
+code = code.replace(
+  "  exitPermissions?: any[];",
+  "  exitPermissions?: any[];\n  izinKeluarApprovers?: string[];\n  cutiApprovers?: string[];"
 );
 
-// 2. Fix Desktop Header Text
-content = content.replace(
-  `<span className="text-sm font-bold tracking-tight text-slate-800 dark:text-white">Portal Pejuang</span>`,
-  `<span className="text-sm font-bold tracking-tight text-slate-800 dark:text-white">Portal Pejuang Al-Bahjah</span>`
+code = code.replace(
+  "  leaveRequests = [],\n  exitPermissions = [],",
+  "  leaveRequests = [],\n  exitPermissions = [],\n  izinKeluarApprovers = [],\n  cutiApprovers = [],"
 );
 
-// 3. Fix Mobile Header
-// Find the mobile header section
-const mobileHeaderStart = `<h2 className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-none">`;
-content = content.replace(
-  mobileHeaderStart + `\n                  {currentUser.name}\n                </h2>`,
-  mobileHeaderStart + `\n                  Portal Pejuang Al-Bahjah\n                </h2>`
-);
+const isApproverLogic = `
+  const isCutiApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (cutiApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
 
-// 4. Add Broadcast Alert Banner
-const broadcastHtml = `
-          {/* Broadcast Message Banner */}
-          {broadcastMessage && (
-            <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-bold flex items-center justify-center shadow-md z-50 sticky top-0 md:static animate-in fade-in slide-in-from-top-4 duration-500">
-              <span className="flex items-center gap-2">
-                <span className="animate-pulse">⚠️</span>
-                {broadcastMessage}
-              </span>
-            </div>
-          )}
+  const isIzinApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (izinKeluarApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
 `;
 
-content = content.replace(
-  "{/* Main Content Container */}",
-  broadcastHtml + "\n          {/* Main Content Container */}"
+code = code.replace(
+  "  const pendingCutiCount = currentUser.role === 'Admin' ? leaveRequests.filter(l => l.status === 'Menunggu').length : 0;",
+  isApproverLogic + "\n  const pendingCutiCount = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi) || l.pejuangId === currentUser.id)).length;"
 );
 
-fs.writeFileSync('src/components/iOSGlassLayout.tsx', content);
+code = code.replace(
+  "  const pendingIzinCount = currentUser.role === 'Admin' ? exitPermissions.filter(e => e.status === 'Menunggu').length : 0;",
+  "  const pendingIzinCount = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi) || e.pejuangId === currentUser.id)).length;"
+);
+
+code = code.replace(
+  "  const pendingIzinCountUser = currentUser.role !== 'Admin' ? exitPermissions.filter(e => e.pejuangId === currentUser.id && e.status === 'Menunggu').length : 0;",
+  "  const pendingIzinCountUser = pendingIzinCount;"
+);
+
+fs.writeFileSync('src/components/iOSGlassLayout.tsx', code);
+console.log('Patched iOSGlassLayout');

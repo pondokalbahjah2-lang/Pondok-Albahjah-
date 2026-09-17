@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
+import { AppNotification, UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -40,6 +40,7 @@ export default function App() {
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
   const [manhajiyyahClauses, setManhajiyyahClauses] = useState<ManhajiyyahClause[]>([]);
   const [kajianRecords, setKajianRecords] = useState<KajianRecord[]>(AppStorage.getKajianRecords());
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
     const [showDesyncBanner, setShowDesyncBanner] = useState(false);
@@ -101,6 +102,7 @@ export default function App() {
     let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
+    let unsubNotif = () => {};
     let unsubAtt = () => {};
     let unsubExit = () => {};
     let unsubLeave = () => {};
@@ -152,6 +154,14 @@ export default function App() {
             }
           });
         }
+
+
+        // Sync Notifications
+        const notifQuery = query(collection(db, 'notifications'), where('userId', '==', uid));
+        unsubNotif = onSnapshot(notifQuery, (snapshot) => {
+          const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+          setNotifications(notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+        });
 
         // Sync Users
         const usersQ = isAd ? collection(db, 'users') : query(collection(db, 'users'), where('id', '==', uid));
@@ -363,7 +373,7 @@ export default function App() {
 
     return () => {
       unsubAuth();
-      unsubUsers(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip(); unsubKajian();
+      unsubUsers(); unsubNotif(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip(); unsubKajian();
       unsubSchedules(); unsubLoc(); unsubManhaj();
        unsubCutiNotif(); unsubIzinNotif();
       
@@ -476,6 +486,8 @@ export default function App() {
   };
 
   // State savers - Write to Firebase
+  const handleMarkNotificationRead = async (id: string) => { try { await setDoc(doc(db, 'notifications', id), { read: true }, { merge: true }); } catch (e) { console.error('Error marking notification as read:', e); } };
+
   const handleSaveAccounts = async (accs: UserAccount[]) => {
     const addedOrUpdated = accs.filter(a => {
       const existing = accounts.find(ex => ex.id === a.id);
@@ -733,6 +745,10 @@ export default function App() {
         onLogout={handleLogout}
         leaveRequests={leaveRequests}
         exitPermissions={exitPermissions}
+        izinKeluarApprovers={generalSettings.izinKeluarApprovers}
+        cutiApprovers={generalSettings.cutiApprovers}
+        notifications={notifications}
+        onMarkNotificationRead={handleMarkNotificationRead}
       >
       <AnimatePresence mode="wait">
           <motion.div
@@ -755,6 +771,8 @@ export default function App() {
                 manhajiyyahClauses={manhajiyyahClauses}
                 broadcastMessage={generalSettings.broadcastMessage}
                 onNavigate={setActiveTab}
+                izinKeluarApprovers={generalSettings.izinKeluarApprovers}
+                cutiApprovers={generalSettings.cutiApprovers}
               />
             )}
             {activeTab === 'izin' && (

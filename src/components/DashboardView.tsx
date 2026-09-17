@@ -52,6 +52,8 @@ interface DashboardViewProps {
   leaveRequests: LeaveRequestRecord[];
   warningLetters: WarningLetterRecord[];
   manhajiyyahClauses: ManhajiyyahClause[];
+  izinKeluarApprovers?: string[];
+  cutiApprovers?: string[];
   broadcastMessage?: string;
   onNavigate: (tab: string) => void;
 }
@@ -67,9 +69,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   manhajiyyahClauses,
   broadcastMessage,
   onNavigate,
+  izinKeluarApprovers = [],
+  cutiApprovers = [],
 }) => {
   const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
   const clauseToday = manhajiyyahClauses ? (manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0]) : null;
+
+
+  const isCutiApprover = cutiApprovers.includes(currentUser.id) || 
+    (() => {
+      const amanah = (currentUser.amanah || '').toLowerCase();
+      return (amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator'));
+    })();
+
+  const isIzinApprover = izinKeluarApprovers.includes(currentUser.id) || 
+    (() => {
+      const amanah = (currentUser.amanah || '').toLowerCase();
+      return (amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator'));
+    })();
+
+  const pendingCutiForMe = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover && l.subDivisi === currentUser.subDivisi || cutiApprovers.includes(currentUser.id)));
+  const pendingIzinForMe = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover && e.subDivisi === currentUser.subDivisi || izinKeluarApprovers.includes(currentUser.id)));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeWarning, setActiveWarning] = useState<WarningLetterRecord | null>(null);

@@ -1,4 +1,6 @@
 import { FileText, Calendar, Clock, Search, Filter, CheckCircle, XCircle, LogOut, LogIn, AlertTriangle, Plus } from 'lucide-react';
+import { doc, setDoc, collection } from 'firebase/firestore';
+import { db } from '../utils/firebase';
 import { getLocalDateString } from '../utils/dateUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState } from 'react';
@@ -263,24 +265,51 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     setConfirmIzinAction({ isRejected, event: e });
   };
 
-  const confirmSubmitApproval = () => {
+  
+  const confirmSubmitApproval = async () => {
     if (!confirmIzinAction || !approvalRecord) return;
     const { isRejected } = confirmIzinAction;
     const now = new Date();
     const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
        
+    const newStatus = isRejected ? 'Ditolak' as const : 'Di Luar' as const;
+    const newHistory = [...(approvalRecord.history || []), {
+      status: newStatus,
+      by: currentUser.name,
+      timestamp: new Date().toISOString()
+    }];
+
     const updated = exitPermissions.map(p => p.id === approvalRecord.id ? { 
       ...p, 
-            status: isRejected ? 'Ditolak' as const : 'Di Luar' as const, 
+      status: newStatus, 
       tanggalKeluar: approvalTanggalKeluar,
-      tanggalKembali: approvalTanggalIzinSampai,
-      waktuKeluar: isRejected ? undefined : approvedTimeStr
+      tanggalIzinSampai: approvalTanggalIzinSampai,
+      jamKeluar: approvalJamKeluar,
+      jamHarusKembali: approvalJamHarusKembali,
+      approvedBy: currentUser.name,
+      approvedAt: `${approvedDateStr} pukul ${approvedTimeStr}`,
+      history: newHistory
     } : p);
     onSaveExitPermissions(updated);
+
+    try {
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        userId: approvalRecord.pejuangId,
+        title: `Pengajuan Izin Keluar ${newStatus}`,
+        message: `Pengajuan izin keluar Anda (${approvalTanggalKeluar}) telah ${newStatus} oleh ${currentUser.name}.`,
+        timestamp: new Date().toISOString(),
+        read: false
+      });
+    } catch (e) {
+      console.error('Error sending notification', e);
+    }
+
     setApprovalRecord(null);
     setConfirmIzinAction(null);
   };
+
 
   return (
     <div className="space-y-6">
@@ -447,7 +476,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                         </button>
                       )}
                       
-                      {rec.status === 'Di Luar' && (currentUser.role === 'Admin' || rec.pejuangId === currentUser.id) && (
+                      {rec.status === 'Di Luar' && (currentUser.role === 'Admin' || izinKeluarApprovers.includes(currentUser.id) || rec.pejuangId === currentUser.id) && (
                         <button
                           onClick={() => setSelectedRecordForReturn(rec)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-sm"

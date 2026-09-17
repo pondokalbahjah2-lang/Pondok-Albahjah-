@@ -34,7 +34,11 @@ interface iOSGlassLayoutProps {
   onLogout: () => void;
   leaveRequests?: any[];
   exitPermissions?: any[];
+  izinKeluarApprovers?: string[];
+  cutiApprovers?: string[];
   children: React.ReactNode;
+  notifications?: any[];
+  onMarkNotificationRead?: (id: string) => void;
 }
 
 export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
@@ -46,7 +50,11 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
   onLogout,
   leaveRequests = [],
   exitPermissions = [],
+  izinKeluarApprovers = [],
+  cutiApprovers = [],
   children,
+  notifications = [],
+  onMarkNotificationRead,
 }) => {
   const { theme, setTheme, isDarkMode } = useTheme();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -65,8 +73,25 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     second: '2-digit',
   });
 
-  const pendingCutiCount = currentUser.role === 'Admin' ? leaveRequests.filter(l => l.status === 'Menunggu').length : 0;
-  const pendingIzinCount = currentUser.role === 'Admin' ? exitPermissions.filter(e => e.status === 'Menunggu').length : 0;
+
+  const isCutiApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (cutiApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
+
+  const isIzinApprover = (recSubDivisi: string) => {
+    if (currentUser.role === 'Admin') return true;
+    if (izinKeluarApprovers.includes(currentUser.id)) return true;
+    const amanah = (currentUser.amanah || '').toLowerCase();
+    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
+    return isLeader && currentUser.subDivisi === recSubDivisi;
+  };
+
+  const pendingCutiCount = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi) || l.pejuangId === currentUser.id)).length;
+  const pendingIzinCount = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi) || e.pejuangId === currentUser.id)).length;
 
   const adminNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -81,7 +106,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     { id: 'settings', label: 'Pengaturan Sistem', icon: Settings }
   ];
 
-  const pendingIzinCountUser = currentUser.role !== 'Admin' ? exitPermissions.filter(e => e.pejuangId === currentUser.id && e.status === 'Menunggu').length : 0;
+  const pendingIzinCountUser = pendingIzinCount;
   const userNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'absensi', label: 'Absensi GPS', icon: MapPin },
@@ -96,11 +121,8 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
 
   const navigationItems = currentUser.role === 'Admin' ? adminNavigationItems : userNavigationItems;
 
-  const approvedLeaves = leaveRequests.filter(
-    l => l.pejuangId === currentUser.id && l.status === 'Disetujui'
-  ).sort((a, b) => new Date(b.tanggalPengajuan).getTime() - new Date(a.tanggalPengajuan).getTime());
-
-  const hasNotifications = approvedLeaves.length > 0;
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const hasNotifications = unreadNotifications.length > 0;
 
   return (
     <div
@@ -225,12 +247,12 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Notifikasi</span>
                     </div>
                     <div className="max-h-48 overflow-y-auto">
-                      {approvedLeaves.map(l => (
-                        <div key={l.id} className="p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      {unreadNotifications.map((n: any, l: any) => (
+                        <div key={n.id} onClick={() => onMarkNotificationRead && onMarkNotificationRead(n.id)} className="p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200">
-                            Cuti ({l.tanggalMulai}) disetujui!
+                            {n.title}
                           </p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{l.catatanAdmin || 'Oleh Admin'}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">{n.message}</p>
                         </div>
                       ))}
                     </div>
@@ -288,12 +310,12 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Notifikasi</span>
                     </div>
                     <div className="max-h-48 overflow-y-auto">
-                      {approvedLeaves.map(l => (
-                        <div key={l.id} className="p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      {unreadNotifications.map((n: any, l: any) => (
+                        <div key={n.id} onClick={() => onMarkNotificationRead && onMarkNotificationRead(n.id)} className="p-3 border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200">
-                            Cuti ({l.tanggalMulai}) disetujui!
+                            {n.title}
                           </p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{l.catatanAdmin || 'Oleh Admin'}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">{n.message}</p>
                         </div>
                       ))}
                     </div>
