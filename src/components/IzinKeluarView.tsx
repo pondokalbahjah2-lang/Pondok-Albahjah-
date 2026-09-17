@@ -3,7 +3,7 @@ import { doc, setDoc, collection } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getLocalDateString } from '../utils/dateUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 
@@ -56,24 +56,59 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   // Return log states
   const [tanggalKembaliReal, setTanggalKembaliReal] = useState(getLocalDateString());
   const [jamKembaliReal, setJamKembaliReal] = useState('12:30');
+  const [divisiFilter, setDivisiFilter] = useState('Semua');
 
-  // Filtered records
-  const isApprover = (recSubDivisi: string) => {
-    if (currentUser.role === 'Admin') return true;
-    if (izinKeluarApprovers.includes(currentUser.id)) return true;
-    const amanah = (currentUser.amanah || '').toLowerCase();
-    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
-    return isLeader && currentUser.subDivisi === recSubDivisi;
+  const allSubDivisions = useMemo(() => {
+    const set = new Set<string>();
+    accounts.forEach(a => { if (a.subDivisi?.trim()) set.add(a.subDivisi.trim()); });
+    exitPermissions.forEach(e => { if (e.subDivisi?.trim()) set.add(e.subDivisi.trim()); });
+    return Array.from(set).sort();
+  }, [accounts, exitPermissions]);
+
+  const isUserInList = (list: string[] = [], user: UserAccount) => {
+    if (!user || !list || !Array.isArray(list)) return false;
+    return list.some(item => 
+      item === user.id || 
+      (user.username && item.toLowerCase() === user.username.toLowerCase()) ||
+      (user.email && item.toLowerCase() === user.email.toLowerCase())
+    );
+  };
+
+  const isExplicitIzinApprover = currentUser.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
+  const isLeaderIzinApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isAnyIzinApprover = isExplicitIzinApprover || isLeaderIzinApprover;
+
+  const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+
+  const getRecordSubDivisi = (recSubDivisi?: string, pejuangId?: string) => {
+    if (recSubDivisi && recSubDivisi.trim()) return recSubDivisi.trim();
+    if (pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      if (p?.subDivisi?.trim()) return p.subDivisi.trim();
+    }
+    return '';
+  };
+
+  const isApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitIzinApprover) return true;
+    if (!isLeaderIzinApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    const targetDiv = norm(getRecordSubDivisi(recSubDivisi, pejuangId));
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
   const filteredRecords = exitPermissions.filter((rec) => {
-    const matchesUser = isApprover(rec.subDivisi) || rec.pejuangId === currentUser.id;
+    const matchesUser = isApprover(rec.subDivisi, rec.pejuangId) || rec.pejuangId === currentUser.id;
     const matchesSearch =
       rec.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       rec.alasan?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === 'Semua' || rec.status === statusFilter;
-    return matchesUser && matchesSearch && matchesStatus;
+    const recDiv = norm(getRecordSubDivisi(rec.subDivisi, rec.pejuangId));
+    const matchesDivisi = divisiFilter === 'Semua' || recDiv === norm(divisiFilter);
+    return matchesUser && matchesSearch && matchesStatus && matchesDivisi;
   });
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
@@ -355,7 +390,22 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
           </div>
         </motion.div>
 
-        <div className="flex items-center space-x-1 overflow-x-auto w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto w-full sm:w-auto">
+          {isAnyIzinApprover && allSubDivisions.length > 0 && (
+            <select
+              value={divisiFilter}
+              onChange={(e) => { setDivisiFilter(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm focus:outline-none"
+            >
+              <option value="Semua">Semua Divisi</option>
+              {allSubDivisions.map((div) => (
+                <option key={div} value={div}>
+                  {div}
+                </option>
+              ))}
+            </select>
+          )}
+
           {['Semua', 'Menunggu Persetujuan', 'Di Luar', 'Kembali Tepat Waktu', 'Terlambat', 'Ditolak'].map((st) => (
             <button
               key={st}
@@ -457,7 +507,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      {rec.status === 'Menunggu Persetujuan' && isApprover(rec.subDivisi) && (
+                      {rec.status === 'Menunggu Persetujuan' && isApprover(rec.subDivisi, rec.pejuangId) && (
                         <button
                           onClick={() => handleOpenApprovalModal(rec)}
                           className="py-1.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition-colors shadow-sm"
@@ -476,7 +526,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                         </button>
                       )}
                       
-                      {rec.status === 'Di Luar' && (currentUser.role === 'Admin' || izinKeluarApprovers.includes(currentUser.id) || rec.pejuangId === currentUser.id) && (
+                      {rec.status === 'Di Luar' && (currentUser.role === 'Admin' || isApprover(rec.subDivisi, rec.pejuangId) || rec.pejuangId === currentUser.id) && (
                         <button
                           onClick={() => setSelectedRecordForReturn(rec)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-sm"
@@ -512,7 +562,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
             </div>
 
             <form onSubmit={handleCreateRequest} className="space-y-4 my-4">
-              {currentUser.role === 'Admin' && (
+              {(currentUser.role === 'Admin' || isAnyIzinApprover) && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Pilih Pejuang
@@ -522,7 +572,9 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
                     onChange={(e) => setTargetPejuangId(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   >
-                    {pejuangAccounts.map((p) => (
+                    {pejuangAccounts
+                      .filter(p => isApprover(p.subDivisi, p.id) || p.id === currentUser.id)
+                      .map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} ({p.subDivisi})
                       </option>

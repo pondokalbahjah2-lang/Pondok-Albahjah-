@@ -29,6 +29,7 @@ interface iOSGlassLayoutProps {
   appLogoUrl?: string;
   broadcastMessage?: string;
   currentUser: UserAccount;
+  accounts?: UserAccount[];
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
@@ -45,6 +46,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
   appLogoUrl,
   broadcastMessage,
   currentUser,
+  accounts = [],
   activeTab,
   setActiveTab,
   onLogout,
@@ -73,25 +75,51 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     second: '2-digit',
   });
 
-
-  const isCutiApprover = (recSubDivisi: string) => {
-    if (currentUser.role === 'Admin') return true;
-    if (cutiApprovers.includes(currentUser.id)) return true;
-    const amanah = (currentUser.amanah || '').toLowerCase();
-    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
-    return isLeader && currentUser.subDivisi === recSubDivisi;
+  const isUserInList = (list: string[] = [], user: UserAccount) => {
+    if (!user || !list || !Array.isArray(list)) return false;
+    return list.some(item => 
+      item === user.id || 
+      (user.username && item.toLowerCase() === user.username.toLowerCase()) ||
+      (user.email && item.toLowerCase() === user.email.toLowerCase())
+    );
   };
 
-  const isIzinApprover = (recSubDivisi: string) => {
-    if (currentUser.role === 'Admin') return true;
-    if (izinKeluarApprovers.includes(currentUser.id)) return true;
-    const amanah = (currentUser.amanah || '').toLowerCase();
-    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
-    return isLeader && currentUser.subDivisi === recSubDivisi;
+  const isExplicitCutiApprover = currentUser.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
+  const isLeaderCutiApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+
+  const isCutiApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitCutiApprover) return true;
+    if (!isLeaderCutiApprover) return false;
+    const userDiv = (currentUser.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!userDiv) return true;
+    let targetDiv = (recSubDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!targetDiv && pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      targetDiv = (p?.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    }
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
-  const pendingCutiCount = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi) || l.pejuangId === currentUser.id)).length;
-  const pendingIzinCount = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi) || e.pejuangId === currentUser.id)).length;
+  const isExplicitIzinApprover = currentUser.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
+  const isLeaderIzinApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+
+  const isIzinApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitIzinApprover) return true;
+    if (!isLeaderIzinApprover) return false;
+    const userDiv = (currentUser.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!userDiv) return true;
+    let targetDiv = (recSubDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!targetDiv && pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      targetDiv = (p?.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    }
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
+  };
+
+  const pendingCutiCount = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi, l.pejuangId) || l.pejuangId === currentUser.id)).length;
+  const pendingIzinCount = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi, e.pejuangId) || e.pejuangId === currentUser.id)).length;
 
   const adminNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

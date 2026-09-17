@@ -96,7 +96,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         const cred = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
         if (userDoc.exists()) {
-          matchedUser = userDoc.data() as UserAccount;
+          matchedUser = { id: userDoc.id, ...userDoc.data() } as UserAccount;
         } else {
           // Hanya izinkan auto-create jika email adalah email admin, untuk setup awal
           if (email.includes('admin') || email.includes('abdusalam') || email.includes('salamabdu') || email.includes('pondokalbahjah2')) {

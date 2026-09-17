@@ -76,20 +76,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const clauseToday = manhajiyyahClauses ? (manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0]) : null;
 
 
-  const isCutiApprover = cutiApprovers.includes(currentUser.id) || 
-    (() => {
-      const amanah = (currentUser.amanah || '').toLowerCase();
-      return (amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator'));
-    })();
+  const isUserInList = (list: string[] = [], user: UserAccount) => {
+    if (!user || !list || !Array.isArray(list)) return false;
+    return list.some(item => 
+      item === user.id || 
+      (user.username && item.toLowerCase() === user.username.toLowerCase()) ||
+      (user.email && item.toLowerCase() === user.email.toLowerCase())
+    );
+  };
 
-  const isIzinApprover = izinKeluarApprovers.includes(currentUser.id) || 
-    (() => {
-      const amanah = (currentUser.amanah || '').toLowerCase();
-      return (amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator'));
-    })();
+  const isExplicitCutiApprover = currentUser.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
+  const isLeaderCutiApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
 
-  const pendingCutiForMe = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover && l.subDivisi === currentUser.subDivisi || cutiApprovers.includes(currentUser.id)));
-  const pendingIzinForMe = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover && e.subDivisi === currentUser.subDivisi || izinKeluarApprovers.includes(currentUser.id)));
+  const isExplicitIzinApprover = currentUser.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
+  const isLeaderIzinApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+
+  const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+
+  const isCutiApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitCutiApprover) return true;
+    if (!isLeaderCutiApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    let targetDiv = norm(recSubDivisi);
+    if (!targetDiv && pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      targetDiv = norm(p?.subDivisi);
+    }
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
+  };
+
+  const isIzinApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitIzinApprover) return true;
+    if (!isLeaderIzinApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    let targetDiv = norm(recSubDivisi);
+    if (!targetDiv && pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      targetDiv = norm(p?.subDivisi);
+    }
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
+  };
+
+  const pendingCutiForMe = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && isCutiApprover(l.subDivisi, l.pejuangId));
+  const pendingIzinForMe = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && isIzinApprover(e.subDivisi, e.pejuangId));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeWarning, setActiveWarning] = useState<WarningLetterRecord | null>(null);
@@ -661,6 +694,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             </div>
           </div>
+
+          {(isCutiApprover || isIzinApprover) && (pendingCutiForMe.length > 0 || pendingIzinForMe.length > 0) && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-800 dark:text-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5 className="text-sm font-bold">Persetujuan Divisi Menunggu Tindakan</h5>
+                  <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                    Terdapat {pendingIzinForMe.length > 0 ? `${pendingIzinForMe.length} permohonan izin keluar` : ''}
+                    {pendingIzinForMe.length > 0 && pendingCutiForMe.length > 0 ? ' dan ' : ''}
+                    {pendingCutiForMe.length > 0 ? `${pendingCutiForMe.length} pengajuan cuti` : ''} dari divisi Anda yang memerlukan persetujuan.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 dark:border-white/10 shadow-sm flex items-center gap-3">

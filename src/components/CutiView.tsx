@@ -2,7 +2,7 @@ import { getLocalDateString } from '../utils/dateUtils';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { motion } from 'framer-motion';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import {
@@ -54,6 +54,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
+  const [divisiFilter, setDivisiFilter] = useState('Semua');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [showAddModal, setShowAddModal] = useState(false);
@@ -70,10 +71,17 @@ export const CutiView: React.FC<CutiViewProps> = ({
 
   const pejuangAccounts = accounts.filter((a) => a.role === 'Pejuang');
 
-  const getSisaCutiTahunan = (pId: string) => {
-    const currentYearStr = new Date().getFullYear().toString();
+  const allSubDivisions = useMemo(() => {
+    const set = new Set<string>();
+    accounts.forEach(a => { if (a.subDivisi?.trim()) set.add(a.subDivisi.trim()); });
+    leaveRequests.forEach(l => { if (l.subDivisi?.trim()) set.add(l.subDivisi.trim()); });
+    return Array.from(set).sort();
+  }, [accounts, leaveRequests]);
+
+  const getSisaCutiTahunan = (pId: string, customYear?: string) => {
+    const currentYearStr = customYear || new Date().getFullYear().toString();
     const used = leaveRequests
-      .filter(l => l.pejuangId === pId && l.jenisCuti === 'Cuti Tahunan' && (l.status === 'Disetujui' || l.status === 'Menunggu Persetujuan') && l.tanggalMulai.startsWith(currentYearStr))
+      .filter(l => l.pejuangId === pId && l.jenisCuti === 'Cuti Tahunan' && (l.status === 'Disetujui' || l.status === 'Menunggu Persetujuan' || l.status === 'Sedang Cuti' || l.status === 'Selesai') && l.tanggalMulai.startsWith(currentYearStr))
       .reduce((acc, curr) => acc + curr.totalHari, 0);
     return Math.max(0, 12 - used);
   };
@@ -101,23 +109,51 @@ export const CutiView: React.FC<CutiViewProps> = ({
     }
   }, [tanggalMulai, jenisCuti, jenisCutiList, showAddModal, durasiCutiTahunan]);
 
-  const isCutiApprover = (recSubDivisi: string) => {
-    if (currentUser.role === 'Admin') return true;
-    if (cutiApprovers.includes(currentUser.id)) return true;
-    const amanah = (currentUser.amanah || '').toLowerCase();
-    const isLeader = amanah.includes('ketua') || amanah.includes('kepala') || amanah.includes('manajer') || amanah.includes('manager') || amanah.includes('koordinator');
-    return isLeader && currentUser.subDivisi === recSubDivisi;
+  const isUserInList = (list: string[] = [], user: UserAccount) => {
+    if (!user || !list || !Array.isArray(list)) return false;
+    return list.some(item => 
+      item === user.id || 
+      (user.username && item.toLowerCase() === user.username.toLowerCase()) ||
+      (user.email && item.toLowerCase() === user.email.toLowerCase())
+    );
+  };
+
+  const isExplicitCutiApprover = currentUser.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
+  const isLeaderCutiApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isAnyCutiApprover = isExplicitCutiApprover || isLeaderCutiApprover;
+
+  const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+
+  const getRecordSubDivisi = (recSubDivisi?: string, pejuangId?: string) => {
+    if (recSubDivisi && recSubDivisi.trim()) return recSubDivisi.trim();
+    if (pejuangId) {
+      const p = accounts.find(a => a.id === pejuangId);
+      if (p?.subDivisi?.trim()) return p.subDivisi.trim();
+    }
+    return '';
+  };
+
+  const isCutiApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitCutiApprover) return true;
+    if (!isLeaderCutiApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    const targetDiv = norm(getRecordSubDivisi(recSubDivisi, pejuangId));
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
   // Filtered requests
   const filteredRequests = leaveRequests.filter((l) => {
-    const matchesUser = isCutiApprover(l.subDivisi) || l.pejuangId === currentUser.id;
+    const matchesUser = isCutiApprover(l.subDivisi, l.pejuangId) || l.pejuangId === currentUser.id;
     const matchesSearch =
       l.pejuangName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.alasan?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === 'Semua' || l.status === statusFilter;
-    return matchesUser && matchesSearch && matchesStatus;
+    const recDiv = norm(getRecordSubDivisi(l.subDivisi, l.pejuangId));
+    const matchesDivisi = divisiFilter === 'Semua' || recDiv === norm(divisiFilter);
+    return matchesUser && matchesSearch && matchesStatus && matchesDivisi;
   });
 
   const handleCreateLeaveRequest = (e: React.FormEvent) => {
@@ -312,7 +348,17 @@ export const CutiView: React.FC<CutiViewProps> = ({
       doc.text(doc.splitTextToSize(printAtasanName, 40), 74, 152.5, { align: 'center' }); // Kadiv Name
       doc.text(doc.splitTextToSize(rec.pejuangName, 40), 114, 152.5, { align: 'center' }); // Pejuang Name
 
+      // Sisa Jatah Cuti Tahunan pejuang
+      const leaveYear = rec.tanggalMulai ? rec.tanggalMulai.split('-')[0] : new Date().getFullYear().toString();
+      const sisaCutiTahunan = getSisaCutiTahunan(rec.pejuangId, leaveYear);
+
       // Footer
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(80, 80, 80);
+      const sisaCutiTextY = 196;
+      doc.text(`Sisa Jatah Cuti Tahunan: ${sisaCutiTahunan} Hari`, 10, sisaCutiTextY);
+
       doc.setFontSize(6);
       doc.setTextColor(100, 100, 100);
       let approvedTextY = 199;
@@ -373,8 +419,23 @@ export const CutiView: React.FC<CutiViewProps> = ({
             />
           </div>
         </motion.div>
-        <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          {(currentUser.role === 'Admin' || cutiApprovers.includes(currentUser.id) ? ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai', 'Rekap Kuota Cuti'] : ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai']).map((status) => (
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+          {isAnyCutiApprover && allSubDivisions.length > 0 && (
+            <select
+              value={divisiFilter}
+              onChange={(e) => { setDivisiFilter(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-sm focus:outline-none"
+            >
+              <option value="Semua">Semua Divisi</option>
+              {allSubDivisions.map((div) => (
+                <option key={div} value={div}>
+                  {div}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {(isAnyCutiApprover ? ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai', 'Rekap Kuota Cuti'] : ['Semua', 'Menunggu Persetujuan', 'Disetujui', 'Ditolak', 'Sedang Cuti', 'Selesai']).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -396,7 +457,9 @@ export const CutiView: React.FC<CutiViewProps> = ({
         <>
         <div className="bg-white/70 dark:bg-slate-900/60 rounded-3xl border border-white/60 dark:border-white/10 shadow-xl overflow-hidden p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Rekap & Input Manual Cuti Tahunan</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+              Rekap & Input Manual Cuti Tahunan {currentUser.role !== 'Admin' && currentUser.subDivisi ? `(Divisi ${currentUser.subDivisi})` : ''}
+            </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -410,7 +473,9 @@ export const CutiView: React.FC<CutiViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {accounts.filter(a => a.role === 'Pejuang').map(p => {
+                {accounts
+                  .filter(a => a.role === 'Pejuang' && (isCutiApprover(a.subDivisi, a.id) || a.id === currentUser.id) && (divisiFilter === 'Semua' || norm(a.subDivisi) === norm(divisiFilter)))
+                  .map(p => {
                   const sisa = getSisaCutiTahunan(p.id);
                   const maxCuti = 12;
                   const terpakai = maxCuti - sisa;
@@ -549,7 +614,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end space-x-2">
-                      {req.status === 'Menunggu Persetujuan' && isCutiApprover(req.subDivisi) && (
+                      {req.status === 'Menunggu Persetujuan' && isCutiApprover(req.subDivisi, req.pejuangId) && (
                         <>
                           <button
                             onClick={() => handleApproveReject(req.id, 'Disetujui')}
@@ -568,7 +633,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                         </>
                       )}
                       
-                      {req.status === 'Disetujui' && (currentUser.role === 'Admin' || cutiApprovers.includes(currentUser.id) || req.pejuangId === currentUser.id) && (
+                      {(req.status === 'Disetujui' || req.status === 'Sedang Cuti' || req.status === 'Selesai') && (currentUser.role === 'Admin' || isCutiApprover(req.subDivisi, req.pejuangId) || req.pejuangId === currentUser.id) && (
                         <button
                           onClick={() => handleGenerateCetakPDF(req)}
                           className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors shadow-sm"
@@ -577,7 +642,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                           Cetak Surat
                         </button>
                       )}
-                      {req.status !== 'Menunggu Persetujuan' && req.status !== 'Disetujui' && (
+                      {req.status !== 'Menunggu Persetujuan' && req.status !== 'Disetujui' && req.status !== 'Sedang Cuti' && req.status !== 'Selesai' && (
                         <span className="text-[11px] text-slate-400 italic">
                           {req.catatanAdmin || 'Selesai'}
                         </span>
@@ -625,7 +690,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
             </div>
             
             <form onSubmit={handleCreateLeaveRequest} className="space-y-4">
-              {currentUser.role === 'Admin' && (
+              {(currentUser.role === 'Admin' || isAnyCutiApprover) && (
                 <div className="flex items-center gap-2 mb-2 p-2 bg-slate-800/50 rounded-xl border border-slate-700">
                   <input
                     type="checkbox"
@@ -639,7 +704,7 @@ export const CutiView: React.FC<CutiViewProps> = ({
                   </label>
                 </div>
               )}
-              {currentUser.role === 'Admin' && (
+              {(currentUser.role === 'Admin' || isAnyCutiApprover) && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Pilih Pejuang
@@ -649,7 +714,9 @@ export const CutiView: React.FC<CutiViewProps> = ({
                     onChange={(e) => setTargetPejuangId(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
                   >
-                    {pejuangAccounts.map((p) => (
+                    {pejuangAccounts
+                      .filter(p => isCutiApprover(p.subDivisi, p.id) || p.id === currentUser.id)
+                      .map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} ({p.subDivisi})
                       </option>

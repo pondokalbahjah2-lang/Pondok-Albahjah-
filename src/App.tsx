@@ -164,10 +164,10 @@ export default function App() {
         });
 
         // Sync Users
-        const usersQ = isAd ? collection(db, 'users') : query(collection(db, 'users'), where('id', '==', uid));
+        const usersQ = collection(db, 'users');
         unsubUsers = onSnapshot(usersQ, (snap) => {
-          const data = snap.docs.map(d => d.data() as UserAccount);
-          setAccounts(prev => isAd ? data : [...prev.filter(p => p.id !== uid), ...data]);
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as UserAccount));
+          setAccounts(data);
           
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
 
@@ -177,7 +177,7 @@ export default function App() {
           : query(collection(db, 'attendance'), where('pejuangId', '==', uid));
         let firstAttLoad = true;
         unsubAtt = onSnapshot(attQ, (snap) => {
-          let data = snap.docs.map(d => d.data() as any);
+          let data = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
           if (!isAd) {
             data = data.sort((a: any, b: any) => new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime());
           }
@@ -186,20 +186,16 @@ export default function App() {
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'attendance'));
 
         // Sync Exit Permissions
-        const exitQ = isAd 
-          ? query(collection(db, 'exitPermissions'), orderBy('id', 'desc'), limit(3000))
-          : query(collection(db, 'exitPermissions'), where('pejuangId', '==', uid));
+        const exitQ = query(collection(db, 'exitPermissions'), limit(3000));
         let firstExitLoad = true;
         unsubExit = onSnapshot(exitQ, (snap) => {
-          let data = snap.docs.map(d => d.data() as any);
-          if (!isAd) {
-            data = data.sort((a: any, b: any) => new Date(b.tanggalKeluar || 0).getTime() - new Date(a.tanggalKeluar || 0).getTime());
-          }
+          let data = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+          data = data.sort((a: any, b: any) => (b.tanggalKeluar || b.id || '').localeCompare(a.tanggalKeluar || a.id || ''));
           if (!firstExitLoad && !isAd) {
              snap.docChanges().forEach(change => {
                if (change.type === 'modified') {
                  const newData = change.doc.data();
-                 if (newData.status === 'Disetujui' || newData.status === 'Ditolak') {
+                 if (newData.pejuangId === uid && (newData.status === 'Disetujui' || newData.status === 'Ditolak' || newData.status === 'Di Luar')) {
                    if (Notification.permission === 'granted') {
                      new Notification('Pembaruan Status Izin Keluar', { body: `Izin Keluar Anda telah ${newData.status}` });
                    } else {
@@ -247,20 +243,16 @@ export default function App() {
 
 
         // Sync Leave Requests
-        const leaveQ = isAd 
-          ? query(collection(db, 'leaveRequests'), orderBy('id', 'desc'), limit(3000))
-          : query(collection(db, 'leaveRequests'), where('pejuangId', '==', uid));
+        const leaveQ = query(collection(db, 'leaveRequests'), limit(3000));
         let firstLeaveLoad = true;
         unsubLeave = onSnapshot(leaveQ, (snap) => {
-          let data = snap.docs.map(d => d.data() as any);
-          if (!isAd) {
-            data = data.sort((a: any, b: any) => new Date(b.tanggalPengajuan || 0).getTime() - new Date(a.tanggalPengajuan || 0).getTime());
-          }
+          let data = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+          data = data.sort((a: any, b: any) => (b.tanggalMulai || b.id || '').localeCompare(a.tanggalMulai || a.id || ''));
           if (!firstLeaveLoad && !isAd) {
              snap.docChanges().forEach(change => {
                if (change.type === 'modified') {
                  const newData = change.doc.data();
-                 if (newData.status === 'Disetujui' || newData.status === 'Ditolak') {
+                 if (newData.pejuangId === uid && (newData.status === 'Disetujui' || newData.status === 'Ditolak')) {
                    if (Notification.permission === 'granted') {
                      new Notification('Pembaruan Status Cuti', { body: `Pengajuan Cuti Anda telah ${newData.status}` });
                    } else {
@@ -306,16 +298,22 @@ export default function App() {
     // Sync Cuti Notifications
     let firstCutiLoad = true;
     unsubCutiNotif = onSnapshot(collection(db, 'leaveRequests'), (snap) => {
-      if (!firstCutiLoad && currentUser?.role === 'Admin') {
+      if (!firstCutiLoad) {
          snap.docChanges().forEach(change => {
            if (change.type === 'added') {
              const newData = change.doc.data();
              if (newData.status === 'Menunggu Persetujuan') {
-               const msg = `Pengajuan Cuti Baru dari ${newData.pejuangName} (${newData.jenisCuti})`;
-               if (Notification.permission === 'granted') {
-                 new Notification('Al-Bahjah Sistem', { body: msg });
-               } else {
-                 alert(msg);
+               const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+               const isAppr = currentUser?.role === 'Admin' ||
+                 (generalSettings.cutiApprovers || []).includes(currentUser?.id || '') ||
+                 (Boolean((currentUser?.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/)) && (!currentUser?.subDivisi || norm(currentUser.subDivisi) === norm(newData.subDivisi)));
+               if (isAppr && newData.pejuangId !== currentUser?.id) {
+                 const msg = `Pengajuan Cuti Baru dari ${newData.pejuangName} (${newData.jenisCuti})`;
+                 if (Notification.permission === 'granted') {
+                   new Notification('Al-Bahjah Sistem', { body: msg });
+                 } else {
+                   alert(msg);
+                 }
                }
              }
            }
@@ -327,16 +325,22 @@ export default function App() {
     // Sync Izin Notifications
     let firstIzinLoad = true;
     unsubIzinNotif = onSnapshot(collection(db, 'exitPermissions'), (snap) => {
-      if (!firstIzinLoad && currentUser?.role === 'Admin') {
+      if (!firstIzinLoad) {
          snap.docChanges().forEach(change => {
            if (change.type === 'added') {
              const newData = change.doc.data();
              if (newData.status === 'Menunggu Persetujuan') {
-               const msg = `Pengajuan Izin Keluar/Sakit Baru dari ${newData.pejuangName}`;
-               if (Notification.permission === 'granted') {
-                 new Notification('Al-Bahjah Sistem', { body: msg });
-               } else {
-                 alert(msg);
+               const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+               const isAppr = currentUser?.role === 'Admin' ||
+                 (generalSettings.izinKeluarApprovers || []).includes(currentUser?.id || '') ||
+                 (Boolean((currentUser?.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/)) && (!currentUser?.subDivisi || norm(currentUser.subDivisi) === norm(newData.subDivisi)));
+               if (isAppr && newData.pejuangId !== currentUser?.id) {
+                 const msg = `Pengajuan Izin Keluar/Sakit Baru dari ${newData.pejuangName}`;
+                 if (Notification.permission === 'granted') {
+                   new Notification('Al-Bahjah Sistem', { body: msg });
+                 } else {
+                   alert(msg);
+                 }
                }
              }
            }
@@ -740,6 +744,7 @@ export default function App() {
       
       <IOSGlassLayout appLogoUrl={generalSettings.appLogoUrl}
         currentUser={currentUser}
+        accounts={accounts}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onLogout={handleLogout}
