@@ -44,6 +44,7 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
 });
   const [filterEndDate, setFilterEndDate] = useState(getLocalDateString(new Date()));
   const [confirmAction, setConfirmAction] = useState<{id: string, status: "Valid" | "Ditolak"} | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const isAlHikam = kajianName === "Kajian Al-Hikam Senin Malam";
   const targetLat = isAlHikam ? -6.7100287 : (locationSettings.latitude || 0);
@@ -187,7 +188,7 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
       }
       
       summary[pn]['Total Absen'] += 1;
-      const hasCatatan = r.statusValidasi !== 'Ditolak' && !!r.notesPhotoUrl;
+      const hasCatatan = r.statusValidasi === 'Valid' && !!r.notesPhotoUrl;
       if (hasCatatan) summary[pn]['Total Catatan'] += 1;
   
       let kName = r.kajianName || '';
@@ -559,10 +560,10 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
                     <td className="py-3 px-3 text-emerald-600 font-semibold">{r.kajianName}</td>
                     <td className="py-3 px-3">{r.mode}</td>
                     <td className="py-3 px-3 text-center">
-                      {r.attendancePhotoUrl ? <a href={r.attendancePhotoUrl} target="_blank" className="text-blue-500 underline">Lihat</a> : '-'}
+                      {r.attendancePhotoUrl ? <button onClick={() => setPreviewImage(r.attendancePhotoUrl)} className="text-blue-500 underline font-medium hover:text-blue-600">Lihat</button> : '-'}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      {r.notesPhotoUrl ? <a href={r.notesPhotoUrl} target="_blank" className="text-blue-500 underline">Lihat</a> : '-'}
+                      {r.notesPhotoUrl ? <button onClick={() => setPreviewImage(r.notesPhotoUrl)} className="text-blue-500 underline font-medium hover:text-blue-600">Lihat</button> : '-'}
                     </td>
                     <td className="py-3 px-3 text-center">
                       <div className="flex items-center justify-center gap-2">
@@ -629,6 +630,60 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
         )}
       </AnimatePresence>
 
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4" onClick={() => setPreviewImage(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.6 }}
+            className="relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl max-w-4xl max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-slate-800 dark:text-white">Pratinjau Foto</h3>
+              <button onClick={() => setPreviewImage(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 flex-1 overflow-auto bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-center">
+              
+              
+              {(() => {
+                let embedUrl = previewImage || '';
+                if (embedUrl.includes('drive.google.com')) {
+                  const match = embedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                  if (match && match[1]) {
+                    embedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+                  } else if (embedUrl.includes('id=')) {
+                    const idMatch = embedUrl.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (idMatch && idMatch[1]) {
+                      embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+                    }
+                  }
+                  return (
+                    <iframe 
+                      src={embedUrl} 
+                      className="w-full h-[65vh] rounded-xl border-0" 
+                      allow="autoplay"
+                    ></iframe>
+                  );
+                }
+                return <img src={embedUrl} alt="Preview" className="max-w-full max-h-[70vh] object-contain rounded-xl" />;
+              })()}
+
+
+            </div>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-end">
+              <a href={previewImage} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors">
+                Buka di Tab Baru
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

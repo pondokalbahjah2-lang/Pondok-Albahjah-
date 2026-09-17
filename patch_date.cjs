@@ -1,10 +1,8 @@
-import { UserAccount } from '../types';
-
-export const getLocalDateString = (d: Date = new Date()) => {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Date()) => {
+const fs = require('fs');
+let code = fs.readFileSync('src/utils/dateUtils.ts', 'utf8');
+code = code.replace(
+  'export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Date()) => {\n  return getLocalDateString(d);\n};',
+  `export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Date()) => {
   if (user) {
     const subdiv = (user.subDivisi || '').toLowerCase();
     const isSpecial = ['sdiqu', 'smpiqu', 'smaiqu', 'kepondokan banat'].some(s => subdiv.includes(s));
@@ -19,4 +17,7 @@ export const getLogicalAttendanceDateStr = (user?: UserAccount, d: Date = new Da
     }
   }
   return getLocalDateString(d);
-};
+};`
+);
+fs.writeFileSync('src/utils/dateUtils.ts', code);
+console.log('Patched dateUtils.ts');

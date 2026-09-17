@@ -42,7 +42,9 @@ import { getDailyClauseIndex } from '../utils/hijriCalendar';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { AdminQRGenerator } from './AdminQRGenerator';
 
+import { KajianRecord } from '../types';
 interface DashboardViewProps {
+  kajianRecords?: KajianRecord[];
   currentUser: UserAccount;
   accounts: UserAccount[];
   attendance: AttendanceRecord[];
@@ -55,6 +57,7 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
+  kajianRecords = [],
   currentUser,
   accounts,
   attendance,
@@ -558,7 +561,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Warning Letter Popup */}
       {activeWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.6 }}
             className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl relative border-t-8 border-rose-500 animate-in fade-in zoom-in duration-300">
             <button onClick={dismissWarning} className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
               <X className="w-4 h-4 text-slate-600 dark:text-slate-300" />
@@ -1456,7 +1459,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Active List Modal */}
       {activeListModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 350, damping: 25, mass: 0.8 }}
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.6 }}
             className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
               <h2 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center space-x-2">
@@ -1510,12 +1513,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     {/* Dashboard Analytics for Pejuang */}
       {currentUser.role === 'Pejuang' && (
-        <PejuangDashboardAnalytics 
-          currentUser={currentUser} 
-          attendance={attendance} 
-          leaveRequests={leaveRequests} 
-          exitPermissions={exitPermissions} 
-        />
+        <PejuangDashboardAnalytics currentUser={currentUser} attendance={attendance} leaveRequests={leaveRequests} exitPermissions={exitPermissions} kajianRecords={kajianRecords} />
       )}
     </div>
   );
@@ -1523,11 +1521,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
 // Internal component for Pejuang Dashboard Analytics
 const PejuangDashboardAnalytics: React.FC<{
+  kajianRecords?: KajianRecord[];
   currentUser: UserAccount;
   attendance: AttendanceRecord[];
   leaveRequests: LeaveRequestRecord[];
   exitPermissions: ExitPermissionRecord[];
-}> = ({ currentUser, attendance, leaveRequests, exitPermissions }) => {
+}> = ({ currentUser, attendance, leaveRequests, exitPermissions, kajianRecords = [] }) => {
   // Chart data 1 week
   
   // Leave quota calculation
@@ -1699,6 +1698,67 @@ const last7DaysData = React.useMemo(() => {
           </div>
         </div>
 
+                {/* Kajian Weekly Trend Chart */}
+        <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl lg:col-span-3 mt-6">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+            <LineChartIcon className="w-4 h-4 text-emerald-500" />
+            Tren Partisipasi Kajian (Mingguan)
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              {(() => {
+                // Group by week (last 4 weeks)
+                const weeks = Array.from({length: 4}).map((_, i) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - (i * 7));
+                  return d;
+                }).reverse();
+                
+                const myKajian = kajianRecords.filter(r => currentUser.role === 'Admin' || r.pejuangId === currentUser.id);
+                
+                const data = weeks.map((wDate, i) => {
+                  const weekStart = new Date(wDate);
+                  weekStart.setHours(0,0,0,0);
+                  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                  const weekEnd = new Date(weekStart);
+                  weekEnd.setDate(weekEnd.getDate() + 6);
+                  
+                  const recordsInWeek = myKajian.filter(r => {
+                    const rDate = new Date(r.date);
+                    return rDate >= weekStart && rDate <= weekEnd && r.statusValidasi !== 'Ditolak';
+                  });
+                  
+                  const tafsir = recordsInWeek.filter(r => r.kajianName && r.kajianName.includes('Tafsir')).length;
+                  const hadist = recordsInWeek.filter(r => r.kajianName && r.kajianName.includes('Mukhtasor')).length;
+                  const hikam = recordsInWeek.filter(r => r.kajianName && r.kajianName.includes('Al-Hikam')).length;
+                  
+                  return {
+                    name: `Week ${4-i}`,
+                    Tafsir: tafsir,
+                    Hadist: hadist,
+                    AlHikam: hikam,
+                    weekStartStr: getLocalDateString(weekStart).slice(5)
+                  };
+                });
+                
+                return (
+                  <RechartsLineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }}/>
+                    <Line type="monotone" dataKey="Tafsir" stroke="#10b981" strokeWidth={3} dot={{r:4}} activeDot={{r:6}} />
+                    <Line type="monotone" dataKey="Hadist" stroke="#3b82f6" strokeWidth={3} dot={{r:4}} activeDot={{r:6}} />
+                    <Line type="monotone" dataKey="AlHikam" stroke="#f59e0b" strokeWidth={3} dot={{r:4}} activeDot={{r:6}} />
+                  </RechartsLineChart>
+                );
+              })()}
+            </ResponsiveContainer>
+          </div>
+        </div>
         {/* 30 Days Chart */}
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl lg:col-span-2 mt-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
