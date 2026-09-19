@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 
 import { UserAccount, ExitPermissionRecord } from '../types';
+import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
 interface IzinKeluarViewProps {
   currentUser: UserAccount;
@@ -130,7 +131,8 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
       status: 'Menunggu Persetujuan',
     };
 
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    // Trigger tactile feedback for critical action: Submit Izin
+    triggerHapticFeedback(HAPTIC_PATTERNS.SUBMIT_IZIN);
     onSaveExitPermissions([newRecord, ...exitPermissions]);
     setShowModal(false);
     setAlasan('');
@@ -171,7 +173,8 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
       return rec;
     });
 
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    // Trigger tactile feedback for Catat Kembali
+    triggerHapticFeedback(HAPTIC_PATTERNS.CATAT_KEMBALI);
     onSaveExitPermissions(updated);
     setSelectedRecordForReturn(null);
   };
@@ -296,7 +299,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
 
   const handleSubmitApprovalClick = (e: React.FormEvent, isRejected: boolean = false) => {
     e.preventDefault();
-    if (navigator.vibrate) navigator.vibrate(50);
+    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT_TAP, { audioType: 'tap' });
     setConfirmIzinAction({ isRejected, event: e });
   };
 
@@ -304,6 +307,7 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   const confirmSubmitApproval = async () => {
     if (!confirmIzinAction || !approvalRecord) return;
     const { isRejected } = confirmIzinAction;
+    triggerHapticFeedback(isRejected ? HAPTIC_PATTERNS.REJECT : HAPTIC_PATTERNS.APPROVE);
     const now = new Date();
     const approvedTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const approvedDateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });

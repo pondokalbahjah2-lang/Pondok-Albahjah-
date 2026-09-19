@@ -16,6 +16,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { UserAccount, LeaveRequestRecord } from '../types';
+import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
 interface CutiViewProps {
   currentUser: UserAccount;
@@ -199,7 +200,8 @@ export const CutiView: React.FC<CutiViewProps> = ({
       tanggalPengajuan: getLocalDateString(new Date()),
     };
 
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    // Trigger tactile feedback for critical action: Submit Cuti
+    triggerHapticFeedback(HAPTIC_PATTERNS.SUBMIT_CUTI);
     onSaveLeaveRequests([newRecord, ...leaveRequests]);
     
     // Auto-update NIPY
@@ -211,7 +213,9 @@ export const CutiView: React.FC<CutiViewProps> = ({
     }
     setShowAddModal(false);
     setAlasan('');
-    alert('Pengajuan cuti berhasil dikirim dan menunggu persetujuan.');
+    setTimeout(() => {
+      alert('Pengajuan cuti berhasil dikirim dan menunggu persetujuan.');
+    }, 50);
   };
 
   
@@ -219,6 +223,8 @@ export const CutiView: React.FC<CutiViewProps> = ({
     id: string,
     newStatus: 'Disetujui' | 'Ditolak' | 'Sedang Cuti'
   ) => {
+    // Trigger tactile feedback for approval or rejection
+    triggerHapticFeedback(newStatus === 'Disetujui' ? HAPTIC_PATTERNS.APPROVE : HAPTIC_PATTERNS.REJECT);
     let targetPejuangId = '';
     let jenisCutiNotif = '';
     const updated = leaveRequests.map((l) => {

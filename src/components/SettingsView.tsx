@@ -25,6 +25,7 @@ import {
   Monitor,
   Bell,
   FileText,
+  Smartphone,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import {
@@ -35,6 +36,13 @@ import {
   AttendanceRecord,
 } from '../types';
 import { Storage as AppStorage } from '../utils/storage';
+import {
+  isVibrationSupported,
+  isVibrationEnabled,
+  setVibrationEnabled,
+  triggerHapticFeedback,
+  HAPTIC_PATTERNS,
+} from '../utils/vibration';
 import { secondaryAuth, auth } from '../utils/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 
@@ -351,6 +359,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     alert(`Notifikasi Real-time telah ${newVal ? 'diaktifkan' : 'dinonaktifkan'}.`);
     // Optional reload to ensure sync
     window.location.reload();
+  };
+
+  const [vibrationOn, setVibrationOn] = useState<boolean>(() => isVibrationEnabled());
+
+  const handleToggleVibration = () => {
+    const next = !vibrationOn;
+    setVibrationOn(next);
+    setVibrationEnabled(next);
+    if (next) {
+      triggerHapticFeedback(HAPTIC_PATTERNS.SUCCESS, { force: true });
+    }
   };
 
   // Location settings states
@@ -1314,6 +1333,65 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }`}
                   />
                 </button>
+             </div>
+          </div>
+
+          <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-700/50">
+             <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-2 flex items-center space-x-2">
+               <Smartphone className="w-4 h-4 text-emerald-500" />
+               <span>Umpan Balik Getaran & Haptik (Vibration API)</span>
+             </h3>
+             <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 max-w-lg">
+               Memberikan getaran taktil pada ponsel saat aksi penting berhasil, seperti <strong>Absen Masuk</strong>, <strong>Absen Pulang</strong>, <strong>Submit Izin</strong>, dan <strong>Submit Cuti</strong>.
+             </p>
+             <div className="space-y-3 max-w-md">
+               <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-xs font-bold text-slate-800 dark:text-white">Getaran Taktil Aksi Kritis</p>
+                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                        {isVibrationSupported() ? 'Vibration API Aktif' : 'Audio Haptic Fallback'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                      {isVibrationSupported() 
+                        ? 'Didukung penuh oleh perangkat & browser Anda.' 
+                        : 'Perangkat menggunakan feedback akustik mikro.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleVibration}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${
+                      vibrationOn ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
+                    }`}
+                  >
+                    <span
+                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform transform ${
+                        vibrationOn ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+               </div>
+
+               {vibrationOn && (
+                 <div className="flex flex-wrap gap-2 pt-1">
+                   <button
+                     type="button"
+                     onClick={() => triggerHapticFeedback(HAPTIC_PATTERNS.ABSEN_MASUK, { force: true })}
+                     className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 text-[11px] font-semibold transition-colors flex items-center space-x-1.5 border border-slate-300/60 dark:border-slate-700"
+                   >
+                     <span>⚡ Tes Absen Masuk</span>
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => triggerHapticFeedback(HAPTIC_PATTERNS.SUBMIT_IZIN, { force: true })}
+                     className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 text-[11px] font-semibold transition-colors flex items-center space-x-1.5 border border-slate-300/60 dark:border-slate-700"
+                   >
+                     <span>✨ Tes Submit Izin</span>
+                   </button>
+                 </div>
+               )}
              </div>
           </div>
 

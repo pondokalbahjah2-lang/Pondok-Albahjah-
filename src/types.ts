@@ -22,6 +22,7 @@ export interface UserAccount {
   phone?: string;
   avatarUrl?: string;
   pushNotificationsEnabled?: boolean;
+  vibrationFeedbackEnabled?: boolean;
   webAuthnCredentialId?: string;
   passwordLastUpdated?: string;
   suratKeputusanUrl?: string;

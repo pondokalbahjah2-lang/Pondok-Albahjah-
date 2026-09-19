@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UserAccount, KajianRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
 import { calculateDistanceMeters } from '../utils/storage';
+import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
 import { LocationMap } from './LocationMap';
 import { AnimatedDownloadButton } from './AnimatedDownloadButton';
@@ -129,11 +130,14 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
     };
 
     onSaveKajian([newRecord, ...kajianRecords]);
-    alert("Absensi Kajian Berhasil Disimpan!");
+    triggerHapticFeedback(HAPTIC_PATTERNS.ABSEN_MASUK);
     setAttendancePhotoUrl('');
     setNotesPhotoUrl('');
     setKajianDate(getLocalDateString(new Date()));
     setLocationStatus('idle');
+    setTimeout(() => {
+      alert("Absensi Kajian Berhasil Disimpan!");
+    }, 50);
   };
 
   const filteredRecords = kajianRecords.filter(r => {
@@ -144,13 +148,14 @@ export const KajianView: React.FC<KajianViewProps> = ({ currentUser, kajianRecor
   });
 
   const handleValidateClick = (id: string, status: 'Valid' | 'Ditolak') => {
-    if (navigator.vibrate) navigator.vibrate(50);
+    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT_TAP, { audioType: 'tap' });
     setConfirmAction({ id, status });
   };
 
   const confirmValidation = () => {
     if (!confirmAction) return;
     const { id, status } = confirmAction;
+    triggerHapticFeedback(status === 'Valid' ? HAPTIC_PATTERNS.APPROVE : HAPTIC_PATTERNS.REJECT);
     const updatedRecords = kajianRecords.map(r => r.id === id ? { ...r, statusValidasi: status } : r);
     onSaveKajian(updatedRecords);
     setConfirmAction(null);

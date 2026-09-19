@@ -25,6 +25,7 @@ import {
   WorkSchedule,
 } from '../types';
 import { calculateDistanceMeters } from '../utils/storage';
+import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
 interface AbsensiViewProps {
   currentUser: UserAccount;
@@ -98,6 +99,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
         });
         
         if (code) {
+          triggerHapticFeedback(HAPTIC_PATTERNS.QR_SCAN, { audioType: 'tap' });
           setNotes(`Hadir via QR Code: ${code.data}`);
           setIsScanningQR(false);
           capturePhoto();
@@ -388,12 +390,14 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     
 
     if (attendanceStatus !== 'Sakit' && attendanceStatus !== 'Libur' && attendanceStatus !== 'Izin' && !isWithinRadius) {
+      triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
       alert(`Absen ditolak: Anda berada di luar radius Pondok (${distanceMeters}m / Maks ${locationSettings.radiusMaxMeters}m).`);
       return;
     }
     
     if (!currentLat || !currentLng) {
       if (attendanceStatus !== 'Libur' && attendanceStatus !== 'Sakit' && attendanceStatus !== 'Izin') {
+        triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert('Tunggu hingga lokasi GPS Anda ditemukan (klik Cek Lokasi GPS) sebelum mengirim absensi.');
         return;
       }
@@ -408,10 +412,12 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
 
     if (attendanceStatus === 'Pulang') {
       if (!isClockedIn) {
+        triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert('Anda belum melakukan absen masuk hari ini. Silakan pilih status Hadir terlebih dahulu.');
         return;
       }
       if (isClockedOut) {
+        triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert('Anda sudah melakukan absen pulang hari ini.');
         return;
       }
@@ -437,6 +443,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       
       const diffPulangMins = (effectiveSchPulangH * 60 + schPulangM) - (effectiveCurrH * 60 + currM);
       if (diffPulangMins > 5) {
+        triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert(`Absen ditolak: Anda hanya dapat absen pulang paling awal 5 menit sebelum jam kepulangan (${jamPulang}).`);
         return;
       }
@@ -457,12 +464,16 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       onSaveAttendance(updatedAttendance);
       setPhotoPreview('');
       setNotes('');
-      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-      alert(`Jam Pulang Berhasil Dicatat: ${timeStr}`);
+      // Trigger tactile feedback for Absen Pulang
+      triggerHapticFeedback(HAPTIC_PATTERNS.ABSEN_PULANG);
+      setTimeout(() => {
+        alert(`Jam Pulang Berhasil Dicatat: ${timeStr}`);
+      }, 50);
       return;
     }
 
     if (isClockedIn) {
+      triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
       alert('Anda sudah melakukan absen masuk hari ini. Pilih status Pulang untuk absen keluar.');
       return;
     }
@@ -483,6 +494,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       const [schH, schM] = jamMasuk.split(':').map(Number);
       const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
       if (diffMasukMins > 60) {
+        triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${jamMasuk}).`);
         return;
       }
@@ -513,8 +525,11 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     onSaveAttendance([newRecord, ...attendance]);
     setPhotoPreview('');
     setNotes('');
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
-    alert(`Absensi Kehadiran Berhasil Ditambahkan dengan Status: ${finalStatus}`);
+    // Trigger tactile feedback for critical action: Absen Masuk
+    triggerHapticFeedback(HAPTIC_PATTERNS.ABSEN_MASUK);
+    setTimeout(() => {
+      alert(`Absensi Kehadiran Berhasil Ditambahkan dengan Status: ${finalStatus}`);
+    }, 50);
   };
 
   // Filter attendance for view

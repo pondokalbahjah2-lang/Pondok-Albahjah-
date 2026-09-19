@@ -36,13 +36,15 @@ import {
   ExitPermissionRecord,
   LeaveRequestRecord,
   WarningLetterRecord,
-  ManhajiyyahClause
+  ManhajiyyahClause,
+  WorkSchedule,
+  KajianRecord
 } from '../types';
 import { getDailyClauseIndex } from '../utils/hijriCalendar';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { AdminQRGenerator } from './AdminQRGenerator';
+import { MonthlyShiftProgressSection } from './MonthlyShiftProgressSection';
 
-import { KajianRecord } from '../types';
 interface DashboardViewProps {
   kajianRecords?: KajianRecord[];
   currentUser: UserAccount;
@@ -56,6 +58,7 @@ interface DashboardViewProps {
   cutiApprovers?: string[];
   broadcastMessage?: string;
   onNavigate: (tab: string) => void;
+  schedules?: WorkSchedule[];
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -71,6 +74,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
   izinKeluarApprovers = [],
   cutiApprovers = [],
+  schedules = [],
 }) => {
   const dailyClauseIndex = getDailyClauseIndex(manhajiyyahClauses?.length || 0, new Date());
   const clauseToday = manhajiyyahClauses ? (manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0]) : null;
@@ -1179,8 +1183,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
       {/* ------------------------------------------------------------ */}
-
-
+      {/* Monthly Shift Attendance Progress (D3 / Recharts Circular Progress Gauges) */}
+      <MonthlyShiftProgressSection
+        currentUser={currentUser}
+        accounts={accounts}
+        attendance={attendance}
+        schedules={schedules}
+      />
 
       {/* Charts Section */}
       
@@ -1584,7 +1593,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     {/* Dashboard Analytics for Pejuang */}
       {currentUser.role === 'Pejuang' && (
-        <PejuangDashboardAnalytics currentUser={currentUser} attendance={attendance} leaveRequests={leaveRequests} exitPermissions={exitPermissions} kajianRecords={kajianRecords} />
+        <PejuangDashboardAnalytics
+          currentUser={currentUser}
+          attendance={attendance}
+          leaveRequests={leaveRequests}
+          exitPermissions={exitPermissions}
+          kajianRecords={kajianRecords}
+          accounts={accounts}
+          schedules={schedules}
+        />
       )}
     </div>
   );
@@ -1597,7 +1614,9 @@ const PejuangDashboardAnalytics: React.FC<{
   attendance: AttendanceRecord[];
   leaveRequests: LeaveRequestRecord[];
   exitPermissions: ExitPermissionRecord[];
-}> = ({ currentUser, attendance, leaveRequests, exitPermissions, kajianRecords = [] }) => {
+  accounts?: UserAccount[];
+  schedules?: WorkSchedule[];
+}> = ({ currentUser, attendance, leaveRequests, exitPermissions, kajianRecords = [], accounts = [], schedules = [] }) => {
   // Chart data 1 week
   
   // Leave quota calculation
@@ -1703,6 +1722,14 @@ const last7DaysData = React.useMemo(() => {
 
   return (
     <div className="space-y-6 mt-6">
+      {/* Monthly Shift Attendance Progress (D3 / Recharts Circular Progress Gauge) */}
+      <MonthlyShiftProgressSection
+        currentUser={currentUser}
+        accounts={accounts}
+        attendance={attendance}
+        schedules={schedules}
+      />
+
 <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-xl shadow-amber-600/20 text-white relative overflow-hidden group mb-6">
         <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
           <CalendarDays className="w-24 h-24" />

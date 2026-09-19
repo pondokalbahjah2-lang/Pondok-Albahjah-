@@ -778,6 +778,7 @@ export default function App() {
                 onNavigate={setActiveTab}
                 izinKeluarApprovers={generalSettings.izinKeluarApprovers}
                 cutiApprovers={generalSettings.cutiApprovers}
+                schedules={schedules}
               />
             )}
             {activeTab === 'izin' && (
