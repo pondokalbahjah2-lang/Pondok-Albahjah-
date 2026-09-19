@@ -159,7 +159,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     { id: 'cuti', label: 'Pengajuan Cuti', icon: Calendar, badge: pendingCutiCount },
     { id: 'ubar', label: 'Slip Ubar', icon: FileText },
     { id: 'sp', label: 'Surat SP & Teguran', icon: AlertOctagon },
-    { id: 'kalender', label: 'Kalender Pondok', icon: FileSpreadsheet },
+    { id: 'kalender', label: 'Kalender Cuti', icon: FileSpreadsheet },
     { id: 'kajian', label: 'Kajian Buya Yahya', icon: BookOpen },
     { id: 'laporan', label: 'Unduh Laporan', icon: Download },
     { id: 'settings', label: 'Pengaturan Sistem', icon: Settings }
@@ -173,7 +173,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     { id: 'cuti', label: 'Pengajuan Cuti', icon: Calendar, badge: pendingCutiCount },
     { id: 'ubar', label: 'Slip Ubar', icon: FileText },
     { id: 'sp', label: 'Surat SP & Teguran', icon: AlertOctagon },
-    { id: 'kalender', label: 'Kalender Pondok', icon: FileSpreadsheet },
+    { id: 'kalender', label: 'Kalender Cuti', icon: FileSpreadsheet },
     { id: 'kajian', label: 'Kajian Buya Yahya', icon: BookOpen },
     { id: 'settings', label: 'Pengaturan Sistem', icon: Settings }
   ];
