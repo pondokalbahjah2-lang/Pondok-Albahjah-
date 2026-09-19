@@ -103,51 +103,54 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
     second: '2-digit',
   });
 
-  const isUserInList = (list: string[] = [], user: UserAccount) => {
+  const isUserInList = (list: any[] = [], user?: UserAccount | null) => {
     if (!user || !list || !Array.isArray(list)) return false;
-    return list.some(item => 
-      item.toLowerCase() === user.name.toLowerCase() ||
-      item.toLowerCase() === (user.username || '').toLowerCase() ||
-      item.toLowerCase() === user.id.toLowerCase()
-    );
+    const uName = (user.name || '').toLowerCase().trim();
+    const uUsername = (user.username || '').toLowerCase().trim();
+    const uId = (user.id || '').toLowerCase().trim();
+    return list.some(item => {
+      if (!item || typeof item !== 'string') return false;
+      const itm = item.toLowerCase().trim();
+      return itm === uName || itm === uUsername || itm === uId;
+    });
   };
 
-  const isExplicitCutiApprover = currentUser.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
-  const isLeaderCutiApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isExplicitCutiApprover = currentUser?.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
+  const isLeaderCutiApprover = Boolean(((currentUser?.amanah) || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
 
   const isCutiApprover = (recSubDivisi?: string, pejuangId?: string) => {
     if (isExplicitCutiApprover) return true;
     if (!isLeaderCutiApprover) return false;
-    const userDiv = (currentUser.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    const userDiv = ((currentUser?.subDivisi) || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
     if (!userDiv) return true;
     let targetDiv = (recSubDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
-    if (!targetDiv && pejuangId) {
-      const p = accounts.find(a => a.id === pejuangId);
-      targetDiv = (p?.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!targetDiv && pejuangId && Array.isArray(accounts)) {
+      const p = accounts.find(a => a && a.id === pejuangId);
+      targetDiv = ((p?.subDivisi) || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
     }
     if (!targetDiv) return true;
     return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
-  const isExplicitIzinApprover = currentUser.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
-  const isLeaderIzinApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isExplicitIzinApprover = currentUser?.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
+  const isLeaderIzinApprover = Boolean(((currentUser?.amanah) || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
 
   const isIzinApprover = (recSubDivisi?: string, pejuangId?: string) => {
     if (isExplicitIzinApprover) return true;
     if (!isLeaderIzinApprover) return false;
-    const userDiv = (currentUser.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    const userDiv = ((currentUser?.subDivisi) || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
     if (!userDiv) return true;
     let targetDiv = (recSubDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
-    if (!targetDiv && pejuangId) {
-      const p = accounts.find(a => a.id === pejuangId);
-      targetDiv = (p?.subDivisi || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    if (!targetDiv && pejuangId && Array.isArray(accounts)) {
+      const p = accounts.find(a => a && a.id === pejuangId);
+      targetDiv = ((p?.subDivisi) || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
     }
     if (!targetDiv) return true;
     return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
-  const pendingCutiCount = leaveRequests.filter(l => l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi, l.pejuangId) || l.pejuangId === currentUser.id)).length;
-  const pendingIzinCount = exitPermissions.filter(e => e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi, e.pejuangId) || e.pejuangId === currentUser.id)).length;
+  const pendingCutiCount = (Array.isArray(leaveRequests) ? leaveRequests : []).filter(l => l && l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi, l.pejuangId) || l.pejuangId === currentUser?.id)).length;
+  const pendingIzinCount = (Array.isArray(exitPermissions) ? exitPermissions : []).filter(e => e && e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi, e.pejuangId) || e.pejuangId === currentUser?.id)).length;
 
   const adminNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -223,10 +226,10 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                   onClick={() => setActiveTab('settings')}
                   className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800/90 border-2 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-base flex items-center justify-center shrink-0 cursor-pointer shadow-sm overflow-hidden"
                 >
-                  {currentUser.avatarUrl ? (
-                    <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+                  {currentUser?.avatarUrl ? (
+                    <img src={currentUser.avatarUrl} alt={currentUser?.name || 'User'} className="w-full h-full object-cover" />
                   ) : (
-                    currentUser.name.charAt(0)
+                    (currentUser?.name || 'U').charAt(0).toUpperCase()
                   )}
                 </div>
 
@@ -238,10 +241,10 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
                   className="flex flex-col truncate overflow-hidden"
                 >
                   <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {currentUser.name}
+                    {currentUser?.name || 'Pengguna'}
                   </span>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    {currentUser.role === 'Admin' ? 'Administrator' : (currentUser.subDivisi || 'Pejuang Al-Bahjah')}
+                    {currentUser?.role === 'Admin' ? 'Administrator' : (currentUser?.subDivisi || 'Pejuang Al-Bahjah')}
                   </span>
                 </motion.div>
               </div>

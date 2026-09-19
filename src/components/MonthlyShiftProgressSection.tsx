@@ -75,29 +75,38 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
   // Extract all sub-divisi for filter
   const allSubDivisions = useMemo(() => {
     const set = new Set<string>();
-    accounts.forEach((acc) => {
-      if (acc.subDivisi) set.add(acc.subDivisi);
+    (accounts || []).forEach((acc) => {
+      if (acc && acc.subDivisi) set.add(acc.subDivisi);
     });
     return ['Semua Divisi', ...Array.from(set).sort()];
   }, [accounts]);
 
   // Calculate shift progress per user
   const userShiftStats = useMemo(() => {
-    const targetMonthPrefix = monthInfo.prefix;
+    const targetMonthPrefix = monthInfo?.prefix || '';
+    const safeAccounts = Array.isArray(accounts) ? accounts : [];
+    const safeAttendance = Array.isArray(attendance) ? attendance : [];
+    const safeSchedules = Array.isArray(schedules) ? schedules : [];
 
     // Filter active pejuang accounts
-    const activePejuang = accounts.filter(acc => acc.role === 'Pejuang' || acc.role === 'Admin');
+    const activePejuang = safeAccounts.filter(acc => acc && (acc.role === 'Pejuang' || acc.role === 'Admin'));
 
     return activePejuang.map(pejuang => {
+      const pId = pejuang.id || '';
+      const pName = (pejuang.name || '').toLowerCase();
+      const pSubDivisi = pejuang.subDivisi || '';
+
       // Find user's schedule if available
-      const userSchedule = schedules.find(s => 
-        (s.targetType === 'Individu' && (s.targetId === pejuang.id || s.pejuangIds?.includes(pejuang.id))) ||
-        (s.targetType === 'Divisi' && (s.targetName === pejuang.subDivisi || s.targetId === pejuang.subDivisi))
+      const userSchedule = safeSchedules.find(s => 
+        s && (
+          (s.targetType === 'Individu' && (s.targetId === pId || (Array.isArray(s.pejuangIds) && s.pejuangIds.includes(pId)))) ||
+          (s.targetType === 'Divisi' && (s.targetName === pSubDivisi || s.targetId === pSubDivisi))
+        )
       );
 
       // Determine target shifts
-      let targetShifts = monthInfo.defaultWorkingDays;
-      if (userSchedule && userSchedule.hariKerja && userSchedule.hariKerja.length > 0) {
+      let targetShifts = monthInfo?.defaultWorkingDays || 25;
+      if (userSchedule && Array.isArray(userSchedule.hariKerja) && userSchedule.hariKerja.length > 0) {
         // Calculate days in month matching work schedule
         const hariMap: Record<number, string> = {
           0: 'Minggu',
@@ -109,8 +118,11 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
           6: 'Sabtu'
         };
         let schedDays = 0;
-        for (let day = 1; day <= monthInfo.daysInMonth; day++) {
-          const d = new Date(monthInfo.year, monthInfo.month, day);
+        const totalDays = monthInfo?.daysInMonth || 30;
+        const mYear = monthInfo?.year || new Date().getFullYear();
+        const mMonth = monthInfo?.month ?? new Date().getMonth();
+        for (let day = 1; day <= totalDays; day++) {
+          const d = new Date(mYear, mMonth, day);
           const dayName = hariMap[d.getDay()];
           if (userSchedule.hariKerja.includes(dayName)) {
             schedDays++;
@@ -119,11 +131,14 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
         if (schedDays > 0) targetShifts = schedDays;
       }
 
-      // Count attendance in target month
-      const userMonthAttendance = attendance.filter(a => 
-        (a.pejuangId === pejuang.id || (pejuang.username && a.pejuangName.toLowerCase() === pejuang.name.toLowerCase())) &&
-        a.date.startsWith(targetMonthPrefix)
-      );
+      // Count attendance in target month with safe string checks
+      const userMonthAttendance = safeAttendance.filter(a => {
+        if (!a || !a.date || typeof a.date !== 'string') return false;
+        if (!a.date.startsWith(targetMonthPrefix)) return false;
+        const aPejuangId = a.pejuangId || '';
+        const aPejuangName = (a.pejuangName || '').toLowerCase();
+        return aPejuangId === pId || (pName && aPejuangName === pName);
+      });
 
       const hadirCount = userMonthAttendance.filter(a => a.status === 'Hadir').length;
       const terlambatCount = userMonthAttendance.filter(a => a.status === 'Terlambat').length;
@@ -174,22 +189,25 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
 
   // Overall statistics
   const overallStats = useMemo(() => {
-    if (userShiftStats.length === 0) return { avgPercentage: 0, totalCompleted: 0, totalTarget: 0 };
-    const totalCompleted = userShiftStats.reduce((acc, u) => acc + u.completedShifts, 0);
-    const totalTarget = userShiftStats.reduce((acc, u) => acc + u.targetShifts, 0);
+    if (!userShiftStats || userShiftStats.length === 0) return { avgPercentage: 0, totalCompleted: 0, totalTarget: 0 };
+    const totalCompleted = userShiftStats.reduce((acc, u) => acc + (u.completedShifts || 0), 0);
+    const totalTarget = userShiftStats.reduce((acc, u) => acc + (u.targetShifts || 0), 0);
     const avgPercentage = totalTarget > 0 ? Math.round((totalCompleted / totalTarget) * 100) : 0;
     return { avgPercentage, totalCompleted, totalTarget };
   }, [userShiftStats]);
 
   // Logged-in user's personal stats
   const currentUserStat = useMemo(() => {
-    return userShiftStats.find(u => u.pejuang.id === currentUser.id) || null;
-  }, [userShiftStats, currentUser.id]);
+    if (!userShiftStats || !currentUser) return null;
+    return userShiftStats.find(u => u.pejuang && u.pejuang.id === currentUser.id) || null;
+  }, [userShiftStats, currentUser?.id]);
 
   // Filtered and sorted pejuang for the team view
   const filteredPejuangStats = useMemo(() => {
+    if (!userShiftStats) return [];
     return userShiftStats
       .filter(item => {
+        if (!item || !item.pejuang) return false;
         // Sub divisi filter
         if (selectedSubDivisi !== 'Semua Divisi' && item.pejuang.subDivisi !== selectedSubDivisi) {
           return false;
@@ -197,20 +215,20 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchName = item.pejuang.name.toLowerCase().includes(q);
+          const matchName = (item.pejuang.name || '').toLowerCase().includes(q);
           const matchDiv = (item.pejuang.subDivisi || '').toLowerCase().includes(q);
           return matchName || matchDiv;
         }
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'highest') return b.percentage - a.percentage;
-        if (sortBy === 'lowest') return a.percentage - b.percentage;
-        return a.pejuang.name.localeCompare(b.pejuang.name);
+        if (sortBy === 'highest') return (b.percentage || 0) - (a.percentage || 0);
+        if (sortBy === 'lowest') return (a.percentage || 0) - (b.percentage || 0);
+        return (a.pejuang?.name || '').localeCompare(b.pejuang?.name || '');
       });
   }, [userShiftStats, selectedSubDivisi, searchQuery, sortBy]);
 
-  const isAdminOrLeader = currentUser.role === 'Admin' || Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isAdminOrLeader = currentUser?.role === 'Admin' || Boolean((currentUser?.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -400,14 +418,14 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
                     <div className="flex items-center gap-2.5 overflow-hidden">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm shrink-0 shadow-inner">
                         {item.pejuang.avatarUrl ? (
-                          <img src={item.pejuang.avatarUrl} alt={item.pejuang.name} className="w-full h-full rounded-full object-cover" />
+                          <img src={item.pejuang.avatarUrl} alt={item.pejuang.name || 'Pejuang'} className="w-full h-full rounded-full object-cover" />
                         ) : (
-                          item.pejuang.name.charAt(0)
+                          (item.pejuang.name || 'P').charAt(0).toUpperCase()
                         )}
                       </div>
                       <div className="truncate">
                         <h4 className="text-xs font-bold text-slate-800 dark:text-white truncate">
-                          {item.pejuang.name}
+                          {item.pejuang.name || 'Pejuang'}
                         </h4>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block">
                           {item.pejuang.subDivisi || 'Divisi Umum'}

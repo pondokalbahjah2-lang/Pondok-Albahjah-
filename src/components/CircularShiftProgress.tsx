@@ -30,7 +30,13 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
   variant = 'dynamic',
   className = '',
 }) => {
-  const clampedPercentage = Math.max(0, Math.min(100, Math.round(percentage)));
+  const safePercentage = typeof percentage === 'number' && !isNaN(percentage) ? percentage : 0;
+  const clampedPercentage = Math.max(0, Math.min(100, Math.round(safePercentage)));
+  const safeCompleted = typeof completedShifts === 'number' && !isNaN(completedShifts) ? completedShifts : 0;
+  const safeTarget = typeof targetShifts === 'number' && !isNaN(targetShifts) ? targetShifts : 0;
+
+  // Unique ID for SVG gradient
+  const uniqueId = React.useId ? React.useId().replace(/:/g, '_') : `grad_${size}_${clampedPercentage}`;
 
   // Dynamic color palette based on completion percentage
   const getColor = (pct: number) => {
@@ -47,15 +53,9 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
 
   const colors = getColor(clampedPercentage);
 
-  // Data for Recharts Pie-based circular gauge
-  const rechartsData = [
-    { name: 'Completed', value: clampedPercentage },
-    { name: 'Remaining', value: Math.max(0, 100 - clampedPercentage) },
-  ];
-
-  const radius = (size - strokeWidth) / 2;
+  const radius = Math.max(1, (size - strokeWidth) / 2);
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
+  const strokeDashoffset = Math.max(0, circumference - (clampedPercentage / 100) * circumference);
 
   return (
     <div className={`relative flex flex-col items-center justify-center select-none ${className}`}>
@@ -67,7 +67,7 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
           className="rotate-[-90deg] transform origin-center drop-shadow-sm"
         >
           <defs>
-            <linearGradient id={`shiftGradient-${size}-${clampedPercentage}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={uniqueId} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={colors.primary} />
               <stop offset="100%" stopColor={colors.secondary} />
             </linearGradient>
@@ -90,12 +90,12 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
             cy={size / 2}
             r={radius}
             fill="transparent"
-            stroke={`url(#shiftGradient-${size}-${clampedPercentage})`}
+            stroke={`url(#${uniqueId})`}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
+            animate={{ strokeDashoffset: !isNaN(strokeDashoffset) ? strokeDashoffset : 0 }}
+            transition={{ duration: 1, ease: 'easeOut' }}
             strokeLinecap="round"
           />
         </svg>
@@ -105,7 +105,7 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
           <motion.span
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             className="font-extrabold tracking-tight text-slate-800 dark:text-white"
             style={{ fontSize: size >= 140 ? '1.75rem' : size >= 100 ? '1.25rem' : '0.95rem' }}
           >
@@ -116,7 +116,7 @@ export const CircularShiftProgress: React.FC<CircularShiftProgressProps> = ({
             className="font-medium text-slate-500 dark:text-slate-400 -mt-0.5"
             style={{ fontSize: size >= 140 ? '0.75rem' : '0.65rem' }}
           >
-            {completedShifts}/{targetShifts} Shift
+            {safeCompleted}/{safeTarget} Shift
           </span>
         </div>
       </div>

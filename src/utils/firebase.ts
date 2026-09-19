@@ -52,10 +52,16 @@ export const auth = initializeAuth(app, {
 export const secondaryAuth = initializeAuth(secondaryApp, {
   persistence: [inMemoryPersistence],
 });
-export const messaging =
-  typeof window !== "undefined" && "serviceWorker" in navigator
-    ? getMessaging(app)
-    : null;
+export const messaging = (() => {
+  try {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window) {
+      return getMessaging(app);
+    }
+  } catch (e) {
+    console.warn("Firebase messaging is not supported in this environment:", e);
+  }
+  return null;
+})();
 
 export enum OperationType {
   CREATE = "create",
