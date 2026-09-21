@@ -9,10 +9,17 @@ import {
   Palmtree,
   Users,
   Info,
-  X
+  X,
+  Clock,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
+  ShieldCheck
 } from 'lucide-react';
 import { LeaveRequestRecord, UserAccount } from '../types';
-import { getHijriDate } from '../utils/hijriCalendar';
+import { getHijriDate, formatMasehiDate } from '../utils/hijriCalendar';
+import { PrayerTimesWidget } from './PrayerTimesWidget';
 
 interface KalenderViewProps {
   leaveRequests: LeaveRequestRecord[];
@@ -24,8 +31,8 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [prayerTimes, setPrayerTimes] = useState<{ [key: string]: string } | null>(null);
-  const [isLoadingPrayer, setIsLoadingPrayer] = useState(false);
+  const [selectedDatePrayer, setSelectedDatePrayer] = useState<any>(null);
+  const [isLoadingDatePrayer, setIsLoadingDatePrayer] = useState(false);
   const [divisiFilter, setDivisiFilter] = useState('Semua');
   const [viewMode, setViewMode] = useState<'all' | 'me'>('all');
 
@@ -33,27 +40,39 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
     return ['Semua', ...Array.from(new Set(accounts.filter(a => a.role === 'Pejuang' && a.subDivisi).map(a => a.subDivisi)))];
   }, [accounts]);
 
+  // Fetch prayer times for the day selected in the modal
   React.useEffect(() => {
-    const fetchPrayerTimes = async () => {
-      setIsLoadingPrayer(true);
-      try {
-        const res = await fetch('/api/prayer-times', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ location: 'Cirebon' })
-        });
-        const data = await res.json();
-        if (res.ok && data.Subuh) {
-          setPrayerTimes(data);
+    if (!selectedDayDate) return;
+    let isMounted = true;
+    setIsLoadingDatePrayer(true);
+
+    fetch('/api/prayer-times', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'Cirebon',
+        year: selectedDayDate.getFullYear(),
+        month: selectedDayDate.getMonth() + 1,
+        day: selectedDayDate.getDate()
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data && data.Subuh) {
+          setSelectedDatePrayer(data);
         }
-      } catch (err) {
-        console.error('Failed to fetch prayer times via Gemini', err);
-      } finally {
-        setIsLoadingPrayer(false);
-      }
+      })
+      .catch(err => {
+        console.error('Failed to load prayer times for selected day:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingDatePrayer(false);
+      });
+
+    return () => {
+      isMounted = false;
     };
-    fetchPrayerTimes();
-  }, []);
+  }, [selectedDayDate]);
 
   const year = currentMonthDate.getFullYear();
   const month = currentMonthDate.getMonth(); // 0-indexed
@@ -163,27 +182,6 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
         )}
 
 
-        {/* Gemini Search Grounded Prayer Times */}
-        <div className="hidden lg:flex items-center gap-4 bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
-          <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 mr-2 flex items-center">
-             Jadwal Sholat Cirebon (Google Search):
-          </div>
-          {isLoadingPrayer ? (
-            <div className="animate-pulse bg-emerald-200/50 dark:bg-emerald-800/50 h-5 w-48 rounded-md"></div>
-          ) : prayerTimes ? (
-            <div className="flex space-x-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              {['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'].map(p => (
-                 <span key={p} className="flex items-center space-x-1">
-                   <span className="opacity-70 uppercase text-[9px]">{p}</span>
-                   <span>{prayerTimes[p]}</span>
-                 </span>
-              ))}
-            </div>
-          ) : (
-            <div className="text-xs text-slate-500">Tidak tersedia</div>
-          )}
-        </div>
-
         {/* Month Selector Controls */}
         <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
           <button
@@ -203,6 +201,9 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
           </button>
         </div>
       </div>
+
+      {/* Realtime Kemenag RI Prayer Times Banner */}
+      <PrayerTimesWidget variant="banner" />
 
       <div>
         {/* Calendar Grid Container */}
@@ -309,16 +310,57 @@ export const KalenderView: React.FC<KalenderViewProps> = ({ leaveRequests, accou
             <div className="p-5 flex-1 overflow-y-auto">
               <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-amber-500/10 border border-emerald-500/20">
                 <div className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                  {selectedDayDate.toLocaleDateString('id-ID', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  {formatMasehiDate(selectedDayDate)}
                 </div>
                 <div className="text-xs font-bold text-emerald-600 dark:text-emerald-300 mt-1">
                   {getHijriDate(selectedDayDate).formatted}
                 </div>
+              </div>
+
+              {/* Jadwal Sholat Kemenag RI untuk Tanggal Ini */}
+              <div className="mt-3 p-3 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Jadwal Sholat Kemenag RI (Cirebon)
+                  </span>
+                  <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+                    Standar Bimas Islam
+                  </span>
+                </div>
+
+                {isLoadingDatePrayer ? (
+                  <div className="grid grid-cols-5 gap-1.5 animate-pulse">
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <div key={n} className="h-10 bg-emerald-200/50 dark:bg-emerald-900/40 rounded-xl" />
+                    ))}
+                  </div>
+                ) : selectedDatePrayer ? (
+                  <div className="grid grid-cols-5 gap-1.5 text-center">
+                    {[
+                      { name: 'Subuh', time: selectedDatePrayer.Subuh, icon: Sunrise },
+                      { name: 'Dzuhur', time: selectedDatePrayer.Dzuhur, icon: Sun },
+                      { name: 'Ashar', time: selectedDatePrayer.Ashar, icon: Sunset },
+                      { name: 'Maghrib', time: selectedDatePrayer.Maghrib, icon: Sunset },
+                      { name: 'Isya', time: selectedDatePrayer.Isya, icon: Moon }
+                    ].map(item => {
+                      const Icon = item.icon;
+                      return (
+                        <div key={item.name} className="py-1 px-1 bg-white dark:bg-slate-900/80 rounded-xl border border-emerald-100 dark:border-emerald-900/60 shadow-xs">
+                          <div className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase flex items-center justify-center gap-0.5">
+                            <Icon className="w-2.5 h-2.5 text-emerald-500" />
+                            {item.name}
+                          </div>
+                          <div className="text-xs font-mono font-black text-slate-800 dark:text-slate-100">
+                            {item.time}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400 text-center">Memuat jadwal sholat...</div>
+                )}
               </div>
 
               <div className="mt-5 space-y-3">

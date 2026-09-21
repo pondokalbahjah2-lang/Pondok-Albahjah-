@@ -136,7 +136,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const myWarnings = warningLetters.filter(w => w.pejuangId === currentUser.id);
       if (myWarnings.length > 0) {
         // Sort descending
-        myWarnings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        myWarnings.sort((a, b) => new Date(b.createdAt || b.tanggal || b.date || 0).getTime() - new Date(a.createdAt || a.tanggal || a.date || 0).getTime());
         const latest = myWarnings[0];
         const isDismissed = localStorage.getItem(`dismissedWarning_${latest.id}`);
         if (!isDismissed) {
@@ -222,7 +222,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const d = new Date(t);
       d.setDate(d.getDate() - i);
       const dateStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      const dayName = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d.getDay()];
       
       let hadir = 0;
       let terlambat = 0;
@@ -575,7 +575,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       });
 
       data.push({
-        name: `Minggu ${i}`,
+        name: `Pekan ${i}`,
         hadir: hadirCount,
         izin: izinCount
       });
@@ -630,14 +630,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Peringatan Baru!</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-              Anda menerima <strong>Surat Teguran</strong> baru dari Admin pada tanggal {activeWarning.date}.
+              Anda menerima <strong>{activeWarning.type || activeWarning.warningLevel || 'Surat Teguran'}</strong> baru dari Admin pada tanggal {activeWarning.tanggal || activeWarning.date || '-'}.
             </p>
             <div className="bg-rose-50 dark:bg-rose-900/10 p-4 rounded-2xl border border-rose-100 dark:border-rose-900/30 mb-6">
               <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Tingkat Teguran:</h4>
-              <p className="text-sm text-slate-800 dark:text-slate-200 mb-3">{activeWarning.warningLevel}</p>
+              <p className="text-sm text-slate-800 dark:text-slate-200 mb-3">{activeWarning.type || activeWarning.warningLevel || '-'}</p>
               
               <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Alasan/Pelanggaran:</h4>
-              <p className="text-sm text-slate-800 dark:text-slate-200">{activeWarning.reason}</p>
+              <p className="text-sm text-slate-800 dark:text-slate-200">{activeWarning.alasan || activeWarning.reason || '-'}</p>
             </div>
             <button 
               onClick={dismissWarning}
@@ -1201,7 +1201,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl flex flex-col lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-amber-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Tren Kehadiran Mingguan (Bulan Ini)</h3>
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Tren Kehadiran per Pekan (Bulan Ini)</h3>
           </div>
           <div className="flex-1 min-h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -1666,7 +1666,7 @@ const last7DaysData = React.useMemo(() => {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const dateStr = getLocalDateString(d);
-      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      const dayName = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d.getDay()];
       
       const record = attendance.find(a => a.pejuangId === currentUser.id && a.date === dateStr);
       let statusVal = 0;
@@ -1800,7 +1800,7 @@ const last7DaysData = React.useMemo(() => {
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl lg:col-span-3 mt-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
             <LineChartIcon className="w-4 h-4 text-emerald-500" />
-            Tren Partisipasi Kajian (Mingguan)
+            Tren Partisipasi Kajian (per Pekan)
           </h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -1831,7 +1831,7 @@ const last7DaysData = React.useMemo(() => {
                   const hikam = recordsInWeek.filter(r => r.kajianName && r.kajianName.includes('Al-Hikam')).length;
                   
                   return {
-                    name: `Week ${4-i}`,
+                    name: `Pekan ${4-i}`,
                     Tafsir: tafsir,
                     Hadist: hadist,
                     AlHikam: hikam,

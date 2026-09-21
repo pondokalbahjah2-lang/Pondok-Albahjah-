@@ -58,6 +58,7 @@ interface SettingsViewProps {
   onSaveAccounts: (accounts: UserAccount[]) => void;
   onSaveManhajiyyahClauses: (clauses: ManhajiyyahClause[]) => void;
   appLogoUrl?: string;
+  broadcastMessage?: string;
   suratIzinTemplateUrl?: string;
   suratCutiTemplateUrl?: string;
   kepalaPondokName?: string;
@@ -411,7 +412,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Schedule management
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
-  const [schTargetType, setSchTargetType] = useState<'Divisi' | 'Individu'>('Divisi');
+  const [schTargetType, setSchTargetType] = useState<'Divisi' | 'Individu' | 'Group'>('Divisi');
   const [schTargetName, setSchTargetName] = useState('');
   const [schSelectedDivisi, setSchSelectedDivisi] = useState('');
   const [schJamMasuk, setSchJamMasuk] = useState('04:30');
@@ -478,7 +479,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSchTargetName(sch.targetName);
     setSchJamMasuk(sch.jamMasuk);
     setSchJamPulang(sch.jamPulang);
-    setSchHariKerja(sch.hariKerja || []);
+    setSchHariKerja((sch.hariKerja || []).map(h => (h === 'Minggu' ? 'Ahad' : h)));
     setCustomJamKerja(sch.customJamKerja || {});
     setSchTanggalLibur(sch.tanggalLibur || []);
     setShowAddScheduleModal(true);
@@ -821,11 +822,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* Lokasi Absen Terakhir */}
           {(() => {
             const myAtt = attendance
-              .filter(a => a.pejuangId === currentUser.id && a.lat && a.lng)
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+              .filter(a => a.pejuangId === currentUser.id && ((a.lat && a.lng) || (a.latitude && a.longitude)))
+              .sort((a, b) => {
+                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(`${a.date}T${a.time || '00:00'}`).getTime();
+                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(`${b.date}T${b.time || '00:00'}`).getTime();
+                return timeB - timeA;
+              });
             
             if (myAtt.length > 0) {
               const lastAtt = myAtt[0];
+              const userLat = lastAtt.lat ?? lastAtt.latitude;
+              const userLng = lastAtt.lng ?? lastAtt.longitude;
               return (
                 <div className="pt-4 mt-6 border-t border-slate-200 dark:border-slate-800">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center space-x-2">
@@ -836,8 +843,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Terakhir absen pada {lastAtt.date} {lastAtt.time}
                   </div>
                   <LocationMap 
-                    userLat={lastAtt.lat!}
-                    userLng={lastAtt.lng!}
+                    userLat={userLat}
+                    userLng={userLng}
                     pondokLat={locationSettings.latitude}
                     pondokLng={locationSettings.longitude}
                     radius={locationSettings.radiusMaxMeters}
@@ -1568,14 +1575,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <span className="text-slate-400 text-[10px] block">Hari Kerja:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {sch.hariKerja.map((h) => (
-                      <span
-                        key={h}
-                        className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold"
-                      >
-                        {h}
-                      </span>
-                    ))}
+                    {sch.hariKerja.map((h) => {
+                      const displayHari = h === 'Minggu' ? 'Ahad' : h;
+                      return (
+                        <span
+                          key={h}
+                          className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold"
+                        >
+                          {displayHari}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

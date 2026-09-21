@@ -72,13 +72,24 @@ export function getHijriDate(date: Date = new Date()): HijriDate {
   };
 }
 
+export const HARI_NAMES = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const;
+
+export function replaceMingguWithAhad(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\bMinggu\b/g, 'Ahad')
+    .replace(/\bminggu\b/g, 'ahad')
+    .replace(/\bMin\b/g, 'Ahd');
+}
+
 export function formatMasehiDate(date: Date = new Date()): string {
-  return new Intl.DateTimeFormat('id-ID', {
+  const formatted = new Intl.DateTimeFormat('id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(date);
+  return replaceMingguWithAhad(formatted);
 }
 
 /**

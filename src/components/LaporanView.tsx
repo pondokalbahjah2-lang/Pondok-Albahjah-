@@ -114,7 +114,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         if (isCuti) cuti++;
         else if (att?.status === 'Sakit') sakit++;
         else if (att?.status === 'Izin') izinTdkMasuk++;
-        else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) libur++;
+        else if (att?.status === 'Libur' || (!hariKerja.includes(namaHari) && !(namaHari === 'Ahad' && hariKerja.includes('Minggu'))) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) libur++;
         else if (isIzin) izinKeluar++;
         else if (att) {
           if (att.status === 'Hadir') hadir++;
@@ -366,7 +366,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           valMasuk = 'Sakit';
           valPulang = 'Sakit';
           totalSakit++;
-        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
+        } else if (att?.status === 'Libur' || (!hariKerja.includes(namaHari) && !(namaHari === 'Ahad' && hariKerja.includes('Minggu'))) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
           valMasuk = 'Libur';
           valPulang = 'Libur';
           totalLibur++;
@@ -476,7 +476,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           valM = 'I'; valP = 'I'; totalIzin++;
         } else if (att?.status === 'Sakit') {
           valM = 'S'; valP = 'S'; totalSakit++;
-        } else if (att?.status === 'Libur' || !hariKerja.includes(namaHari) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
+        } else if (att?.status === 'Libur' || (!hariKerja.includes(namaHari) && !(namaHari === 'Ahad' && hariKerja.includes('Minggu'))) || (userSchedule?.tanggalLibur && userSchedule.tanggalLibur.includes(dateStr))) {
           valM = 'L'; valP = 'L'; totalLibur++;
         } else if (isIzin) {
           valM = att?.time || 'I'; valP = att?.timePulang || 'I'; totalIzin++;

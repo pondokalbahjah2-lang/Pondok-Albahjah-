@@ -428,8 +428,8 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       const userSchedule = schedules.find(
         (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
       ) || schedules[0];
-      const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || userSchedule?.jamPulang || "16:00";
-      const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || "08:00";
+      const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.pulang : undefined) || userSchedule?.jamPulang || "16:00";
+      const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
       
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schPulangH, schPulangM] = jamPulang.split(':').map(Number);
@@ -485,7 +485,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
     
     const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const currDay = hariMap[new Date().getDay()];
-    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || userSchedule?.jamMasuk || "08:00";
+    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
 
     let finalStatus: AttendanceRecord['status'] = attendanceStatus;
 
@@ -724,10 +724,10 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                       <span className="font-bold text-sm">Riwayat Absen Masuk Hari Ini</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Waktu Masuk: {todayRecord?.timeMasuk || '-'}
+                      Waktu Masuk: {todayRecord?.timeMasuk || todayRecord?.time || '-'}
                     </p>
-                    {todayRecord?.photoUrlMasuk && (
-                      <img src={todayRecord.photoUrlMasuk} alt="Masuk" className="mt-2 w-16 h-16 object-cover rounded-lg border border-emerald-200" />
+                    {(todayRecord?.photoUrlMasuk || todayRecord?.photoUrl) && (
+                      <img src={todayRecord.photoUrlMasuk || todayRecord.photoUrl} alt="Masuk" className="mt-2 w-16 h-16 object-cover rounded-lg border border-emerald-200" />
                     )}
                   </div>
                 )}

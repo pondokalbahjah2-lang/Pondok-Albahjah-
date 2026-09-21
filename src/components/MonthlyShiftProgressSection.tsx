@@ -109,7 +109,7 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
       if (userSchedule && Array.isArray(userSchedule.hariKerja) && userSchedule.hariKerja.length > 0) {
         // Calculate days in month matching work schedule
         const hariMap: Record<number, string> = {
-          0: 'Minggu',
+          0: 'Ahad',
           1: 'Senin',
           2: 'Selasa',
           3: 'Rabu',
@@ -124,7 +124,10 @@ export const MonthlyShiftProgressSection: React.FC<MonthlyShiftProgressSectionPr
         for (let day = 1; day <= totalDays; day++) {
           const d = new Date(mYear, mMonth, day);
           const dayName = hariMap[d.getDay()];
-          if (userSchedule.hariKerja.includes(dayName)) {
+          if (
+            userSchedule.hariKerja.includes(dayName) ||
+            (dayName === 'Ahad' && userSchedule.hariKerja.includes('Minggu'))
+          ) {
             schedDays++;
           }
         }
