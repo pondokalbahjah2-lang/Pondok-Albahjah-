@@ -365,16 +365,28 @@ html, body {
 }
 
 .rv {
+  opacity: 1;
+}
+#portal-app:not(.show) .rv {
   opacity: 0;
 }
 #portal-app.show .rv {
   opacity: 1;
-  animation: rv .95s var(--ease-out) backwards;
-  animation-delay: calc(var(--d, 0) * 1s);
+  animation: rv .85s var(--ease-out) backwards;
+  animation-delay: calc(var(--d, 0) * 0.6s);
 }
 @keyframes rv {
-  from { opacity: 0; transform: translateY(34px) scale(.97); filter: blur(10px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translateY(20px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv, #portal-app .rv {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+  }
 }
 
 .logo-box {

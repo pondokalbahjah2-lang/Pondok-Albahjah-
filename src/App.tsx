@@ -72,8 +72,12 @@ export default function App() {
                ? `Pasal Manhajiyyah Baru Ditambahkan: ${newData.bab} - ${newData.title}`
                : `Pasal Manhajiyyah Diperbarui: ${newData.title}`;
              
-             if (Notification.permission === 'granted') {
-                new Notification('Pembaruan Manhajiyyah', { body: msg });
+             if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+               try {
+                 new Notification('Pembaruan Manhajiyyah', { body: msg });
+               } catch (nErr) {
+                 console.warn('Notification error:', nErr);
+               }
              }
              alert(msg);
            }
@@ -133,26 +137,32 @@ export default function App() {
         const isAd = activeUser.role === 'Admin';
         const uid = activeUser.id;
 
-        // Setup FCM
-        if (messaging) {
-          Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-              getToken(messaging, { vapidKey: 'BOwz_3T9gqIq7E5s4K55-1m7Xk60k5W-8b3q2-Gv43S9kR330lqQ4T3tQh9-w3qVv7RzU7v8YxY8bM9W0r0_eLw' }).then((currentToken) => {
-                if (currentToken) {
-                  // Save token to user doc
-                  setDoc(doc(db, 'fcmTokens', uid), { token: currentToken, userId: uid }, { merge: true });
-                }
-              }).catch((err) => {
-                console.log('An error occurred while retrieving token. ', err);
-              });
-            }
-          });
+        // Setup FCM safely
+        if (messaging && typeof window !== 'undefined' && 'Notification' in window && typeof Notification.requestPermission === 'function') {
+          try {
+            Notification.requestPermission().then((permission) => {
+              if (permission === 'granted') {
+                getToken(messaging, { vapidKey: 'BOwz_3T9gqIq7E5s4K55-1m7Xk60k5W-8b3q2-Gv43S9kR330lqQ4T3tQh9-w3qVv7RzU7v8YxY8bM9W0r0_eLw' }).then((currentToken) => {
+                  if (currentToken) {
+                    // Save token to user doc
+                    setDoc(doc(db, 'fcmTokens', uid), { token: currentToken, userId: uid }, { merge: true });
+                  }
+                }).catch((err) => {
+                  console.warn('An error occurred while retrieving token: ', err);
+                });
+              }
+            }).catch(pErr => {
+              console.warn('Notification permission request error:', pErr);
+            });
 
-          onMessage(messaging, (payload) => {
-            if (payload.notification) {
-              alert(`Pemberitahuan Baru: ${payload.notification.title}\n${payload.notification.body}`);
-            }
-          });
+            onMessage(messaging, (payload) => {
+              if (payload?.notification) {
+                alert(`Pemberitahuan Baru: ${payload.notification.title}\n${payload.notification.body}`);
+              }
+            });
+          } catch (mErr) {
+            console.warn('FCM registration skipped or failed:', mErr);
+          }
         }
 
 

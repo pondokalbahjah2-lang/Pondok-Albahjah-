@@ -1,18 +1,127 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="dark" style="background-color: #010806; color: #ffffff;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#10b981" />
+    <meta name="theme-color" content="#010806" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Al-Bahjah" />
     <link rel="icon" href="https://lh3.googleusercontent.com/d/1ZIWK0eZvvfie7s1E5xEJ4YeVUX_NUWUp" />
     <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1ZIWK0eZvvfie7s1E5xEJ4YeVUX_NUWUp" />
     <title>Portal Pejuang Al-Bahjah Cabang Cirebon 1</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #010806 !important;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow-x: hidden;
+      }
+      #root {
+        min-height: 100%;
+        background-color: #010806;
+      }
+      .pre-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #010806;
+        color: #ffffff;
+        z-index: 9999;
+        text-align: center;
+        padding: 20px;
+      }
+      .pre-logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        animation: prePulse 2s ease-in-out infinite;
+      }
+      .pre-logo img {
+        width: 54px;
+        height: 54px;
+        object-fit: contain;
+      }
+      .pre-title {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #f8fafc;
+        margin-bottom: 6px;
+      }
+      .pre-sub {
+        font-size: 12px;
+        color: #34d399;
+        font-weight: 500;
+      }
+      .pre-spinner {
+        margin-top: 24px;
+        width: 24px;
+        height: 24px;
+        border: 2.5px solid rgba(52, 211, 153, 0.2);
+        border-top-color: #10b981;
+        border-radius: 50%;
+        animation: preSpin 0.8s linear infinite;
+      }
+      @keyframes preSpin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes prePulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+        50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(16, 185, 129, 0.4); }
+      }
+      #mobile-fallback-btn {
+        display: none;
+        margin-top: 24px;
+        padding: 10px 20px;
+        border-radius: 12px;
+        background: #059669;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="dark" style="background-color: #010806; color: #ffffff;">
+    <div id="root">
+      <div class="pre-loader" id="pre-loader-el">
+        <div class="pre-logo">
+          <img src="https://lh3.googleusercontent.com/d/1ZIWK0eZvvfie7s1E5xEJ4YeVUX_NUWUp" alt="Al-Bahjah" />
+        </div>
+        <div class="pre-title">Portal Pejuang Al-Bahjah</div>
+        <div class="pre-sub">Memuat aplikasi...</div>
+        <div class="pre-spinner"></div>
+        <button id="mobile-fallback-btn" onclick="window.location.reload(true)">Muat Ulang Halaman</button>
+      </div>
+    </div>
+
+    <script>
+      // Fallback timer: if app takes more than 5s to mount, show refresh button
+      setTimeout(function() {
+        var btn = document.getElementById('mobile-fallback-btn');
+        if (btn) btn.style.display = 'inline-block';
+      }, 5000);
+
+      // Global safety listener for mobile webviews & older browsers
+      window.addEventListener('error', function(e) {
+        console.warn('Portal mobile error captured:', e && e.message ? e.message : e);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>  
   </body>
 </html>

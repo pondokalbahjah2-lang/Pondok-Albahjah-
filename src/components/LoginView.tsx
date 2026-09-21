@@ -79,8 +79,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const clauseToday = manhajiyyahClauses[dailyClauseIndex] || manhajiyyahClauses[0];
   const quoteTarget = clauseToday?.content || 'Membiasakan diri melawan hawa nafsu, baik dalam urusan yang haram atau yang mubah.';
 
-  // Check prefers-reduced-motion
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Check prefers-reduced-motion safely
+  const prefersReduced =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? Boolean(window.matchMedia('(prefers-reduced-motion: reduce)')?.matches)
+      : false;
 
   // Real-time Clock
   useEffect(() => {
@@ -105,10 +108,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setSplashExited(true);
     setTimeout(() => {
       setAppShown(true);
-    }, 350);
+    }, 150);
     setTimeout(() => {
       setSplashRemoved(true);
-    }, 1600);
+    }, 800);
   };
 
   useEffect(() => {
@@ -122,7 +125,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
     const autoTimer = setTimeout(() => {
       exitSplash();
-    }, 3800);
+    }, 2200);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === ' ') {
@@ -130,11 +133,18 @@ export const LoginView: React.FC<LoginViewProps> = ({
         exitSplash();
       }
     };
+    const handleTouch = () => {
+      clearTimeout(autoTimer);
+      exitSplash();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('touchstart', handleTouch, { passive: true });
 
     return () => {
       clearTimeout(autoTimer);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchstart', handleTouch);
     };
   }, [prefersReduced, quoteTarget]);
 
