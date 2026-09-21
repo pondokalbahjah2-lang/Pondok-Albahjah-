@@ -54,7 +54,7 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
   const [gdriveLink, setGdriveLink] = useState("");
   const [singleFilePassword, setSingleFilePassword] = useState('');
   
-  const [bulkData, setBulkData] = useState<Record<string, { gdriveLink: string, password: string }>>({});
+  const [bulkData, setBulkData] = useState<Record<string, { gdriveLink?: string, password?: string }>>({});
   const [bulkPeriode, setBulkPeriode] = useState('Agustus 2026');
   const [bulkSubDivisiFilter, setBulkSubDivisiFilter] = useState('Semua');
 
