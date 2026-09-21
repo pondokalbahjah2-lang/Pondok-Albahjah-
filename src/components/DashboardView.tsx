@@ -136,7 +136,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const myWarnings = warningLetters.filter(w => w.pejuangId === currentUser.id);
       if (myWarnings.length > 0) {
         // Sort descending
-        myWarnings.sort((a, b) => new Date(b.createdAt || b.tanggal || b.date || 0).getTime() - new Date(a.createdAt || a.tanggal || a.date || 0).getTime());
+        myWarnings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         const latest = myWarnings[0];
         const isDismissed = localStorage.getItem(`dismissedWarning_${latest.id}`);
         if (!isDismissed) {
@@ -630,14 +630,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Peringatan Baru!</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-              Anda menerima <strong>{activeWarning.type || activeWarning.warningLevel || 'Surat Teguran'}</strong> baru dari Admin pada tanggal {activeWarning.tanggal || activeWarning.date || '-'}.
+              Anda menerima <strong>Surat Teguran</strong> baru dari Admin pada tanggal {activeWarning.date}.
             </p>
             <div className="bg-rose-50 dark:bg-rose-900/10 p-4 rounded-2xl border border-rose-100 dark:border-rose-900/30 mb-6">
               <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Tingkat Teguran:</h4>
-              <p className="text-sm text-slate-800 dark:text-slate-200 mb-3">{activeWarning.type || activeWarning.warningLevel || '-'}</p>
+              <p className="text-sm text-slate-800 dark:text-slate-200 mb-3">{activeWarning.warningLevel}</p>
               
               <h4 className="font-bold text-xs text-rose-800 dark:text-rose-300 mb-1">Alasan/Pelanggaran:</h4>
-              <p className="text-sm text-slate-800 dark:text-slate-200">{activeWarning.alasan || activeWarning.reason || '-'}</p>
+              <p className="text-sm text-slate-800 dark:text-slate-200">{activeWarning.reason}</p>
             </div>
             <button 
               onClick={dismissWarning}

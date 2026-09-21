@@ -293,13 +293,9 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                       placeholder="Link GDrive..."
                       value={bulkData[p.id]?.gdriveLink || ''}
                       onChange={(e) => {
-                        const val = e.target.value;
                         setBulkData(prev => ({
                           ...prev,
-                          [p.id]: {
-                            gdriveLink: val,
-                            password: prev[p.id]?.password || ''
-                          }
+                          [p.id]: { ...(prev[p.id] || {}), gdriveLink: e.target.value }
                         }));
                       }}
                       className="w-1/3 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"
@@ -309,13 +305,9 @@ export const SlipUbarView: React.FC<SlipUbarViewProps> = ({
                       placeholder="Password..."
                       value={bulkData[p.id]?.password || ''}
                       onChange={(e) => {
-                        const val = e.target.value;
                         setBulkData(prev => ({
                           ...prev,
-                          [p.id]: {
-                            gdriveLink: prev[p.id]?.gdriveLink || '',
-                            password: val
-                          }
+                          [p.id]: { ...(prev[p.id] || {}), password: e.target.value }
                         }));
                       }}
                       className="w-1/3 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100"

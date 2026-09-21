@@ -25,18 +25,23 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import firebaseConfig from "../../firebase-applet-config.json";
+const firebaseConfig = {
+  apiKey: "AIzaSyAmipyZHzdOJacuOlrgKHDFyQwNux_YW68",
+  authDomain: "manajemen-pejuang.firebaseapp.com",
+  projectId: "manajemen-pejuang",
+  storageBucket: "manajemen-pejuang.firebasestorage.app",
+  messagingSenderId: "1069073998569",
+  appId: "1:1069073998569:web:a6f34a47baced07b188678",
+  measurementId: "G-WFF4M981LQ",
+};
 
 const app = initializeApp(firebaseConfig);
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 
-export const db = initializeFirestore(
-  app,
-  { 
-    ignoreUndefinedProperties: true,
-  },
-  firebaseConfig.firestoreDatabaseId
-);
+export const db = initializeFirestore(app, { 
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true
+});
 export const auth = initializeAuth(app, {
   persistence: [
     browserLocalPersistence,
@@ -90,10 +95,6 @@ export function handleFirestoreError(
     path,
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
-  if (operationType === OperationType.WRITE || operationType === OperationType.CREATE || operationType === OperationType.UPDATE || operationType === OperationType.DELETE) {
-    // Only alert for user-initiated write actions, not background reads/listeners
-    if (!errInfo.error.includes("offline") && !errInfo.error.includes("unavailable")) {
-      alert("Gagal menyimpan ke database: " + errInfo.error);
-    }
-  }
+  alert("Gagal menyimpan ke database: " + errInfo.error);
+  // Don't throw, just log to prevent app crash
 }

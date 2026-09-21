@@ -46,18 +46,13 @@ export interface AttendanceRecord {
   subDivisi: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
-  timeMasuk?: string; // HH:mm
   timePulang?: string; // HH:mm
   photoUrl: string;
-  photoUrlMasuk?: string;
   photoPulangUrl?: string;
   latitude: number;
   longitude: number;
-  lat?: number;
-  lng?: number;
-  timestamp?: string;
   distanceFromPondok: number; // in meters
-  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin' | 'Izin Tidak Masuk' | 'Cuti';
+  status: 'Hadir' | 'Terlambat' | 'Sakit' | 'Libur' | 'Izin';
   isWithinRadius: boolean;
   notes?: string;
   suratSakitUrl?: string;
@@ -75,7 +70,7 @@ export interface ExitPermissionRecord {
   jamKeluar: string;
   jamHarusKembali: string;
   jamKembaliReal?: string;
-  status: 'Di Luar' | 'Kembali Tepat Waktu' | 'Terlambat' | 'Menunggu Persetujuan' | 'Ditolak' | 'Disetujui' | 'Pending';
+  status: 'Di Luar' | 'Kembali Tepat Waktu' | 'Terlambat' | 'Menunggu Persetujuan' | 'Ditolak';
   keteranganKeterlambatan?: string; // e.g. "1 Jam 15 Menit"
   approvedBy?: string;
   approvedAt?: string;
@@ -98,7 +93,6 @@ export interface LeaveRequestRecord {
   catatanAdmin?: string;
   approvedBy?: string;
   approvedAt?: string;
-  history?: { status: string; by: string; timestamp: string }[];
 }
 
 export interface WarningLetterRecord {
@@ -111,10 +105,6 @@ export interface WarningLetterRecord {
   alasan: string;
   fileUrl?: string;
   fileName?: string;
-  createdAt?: string;
-  date?: string;
-  warningLevel?: string;
-  reason?: string;
 }
 
 export interface SlipUbarRecord {

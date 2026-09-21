@@ -724,10 +724,10 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                       <span className="font-bold text-sm">Riwayat Absen Masuk Hari Ini</span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Waktu Masuk: {todayRecord?.timeMasuk || todayRecord?.time || '-'}
+                      Waktu Masuk: {todayRecord?.timeMasuk || '-'}
                     </p>
-                    {(todayRecord?.photoUrlMasuk || todayRecord?.photoUrl) && (
-                      <img src={todayRecord.photoUrlMasuk || todayRecord.photoUrl} alt="Masuk" className="mt-2 w-16 h-16 object-cover rounded-lg border border-emerald-200" />
+                    {todayRecord?.photoUrlMasuk && (
+                      <img src={todayRecord.photoUrlMasuk} alt="Masuk" className="mt-2 w-16 h-16 object-cover rounded-lg border border-emerald-200" />
                     )}
                   </div>
                 )}

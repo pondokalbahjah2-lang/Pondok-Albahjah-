@@ -122,7 +122,7 @@ export default function App() {
           try {
             const userDoc = await getDocs(query(collection(db, 'users'), where('email', '==', fUser.email)));
             if (!userDoc.empty) {
-              activeUser = { id: userDoc.docs[0].id, ...userDoc.docs[0].data() } as UserAccount;
+              activeUser = userDoc.docs[0].data();
               setCurrentUser(activeUser);
               setActiveTab(activeUser.role === 'Admin' ? 'dashboard' : 'absensi');
             }
@@ -785,6 +785,7 @@ export default function App() {
               <IzinKeluarView
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 exitPermissions={exitPermissions}
                 onSaveExitPermissions={handleSaveExitPermissions}
                 suratIzinTemplateUrl={generalSettings.suratIzinTemplateUrl}
@@ -808,6 +809,7 @@ export default function App() {
               <CutiView
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 leaveRequests={leaveRequests}
                 onSaveLeaveRequests={handleSaveLeaveRequests}
                 suratCutiTemplateUrl={generalSettings.suratCutiTemplateUrl}
@@ -822,6 +824,7 @@ export default function App() {
               <SlipUbarView
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 slipUbarList={slipUbarList}
                 onSaveSlipUbar={handleSaveSlipUbar}
                 onDeleteAllSlipUbar={handleDeleteAllSlipUbar}
@@ -832,6 +835,7 @@ export default function App() {
               <SuratTeguranView
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 warningLetters={warningLetters}
                 onSaveWarningLetters={handleSaveWarningLetters}
                 onUpdateAccount={(updatedAcc) => {
@@ -856,6 +860,7 @@ export default function App() {
               <LaporanView
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 attendance={attendance}
                 exitPermissions={exitPermissions}
                 leaveRequests={leaveRequests}
@@ -878,6 +883,7 @@ export default function App() {
                 onSaveGeneralSettings={handleSaveGeneralSettings}
                 currentUser={currentUser}
                 accounts={accounts}
+                kajianRecords={kajianRecords}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
 
