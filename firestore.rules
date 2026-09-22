@@ -113,6 +113,45 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    // notifications collection
+    match /notifications/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // teachingLocations collection
+    match /teachingLocations/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingClasses collection
+    match /teachingClasses/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingSchedules collection
+    match /teachingSchedules/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingAttendance collection
+    match /teachingAttendance/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // teachingSubstitutions collection
+    match /teachingSubstitutions/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
     match /auditLogs/{docId} {
       allow read: if isAdmin();
       allow create: if isSignedIn();

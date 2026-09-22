@@ -394,6 +394,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newSuratKeputusanUrl, setNewSuratKeputusanUrl] = useState('');
   const [newPkwtStart, setNewPkwtStart] = useState('');
   const [newPkwtEnd, setNewPkwtEnd] = useState('');
+  const [newIsPengajar, setNewIsPengajar] = useState(false);
+  const [newNamaBank, setNewNamaBank] = useState('');
+  const [newNoRekening, setNewNoRekening] = useState('');
   const [pejuangSearchQuery, setPejuangSearchQuery] = useState('');
   const [pejuangCurrentPage, setPejuangCurrentPage] = useState(1);
   const pejuangItemsPerPage = 10;
@@ -549,9 +552,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           subDivisi: newSubDivisi,
           amanah: newAmanah,
           nipy: newNipy,
-      suratKeputusanUrl: newSuratKeputusanUrl,
-      pkwtStart: newPkwtStart,
-      pkwtEnd: newPkwtEnd,
+          suratKeputusanUrl: newSuratKeputusanUrl,
+          pkwtStart: newPkwtStart,
+          pkwtEnd: newPkwtEnd,
+          isPengajar: newIsPengajar,
+          namaBank: newNamaBank.trim() || undefined,
+          noRekening: newNoRekening.trim() || undefined,
           email: email
         };
       }
@@ -601,6 +607,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       role: newRole,
       subDivisi: newSubDivisi,
       amanah: newAmanah,
+      isPengajar: newIsPengajar,
+      namaBank: newNamaBank.trim() || undefined,
+      noRekening: newNoRekening.trim() || undefined,
       email: email,
     };
 
@@ -610,6 +619,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setNewEmail('');
     setNewPassword('User123');
     setNewName('');
+    setNewIsPengajar(false);
+    setNewNamaBank('');
+    setNewNoRekening('');
     alert(`Data Pejuang ${newName} (${newRole}) berhasil ditambahkan dan disimpan ke Firestore!`);
   };
 
@@ -1622,7 +1634,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </motion.div>
               <button
-                onClick={() => setShowAddUserModal(true)}
+                onClick={() => {
+                  setNewUsername('');
+                  setNewEmail('');
+                  setNewPassword('User123');
+                  setNewName('');
+                  setNewIsPengajar(false);
+                  setNewNamaBank('');
+                  setNewNoRekening('');
+                  setShowAddUserModal(true);
+                }}
                 className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5 whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
@@ -1651,7 +1672,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   .map((acc) => (
                   <tr key={acc.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                     <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100">
-                      {acc.name}
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        <span>{acc.name}</span>
+                        {acc.isPengajar && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/40">
+                            Pengajar
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
                       {acc.username}
@@ -1691,6 +1719,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           setNewSuratKeputusanUrl(acc.suratKeputusanUrl || '');
                           setNewPkwtStart(acc.pkwtStart || '');
                           setNewPkwtEnd(acc.pkwtEnd || '');
+                          setNewIsPengajar(!!acc.isPengajar);
+                          setNewNamaBank(acc.namaBank || '');
+                          setNewNoRekening(acc.noRekening || '');
                           setShowEditUserModal(true);
                         }}
                         className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 mr-2"
@@ -1917,6 +1948,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </div>
 
+              {/* Status Pengajar & Rekening */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-emerald-900 dark:text-emerald-200">Status Pengajar</label>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Aktifkan jika pejuang ini mengampu jam pelajaran dan berhak mengakses menu Absen Mengajar</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={newIsPengajar}
+                    onChange={(e) => setNewIsPengajar(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-300"
+                  />
+                </div>
+                {newIsPengajar && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Bank</label>
+                      <input
+                        type="text"
+                        value={newNamaBank}
+                        onChange={(e) => setNewNamaBank(e.target.value)}
+                        placeholder="BSI / BCA / Mandiri"
+                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nomor Rekening</label>
+                      <input
+                        type="text"
+                        value={newNoRekening}
+                        onChange={(e) => setNewNoRekening(e.target.value)}
+                        placeholder="No. Rekening Pejuang"
+                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
@@ -2040,6 +2111,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onChange={(e) => setNewAmanah(e.target.value)}
                   className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                 />
+              </div>
+
+              {/* Status Pengajar & Rekening */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-emerald-900 dark:text-emerald-200">Status Pengajar</label>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Aktifkan jika pejuang ini mengampu jam pelajaran dan berhak mengakses menu Absen Mengajar</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={newIsPengajar}
+                    onChange={(e) => setNewIsPengajar(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-300"
+                  />
+                </div>
+                {newIsPengajar && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Bank</label>
+                      <input
+                        type="text"
+                        value={newNamaBank}
+                        onChange={(e) => setNewNamaBank(e.target.value)}
+                        placeholder="BSI / BCA / Mandiri"
+                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nomor Rekening</label>
+                      <input
+                        type="text"
+                        value={newNoRekening}
+                        onChange={(e) => setNewNoRekening(e.target.value)}
+                        placeholder="No. Rekening Pejuang"
+                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

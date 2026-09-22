@@ -103,6 +103,95 @@
         "fileUrl": { "type": "string" }
       },
       "required": ["pejuangId", "periode", "fileUrl"]
+    },
+    "TeachingLocation": {
+      "title": "TeachingLocation",
+      "description": "Teaching GPS geofence locations",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "radiusMeters": { "type": "number" },
+        "maxAccuracyMeters": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "latitude", "longitude", "radiusMeters", "isActive"]
+    },
+    "TeachingClass": {
+      "title": "TeachingClass",
+      "description": "Teaching classes per educational unit",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "unit": { "type": "string" },
+        "level": { "type": "string" },
+        "notes": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "unit", "isActive"]
+    },
+    "TeachingSchedule": {
+      "title": "TeachingSchedule",
+      "description": "Teaching class schedules",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "unit": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "subject": { "type": "string" },
+        "jumlahJP": { "type": "number" },
+        "hari": { "type": "array", "items": { "type": "string" } },
+        "jamMulai": { "type": "string" },
+        "jamSelesai": { "type": "string" },
+        "locationId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "berlakuMulai": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["pejuangId", "subject", "jumlahJP", "hari", "jamMulai", "jamSelesai", "isActive"]
+    },
+    "TeachingAttendance": {
+      "title": "TeachingAttendance",
+      "description": "Teaching attendance records",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string" },
+        "date": { "type": "string" },
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "scheduledPejuangId": { "type": "string" },
+        "scheduledPejuangName": { "type": "string" },
+        "isBadal": { "type": "boolean" },
+        "unit": { "type": "string" },
+        "className": { "type": "string" },
+        "subject": { "type": "string" },
+        "jumlahJP": { "type": "number" },
+        "jamMasuk": { "type": "string" },
+        "jamPulang": { "type": "string" },
+        "status": { "type": "string" },
+        "lateMinutes": { "type": "number" },
+        "source": { "type": "string" }
+      },
+      "required": ["scheduleId", "date", "pejuangId", "status", "source"]
+    },
+    "TeachingSubstitution": {
+      "title": "TeachingSubstitution",
+      "description": "Teaching badal substitutions",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string" },
+        "date": { "type": "string" },
+        "originalPejuangId": { "type": "string" },
+        "originalPejuangName": { "type": "string" },
+        "substitutePejuangId": { "type": "string" },
+        "substitutePejuangName": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["scheduleId", "date", "originalPejuangId", "substitutePejuangId", "status"]
     }
   },
   "firestore": {
@@ -129,6 +218,26 @@
     "slipUbar/{docId}": {
       "schema": "SlipUbarRecord",
       "description": "Salary slips"
+    },
+    "teachingLocations/{docId}": {
+      "schema": "TeachingLocation",
+      "description": "Teaching GPS locations"
+    },
+    "teachingClasses/{docId}": {
+      "schema": "TeachingClass",
+      "description": "Teaching classes"
+    },
+    "teachingSchedules/{docId}": {
+      "schema": "TeachingSchedule",
+      "description": "Teaching class schedules"
+    },
+    "teachingAttendance/{docId}": {
+      "schema": "TeachingAttendance",
+      "description": "Teaching attendance records"
+    },
+    "teachingSubstitutions/{docId}": {
+      "schema": "TeachingSubstitution",
+      "description": "Teaching substitutions"
     }
   }
 }

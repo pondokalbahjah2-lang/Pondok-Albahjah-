@@ -14,6 +14,10 @@ import { LaporanView } from './components/LaporanView';
 import { SettingsView } from './components/SettingsView';
 import { AuditLogView, AuditLogEntry } from './components/AuditLogView';
 import { KajianView } from './components/KajianView';
+import { AbsenMengajarView } from './components/AbsenMengajarView';
+import { KelolaMengajarView } from './components/KelolaMengajarView';
+import { LaporanMengajarView } from './components/LaporanMengajarView';
+import { useTeachingData } from './hooks/useTeachingData';
 import { db, auth, handleFirestoreError, OperationType } from './utils/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, getDocs, limit, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -46,6 +50,8 @@ export default function App() {
     const [showDesyncBanner, setShowDesyncBanner] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+
+  const teachingHook = useTeachingData(currentUser);
 
   
 
@@ -789,6 +795,27 @@ export default function App() {
                 izinKeluarApprovers={generalSettings.izinKeluarApprovers}
                 cutiApprovers={generalSettings.cutiApprovers}
                 schedules={schedules}
+              />
+            )}
+            {activeTab === 'absen-mengajar' && (
+              <AbsenMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
+              />
+            )}
+            {activeTab === 'kelola-mengajar' && (
+              <KelolaMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
+              />
+            )}
+            {activeTab === 'laporan-mengajar' && (
+              <LaporanMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
               />
             )}
             {activeTab === 'izin' && (
