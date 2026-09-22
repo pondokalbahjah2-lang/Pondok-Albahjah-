@@ -26,7 +26,6 @@
    Tanpa animasi petir, sinkron dengan sistem & mobile/desktop
    ============================================================ */
 :root {
-  color-scheme: dark;
   --g: #10b981;
   --g2: #34d399;
   --g3: #6ee7b7;
@@ -36,7 +35,6 @@
 }
 
 html, body {
-  color-scheme: dark;
   background-color: #010806;
   color: #fff;
   scrollbar-width: thin;
@@ -371,11 +369,6 @@ html, body {
 }
 #portal-app:not(.show) .rv {
   opacity: 0;
-  animation: forceShowFallback 3s forwards;
-}
-@keyframes forceShowFallback {
-  0%, 75% { opacity: 0; }
-  100% { opacity: 1; }
 }
 #portal-app.show .rv {
   opacity: 1;

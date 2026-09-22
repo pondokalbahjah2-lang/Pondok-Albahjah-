@@ -23,22 +23,6 @@
         { "fieldPath": "pejuangId", "order": "ASCENDING" },
         { "fieldPath": "tanggalPengajuan", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "teachingAttendance",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "pejuangId", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "teachingSubstitutions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []
