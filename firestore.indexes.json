@@ -23,6 +23,78 @@
         { "fieldPath": "pejuangId", "order": "ASCENDING" },
         { "fieldPath": "tanggalPengajuan", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "teachingAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pejuangId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scheduledPejuangId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "unit", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingAttendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingSubstitutions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "originalPejuangId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingSubstitutions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "substitutePejuangId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingSubstitutions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "unit", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingSchedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "unit", "order": "ASCENDING" },
+        { "fieldPath": "hari", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teachingSchedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pejuangId", "order": "ASCENDING" },
+        { "fieldPath": "hari", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

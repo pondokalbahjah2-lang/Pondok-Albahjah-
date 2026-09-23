@@ -103,6 +103,155 @@
         "fileUrl": { "type": "string" }
       },
       "required": ["pejuangId", "periode", "fileUrl"]
+    },
+    "DivisiRecord": {
+      "title": "DivisiRecord",
+      "description": "Division records and member IDs",
+      "type": "object",
+      "properties": {
+        "namaDivisi": { "type": "string" },
+        "anggotaIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["namaDivisi", "createdAt"]
+    },
+    "LiburPengurusRecord": {
+      "title": "LiburPengurusRecord",
+      "description": "Leave requests with badal for unit administrators",
+      "type": "object",
+      "properties": {
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "amanah": { "type": "string" },
+        "subDivisi": { "type": "string" },
+        "tanggalMulai": { "type": "string" },
+        "tanggalSelesai": { "type": "string" },
+        "totalHari": { "type": "number" },
+        "alasan": { "type": "string" },
+        "badalId": { "type": "string" },
+        "badalName": { "type": "string" },
+        "badalAmanah": { "type": "string" },
+        "status": { "type": "string" },
+        "tanggalPengajuan": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "catatanAdmin": { "type": "string" },
+        "suratUrl": { "type": "string" }
+      },
+      "required": ["pejuangId", "pejuangName", "subDivisi", "tanggalMulai", "tanggalSelesai", "badalId", "status"]
+    },
+    "TeachingLocation": {
+      "title": "TeachingLocation",
+      "description": "Teaching class locations with GPS coordinates and radius",
+      "type": "object",
+      "properties": {
+        "nama": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "radiusMeter": { "type": "number" },
+        "unit": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["nama", "latitude", "longitude", "radiusMeter", "unit", "isActive"]
+    },
+    "TeachingClass": {
+      "title": "TeachingClass",
+      "description": "Classes/study groups in school units",
+      "type": "object",
+      "properties": {
+        "namaKelas": { "type": "string" },
+        "tingkat": { "type": "string" },
+        "unit": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["namaKelas", "tingkat", "unit", "isActive"]
+    },
+    "TeachingSchedule": {
+      "title": "TeachingSchedule",
+      "description": "Teaching schedules per teacher, day, time, and class",
+      "type": "object",
+      "properties": {
+        "unit": { "type": "string" },
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "hari": { "type": "string" },
+        "jamMulai": { "type": "string" },
+        "jamSelesai": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "mapel": { "type": "string" },
+        "jumlahJP": { "type": "number" },
+        "locationId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["unit", "pejuangId", "pejuangName", "hari", "jamMulai", "jamSelesai", "classId", "className", "mapel", "jumlahJP", "isActive"]
+    },
+    "TeachingAttendance": {
+      "title": "TeachingAttendance",
+      "description": "Teaching session attendance logs with GPS",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string" },
+        "date": { "type": "string" },
+        "pejuangId": { "type": "string" },
+        "pejuangName": { "type": "string" },
+        "scheduledPejuangId": { "type": "string" },
+        "scheduledPejuangName": { "type": "string" },
+        "isBadal": { "type": "boolean" },
+        "unit": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "mapel": { "type": "string" },
+        "jumlahJP": { "type": "number" },
+        "jamMasuk": { "type": "string" },
+        "jamPulang": { "type": "string" },
+        "status": { "type": "string" },
+        "lateMinutes": { "type": "number" },
+        "source": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["scheduleId", "date", "pejuangId", "status", "source", "createdAt"]
+    },
+    "TeachingSubstitution": {
+      "title": "TeachingSubstitution",
+      "description": "Badal teaching requests and substitution workflow",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string" },
+        "date": { "type": "string" },
+        "unit": { "type": "string" },
+        "originalPejuangId": { "type": "string" },
+        "originalPejuangName": { "type": "string" },
+        "substitutePejuangId": { "type": "string" },
+        "substitutePejuangName": { "type": "string" },
+        "mapel": { "type": "string" },
+        "className": { "type": "string" },
+        "jamMulai": { "type": "string" },
+        "jamSelesai": { "type": "string" },
+        "jumlahJP": { "type": "number" },
+        "alasan": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["scheduleId", "date", "originalPejuangId", "substitutePejuangId", "status"]
+    },
+    "TeachingSettings": {
+      "title": "TeachingSettings",
+      "description": "Teaching configurations like tolerances and cut-off",
+      "type": "object",
+      "properties": {
+        "toleranceLateMinutes": { "type": "number" },
+        "lockPulangEarlyMinutes": { "type": "number" },
+        "maxLateToleranceMinutes": { "type": "number" },
+        "cutOffDay": { "type": "number" },
+        "allowedUnits": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["toleranceLateMinutes", "cutOffDay"]
     }
   },
   "firestore": {
@@ -129,6 +278,38 @@
     "slipUbar/{docId}": {
       "schema": "SlipUbarRecord",
       "description": "Salary slips"
+    },
+    "divisi/{docId}": {
+      "schema": "DivisiRecord",
+      "description": "Division master data"
+    },
+    "liburPengurus/{docId}": {
+      "schema": "LiburPengurusRecord",
+      "description": "Administrator leave requests"
+    },
+    "teachingLocations/{docId}": {
+      "schema": "TeachingLocation",
+      "description": "Teaching class locations"
+    },
+    "teachingClasses/{docId}": {
+      "schema": "TeachingClass",
+      "description": "Teaching school classes"
+    },
+    "teachingSchedules/{docId}": {
+      "schema": "TeachingSchedule",
+      "description": "Teaching schedules"
+    },
+    "teachingAttendance/{docId}": {
+      "schema": "TeachingAttendance",
+      "description": "Teaching attendance sessions"
+    },
+    "teachingSubstitutions/{docId}": {
+      "schema": "TeachingSubstitution",
+      "description": "Teaching badal substitutions"
+    },
+    "settings/teaching": {
+      "schema": "TeachingSettings",
+      "description": "Teaching module settings"
     }
   }
 }

@@ -27,6 +27,56 @@ import {
 import { calculateDistanceMeters } from '../utils/storage';
 import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
+export const resolveUserSchedule = (
+  user: UserAccount,
+  schedulesList: WorkSchedule[]
+): WorkSchedule | undefined => {
+  if (!schedulesList || schedulesList.length === 0) return undefined;
+
+  const normalize = (val: string) =>
+    (val || '')
+      .toLowerCase()
+      .replace(/^(divisi|sub\s*divisi)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const userDiv = normalize(user.subDivisi);
+
+  // 1. Specific Individual override
+  const indiv = schedulesList.find(
+    s => s.targetType === 'Individu' && (s.targetId === user.id || s.targetName === user.name)
+  );
+  if (indiv) return indiv;
+
+  // 2. Group override
+  const grp = schedulesList.find(
+    s => s.targetType === 'Group' && s.pejuangIds?.includes(user.id)
+  );
+  if (grp) return grp;
+
+  // 3. Exact division match
+  if (userDiv) {
+    const divMatch = schedulesList.find(s => {
+      if (s.targetType === 'Divisi') {
+        const sTarget = normalize(s.targetName);
+        const sId = normalize(s.targetId);
+        return sTarget === userDiv || sId === userDiv || sTarget.includes(userDiv) || userDiv.includes(sTarget);
+      }
+      return false;
+    });
+    if (divMatch) return divMatch;
+  }
+
+  // 4. "Semua Divisi" general schedule
+  const generalDiv = schedulesList.find(
+    s => s.targetType === 'Divisi' && (normalize(s.targetName).includes('semua') || normalize(s.targetId).includes('semua'))
+  );
+  if (generalDiv) return generalDiv;
+
+  // 5. Fallback to first available schedule
+  return schedulesList[0];
+};
+
 interface AbsensiViewProps {
   currentUser: UserAccount;
   attendance: AttendanceRecord[];
@@ -425,9 +475,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       // Check work schedule for jam pulang
       const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const currDay = hariMap[new Date().getDay()];
-      const userSchedule = schedules.find(
-        (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
-      ) || schedules[0];
+      const userSchedule = resolveUserSchedule(currentUser, schedules) || schedules[0];
       const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.pulang : undefined) || userSchedule?.jamPulang || "16:00";
       const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
       
@@ -437,7 +485,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       
       let pulangNotes = todayRecord!.notes;
       
-      const isNightShift = schPulangH < schMasukH;
+      const isNightShift = Boolean(userSchedule?.isNightShift || schPulangH < schMasukH);
       const effectiveSchPulangH = isNightShift ? schPulangH + 24 : schPulangH;
       const effectiveCurrH = (isNightShift && currH < schMasukH) ? currH + 24 : currH;
       
@@ -450,7 +498,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       if (diffPulangMins > 0) {
         pulangNotes = (pulangNotes ? pulangNotes + ' | ' : '') + 'Pulang Lebih Awal';
       }
-
 
       // Clock out
       const updatedRecord = {
@@ -478,28 +525,33 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       return;
     }
 
-    // Check work schedule
-    const userSchedule = schedules.find(
-      (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
-    ) || schedules[0];
+    // Check work schedule using latest division/user assignment
+    const userSchedule = resolveUserSchedule(currentUser, schedules) || schedules[0];
     
     const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const currDay = hariMap[new Date().getDay()];
     const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
+    const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.pulang : undefined) || userSchedule?.jamPulang || "16:00";
 
     let finalStatus: AttendanceRecord['status'] = attendanceStatus;
 
     if (attendanceStatus === 'Hadir') {
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schH, schM] = jamMasuk.split(':').map(Number);
-      const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
+      const [schPulangH] = jamPulang.split(':').map(Number);
+      const isNightShift = Boolean(userSchedule?.isNightShift || schPulangH < schH);
+
+      const effectiveCurrMins = (isNightShift && currH < 12) ? (currH + 24) * 60 + currM : currH * 60 + currM;
+      const effectiveSchMins = schH * 60 + schM;
+
+      const diffMasukMins = effectiveSchMins - effectiveCurrMins;
       if (diffMasukMins > 60) {
         triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${jamMasuk}).`);
         return;
       }
 
-      if ((currH * 60 + currM) > (schH * 60 + schM)) {
+      if (effectiveCurrMins > effectiveSchMins) {
         finalStatus = 'Terlambat';
       }
     }
@@ -511,6 +563,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       subDivisi: currentUser.subDivisi,
       date: dateStr,
       time: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : timeStr),
+      timeMasuk: (finalStatus === 'Libur' || finalStatus === 'Sakit') ? undefined : timeStr,
       timePulang: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : undefined),
       photoUrl: "", // Removed photo
       latitude: currentLat || 0,
@@ -603,6 +656,38 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
           </h2>
 
           <form onSubmit={handleSubmitAttendance} className="space-y-4">
+            {/* Active Schedule Badge */}
+            {(() => {
+              const currentSchedule = resolveUserSchedule(currentUser, schedules) || schedules[0];
+              const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+              const dayName = hariMap[new Date().getDay()];
+              const jMasuk = currentSchedule?.customJamKerja?.[dayName]?.masuk || (dayName === 'Ahad' ? currentSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || currentSchedule?.jamMasuk || "08:00";
+              const jPulang = currentSchedule?.customJamKerja?.[dayName]?.pulang || (dayName === 'Ahad' ? currentSchedule?.customJamKerja?.['Minggu']?.pulang : undefined) || currentSchedule?.jamPulang || "16:00";
+              const isNight = Boolean(currentSchedule?.isNightShift);
+
+              return (
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Jadwal ({currentSchedule?.targetName || currentUser.subDivisi}):</div>
+                      <div className="font-extrabold text-slate-800 dark:text-slate-100 flex items-center space-x-1.5">
+                        <span>{jMasuk} - {jPulang} WIB</span>
+                        {isNight && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold">
+                            🌙 Shift Malam
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                    {dayName}
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* Status Option */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">

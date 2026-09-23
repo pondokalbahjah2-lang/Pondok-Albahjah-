@@ -28,6 +28,11 @@ export interface UserAccount {
   suratKeputusanUrl?: string;
   pkwtStart?: string;
   pkwtEnd?: string;
+  isPengajar?: boolean;
+  bankName?: string;
+  nomorRekening?: string;
+  namaRekening?: string;
+  assignedShiftId?: string;
 }
 
 export interface ManhajiyyahClause {
@@ -135,8 +140,9 @@ export interface WorkSchedule {
   targetName: string;
   jamMasuk: string; // e.g. "07:00"
   jamPulang: string; // e.g. "16:00"
-  hariKerja: string[]; // e.g. ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-  customJamKerja?: Record<string, { masuk: string, pulang: string }>;
+  hariKerja: string[]; // e.g. ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Ahad"]
+  isNightShift?: boolean; // Shift malam atau lintas hari
+  customJamKerja?: Record<string, { masuk: string, pulang: string; isNightShift?: boolean }>;
   pejuangIds?: string[];
   divisiIds?: string[];
   tanggalLibur?: string[];
@@ -160,8 +166,61 @@ export interface GeneralSettings {
   autoThemeBasedOnSun?: boolean;
   izinKeluarApprovers?: string[];
   cutiApprovers?: string[];
+  liburPengurusApprovers?: string[];
   jenisCutiList?: { id: string; name: string; maxDays: number; }[];
   broadcastMessage?: string;
+}
+
+export interface DivisiShiftConfig {
+  id: string;
+  namaShift: string; // e.g. "Shift 1 (Pagi)" / "Shift 2 (Siang/Sore)"
+  jamMasuk: string; // "07:00"
+  jamPulang: string; // "15:00"
+  toleransiMenit?: number;
+  hariKerja?: string[];
+  isNightShift?: boolean;
+}
+
+export interface DivisiRecord {
+  id: string;
+  namaDivisi: string;
+  deskripsi?: string;
+  warnaLabel?: string;
+  iconName?: string;
+  anggotaIds: string[]; // referensi ke UserAccount.id
+  hasTwoShifts?: boolean;
+  shifts?: DivisiShiftConfig[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export const SUB_DIVISI_LIBUR_PENGURUS = [
+  'Pondok Pesantren Unit SDIQu',
+  'Pondok Pesantren Unit SMPIQu',
+  'Pondok Pesantren Unit SMAIQu',
+  'Kepondokan Banat'
+] as const;
+
+export interface LiburPengurusRecord {
+  id: string;
+  pejuangId: string;
+  pejuangName: string;
+  amanah: string;
+  subDivisi: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  totalHari: number;
+  alasan?: string;
+  badalId: string;
+  badalName: string;
+  badalAmanah: string;
+  status: 'Menunggu Persetujuan' | 'Disetujui' | 'Ditolak' | 'Sedang Libur' | 'Selesai';
+  tanggalPengajuan: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  catatanAdmin?: string;
+  suratUrl?: string;
+  history?: { status: string; by: string; timestamp: string }[];
 }
 
 export interface LocationSettings {
@@ -200,3 +259,199 @@ export interface HolidayRecord {
   tanggal: string;
   keterangan: string;
 }
+
+// ==========================================
+// MODUL ABSENSI & JADWAL MENGAJAR (JP)
+// ==========================================
+
+export interface TeachingLocation {
+  id: string;
+  nama: string;
+  latitude: number;
+  longitude: number;
+  radiusMeter: number;
+  unit: string; // e.g. "SMAIQu", "SMPIQu", "SDIQu"
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TeachingClass {
+  id: string;
+  namaKelas: string; // e.g. "X MIPA 1", "7A Putri"
+  tingkat: string; // e.g. "10", "7"
+  unit: string; // e.g. "SMAIQu", "SMPIQu"
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TeachingSchedule {
+  id: string;
+  unit: string; // e.g. "SMAIQu"
+  pejuangId: string; // ID Pengajar
+  pejuangName: string;
+  hari: 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu' | 'Ahad';
+  jamMulai: string; // "07:30"
+  jamSelesai: string; // "09:00"
+  classId: string;
+  className: string;
+  mapel: string;
+  jumlahJP: number; // e.g. 2, 3
+  locationId: string;
+  locationName: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type TeachingAttendanceStatus = 
+  | 'Hadir' 
+  | 'Terlambat' 
+  | 'Alpa' 
+  | 'Izin' 
+  | 'Sakit' 
+  | 'Lupa Absen Pulang';
+
+export interface TeachingAttendance {
+  id: string; // Format: `${scheduleId}_${date}`
+  scheduleId: string;
+  date: string; // YYYY-MM-DD
+  pejuangId: string; // ID pejuang yang hadir (bisa substitute jika badal)
+  pejuangName: string;
+  scheduledPejuangId: string; // ID pengajar sesuai jadwal asli
+  scheduledPejuangName: string;
+  isBadal: boolean;
+  badalSubstitutionId?: string;
+  unit: string;
+  classId: string;
+  className: string;
+  mapel: string;
+  jumlahJP: number;
+  jamMasuk?: string; // "07:32"
+  jamPulang?: string; // "09:02"
+  status: TeachingAttendanceStatus;
+  lateMinutes: number; // 0 jika tepat waktu
+  masukLat?: number;
+  masukLng?: number;
+  masukDistanceMeters?: number;
+  pulangLat?: number;
+  pulangLng?: number;
+  pulangDistanceMeters?: number;
+  notes?: string;
+  source: 'GPS';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TeachingSubstitution {
+  id: string;
+  scheduleId: string;
+  date: string; // YYYY-MM-DD
+  unit: string;
+  originalPejuangId: string;
+  originalPejuangName: string;
+  substitutePejuangId: string;
+  substitutePejuangName: string;
+  mapel: string;
+  className: string;
+  jamMulai: string;
+  jamSelesai: string;
+  jumlahJP: number;
+  alasan: string;
+  status: 'Menunggu Persetujuan' | 'Disetujui' | 'Ditolak' | 'Dibatalkan';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TeachingSettings {
+  toleranceLateMinutes: number; // default 10
+  lockPulangEarlyMinutes: number; // default 5 (tidak boleh pulang sebelum jamSelesai - 5 menit)
+  maxLateToleranceMinutes: number; // default 60
+  cutOffDay: number; // default 26 (periode cut off 26 s/d 25)
+  allowedUnits: string[];
+}
+
+export interface TeachingSessionItem {
+  schedule: TeachingSchedule;
+  date: string; // YYYY-MM-DD
+  hari: string;
+  isToday: boolean;
+  isPast: boolean;
+  effectivePejuangId: string;
+  effectivePejuangName: string;
+  isBadal: boolean;
+  substitution?: TeachingSubstitution;
+  attendance?: TeachingAttendance;
+  computedStatus: TeachingAttendanceStatus | 'Terjadwal' | 'Libur' | 'Dibadalkan' | 'Belum Waktunya';
+  canAbsenMasuk: boolean;
+  canAbsenPulang: boolean;
+  reasonDisabledMasuk?: string;
+  reasonDisabledPulang?: string;
+}
+
+export interface JPPengajarSummary {
+  no: number;
+  pejuangId: string;
+  pejuangName: string;
+  mapel: string;
+  unit: string;
+  dailyJP: Record<string, number>; // dateString -> JP count
+  totalJP: number;
+}
+
+export interface AttendanceRekapItem {
+  pejuangId: string;
+  pejuangName: string;
+  unit: string;
+  totalSesiTerjadwal: number;
+  hadir: number;
+  terlambat: number;
+  alpa: number;
+  izinSakit: number;
+  totalMenitTerlambat: number;
+  totalJamMengajar: number; // Jam desimal atau jam riil
+  totalJP: number;
+  badalDiberikan: number;
+  badalDiterima: number;
+  persenKehadiran: number;
+}
+
+export interface TeachingSessionDetailItem {
+  tanggal: string;
+  hari: string;
+  unit: string;
+  pengajar: string;
+  kelas: string;
+  mapel: string;
+  jp: number;
+  lokasi: string;
+  jadwalMulaiSelesai: string;
+  jamMasuk: string;
+  jamPulang: string;
+  durasi: string;
+  status: string;
+  terlambatMenit: number;
+  jarakMasukMeter: number | string;
+  badal: 'Ya' | 'Tidak';
+  pengajarAsli: string;
+  catatan: string;
+}
+
+export interface TeachingBadalRekapItem {
+  tanggal: string;
+  unit: string;
+  kelas: string;
+  mapel: string;
+  jp: number;
+  jadwal: string;
+  pengajarAsli: string;
+  pengajarPengganti: string;
+  alasan: string;
+  status: string;
+  disetujuiOleh: string;
+}
+

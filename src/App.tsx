@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppNotification, UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
+import { AppNotification, UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings, DivisiRecord, LiburPengurusRecord } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -7,6 +7,7 @@ import { DashboardView } from './components/DashboardView';
 import { IzinKeluarView } from './components/IzinKeluarView';
 import { AbsensiView } from './components/AbsensiView';
 import { CutiView } from './components/CutiView';
+import { LiburPengurusView } from './components/LiburPengurusView';
 import { SlipUbarView } from './components/SlipUbarView';
 import { SuratTeguranView } from './components/SuratTeguranView';
 import { KalenderView } from './components/KalenderView';
@@ -35,6 +36,8 @@ export default function App() {
   const [warningLetters, setWarningLetters] = useState<WarningLetterRecord[]>([]);
   const [slipUbarList, setSlipUbarList] = useState<SlipUbarRecord[]>([]);
   const [schedules, setSchedules] = useState<WorkSchedule[]>([]);
+  const [divisions, setDivisions] = useState<DivisiRecord[]>([]);
+  const [liburPengurusList, setLiburPengurusList] = useState<LiburPengurusRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({});
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
@@ -89,8 +92,7 @@ export default function App() {
 
     return () => {
       unsubGeneral();
-      
-      
+      unsubManhaj();
     };
   }, [currentUser?.role]); // re-bind when role changes so the notification logic uses correct role
 
@@ -102,7 +104,7 @@ export default function App() {
       return;
     }
 
-        let unsubKajian = () => {};
+    let unsubKajian = () => {};
     let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
@@ -112,14 +114,34 @@ export default function App() {
     let unsubLeave = () => {};
     let unsubWarn = () => {};
     let unsubSlip = () => {};
-
     let unsubSchedules = () => {};
     let unsubLoc = () => {};
-    let unsubManhaj = () => {};
+    let unsubDivisi = () => {};
+    let unsubLiburPengurus = () => {};
+    let unsubLiburNotif = () => {};
+
+    const cleanupActiveListeners = () => {
+      unsubKajian(); unsubKajian = () => {};
+      unsubCutiNotif(); unsubCutiNotif = () => {};
+      unsubIzinNotif(); unsubIzinNotif = () => {};
+      unsubUsers(); unsubUsers = () => {};
+      unsubNotif(); unsubNotif = () => {};
+      unsubAtt(); unsubAtt = () => {};
+      unsubExit(); unsubExit = () => {};
+      unsubLeave(); unsubLeave = () => {};
+      unsubWarn(); unsubWarn = () => {};
+      unsubSlip(); unsubSlip = () => {};
+      unsubSchedules(); unsubSchedules = () => {};
+      unsubLoc(); unsubLoc = () => {};
+      unsubDivisi(); unsubDivisi = () => {};
+      unsubLiburPengurus(); unsubLiburPengurus = () => {};
+      unsubLiburNotif(); unsubLiburNotif = () => {};
+    };
 
     console.log('App: Setting up onAuthStateChanged listener');
     const unsubAuth = onAuthStateChanged(auth, async (fUser) => {
       console.log('App: onAuthStateChanged callback fired. Firebase User:', fUser?.uid);
+      cleanupActiveListeners();
       if (fUser) {
         let activeUser = currentUser;
         if (!activeUser) {
@@ -359,27 +381,87 @@ export default function App() {
       firstIzinLoad = false;
     });
 
-    // Sync Manhajiyyah Clauses
-        let firstManhajLoad = true;
-        unsubManhaj = onSnapshot(collection(db, 'manhajiyyahClauses'), (snap) => {
-          if (!firstManhajLoad && !isAd) {
-             snap.docChanges().forEach(change => {
-               if (change.type === 'added' || change.type === 'modified') {
-                 const newData = change.doc.data();
-                 const msg = change.type === 'added' 
-                   ? `Admin telah menambahkan Klausul Manhajiyyah baru: ${newData.title}`
-                   : `Admin telah memperbarui Klausul Manhajiyyah: ${newData.title}`;
-                 if (Notification.permission === 'granted') {
-                   new Notification('Pembaruan Manhajiyyah', { body: msg });
-                 } else {
-                   alert(`Pemberitahuan: ${msg}`);
-                 }
-               }
-             });
+    // Sync Divisi
+    unsubDivisi = onSnapshot(collection(db, 'divisi'), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as DivisiRecord));
+      if (snap.empty && isAd) {
+        const defaultDivNames = [
+          'SMPIQu', 'SMAIQu', 'Divisi Kepondokan Banat', 'Manajemen Kepondokan',
+          'Pengasuhan Putri', 'Pengasuhan Putra', 'Media & IT', 'Sarpras & Logistik',
+          'Keuangan & BMT', 'Dapur & Konsumsi', 'Klinik & Kesehatan'
+        ];
+        defaultDivNames.forEach((nama, idx) => {
+          const seedId = `div-${Date.now()}-${idx}`;
+          const seedDoc: DivisiRecord = {
+            id: seedId,
+            namaDivisi: nama,
+            deskripsi: `Unit operasional ${nama} Pondok Pesantren Al-Bahjah Cirebon 1`,
+            warnaLabel: '#059669',
+            iconName: 'Building2',
+            anggotaIds: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setDoc(doc(db, 'divisi', seedId), seedDoc);
+        });
+      }
+      setDivisions(data);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'divisi'));
+
+    // Sync Libur Pengurus
+    const liburQ = isAd 
+      ? query(collection(db, 'liburPengurus'), limit(3000)) 
+      : query(collection(db, 'liburPengurus'), where('pejuangId', '==', uid));
+    let firstLiburLoad = true;
+    unsubLiburPengurus = onSnapshot(liburQ, (snap) => {
+      let data = snap.docs.map(d => ({ id: d.id, ...d.data() } as LiburPengurusRecord));
+      data = data.sort((a, b) => (b.tanggalMulai || b.id || '').localeCompare(a.tanggalMulai || a.id || ''));
+      if (!firstLiburLoad && !isAd) {
+        snap.docChanges().forEach(change => {
+          if (change.type === 'modified') {
+            const newData = change.doc.data() as LiburPengurusRecord;
+            if (newData.pejuangId === uid && (newData.status === 'Disetujui' || newData.status === 'Ditolak')) {
+              const msg = `Pembaruan Izin Libur Pengurus: Pengajuan Anda telah ${newData.status}`;
+              if (Notification.permission === 'granted') {
+                new Notification('Status Libur Pengurus', { body: msg });
+              } else {
+                alert(msg);
+              }
+            }
           }
-          firstManhajLoad = false;
-          setManhajiyyahClauses(snap.docs.map(d => d.data() as ManhajiyyahClause));
-        }, (err) => handleFirestoreError(err, OperationType.LIST, 'manhajiyyahClauses'));
+        });
+      }
+      firstLiburLoad = false;
+      setLiburPengurusList(data);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'liburPengurus'));
+
+    // Sync Libur Pengurus Notifications for Admin and Badal
+    let firstLiburNotifLoad = true;
+    unsubLiburNotif = onSnapshot(collection(db, 'liburPengurus'), (snap) => {
+      if (!firstLiburNotifLoad) {
+        snap.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const newData = change.doc.data() as LiburPengurusRecord;
+            if (newData.status === 'Menunggu Persetujuan') {
+              const isBadal = newData.badalId === currentUser?.id;
+              const isAdminUser = currentUser?.role === 'Admin';
+              if ((isAdminUser || isBadal) && newData.pejuangId !== currentUser?.id) {
+                const msg = isBadal 
+                  ? `Anda ditunjuk sebagai Badal Libur oleh ${newData.pejuangName} pada ${newData.tanggalMulai}`
+                  : `Pengajuan Libur Pengurus Baru dari ${newData.pejuangName} (${newData.subDivisi})`;
+                if (Notification.permission === 'granted') {
+                  new Notification('Al-Bahjah Sistem', { body: msg });
+                } else {
+                  alert(msg);
+                }
+              }
+            }
+          }
+        });
+      }
+      firstLiburNotifLoad = false;
+    });
+
       } else {
         console.log('App: Firebase User is NULL in onAuthStateChanged.');
       }
@@ -387,10 +469,7 @@ export default function App() {
 
     return () => {
       unsubAuth();
-      unsubUsers(); unsubNotif(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip(); unsubKajian();
-      unsubSchedules(); unsubLoc(); unsubManhaj();
-       unsubCutiNotif(); unsubIzinNotif();
-      
+      cleanupActiveListeners();
     };
   }, [currentUser]);
 
@@ -656,6 +735,44 @@ export default function App() {
     }
   };
 
+  const handleSaveDivisions = async (divs: DivisiRecord[]) => {
+    setDivisions(divs);
+    if (currentUser?.role === 'Admin') {
+      try {
+        const addedOrUpdated = divs.filter(a => {
+          const existing = divisions.find(d => d.id === a.id);
+          return !existing || JSON.stringify(existing) !== JSON.stringify(a);
+        });
+        const deleted = divisions.filter(d => !divs.find(item => item.id === d.id));
+
+        for (const a of addedOrUpdated) await setDoc(doc(db, 'divisi', a.id), a);
+        for (const d of deleted) await deleteDoc(doc(db, 'divisi', d.id));
+
+        if (addedOrUpdated.length > 0 || deleted.length > 0) {
+          await logAudit('UPDATE_DIVISI', `Admin updated divisions. Total: ${divs.length}`, currentUser);
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, 'divisi');
+      }
+    }
+  };
+
+  const handleSaveLiburPengurus = async (list: LiburPengurusRecord[]) => {
+    const addedOrUpdated = list.filter(a => {
+      const existing = liburPengurusList.find(ex => ex.id === a.id);
+      return !existing || JSON.stringify(existing) !== JSON.stringify(a);
+    });
+    setLiburPengurusList(list);
+    try {
+      for (const a of addedOrUpdated) await setDoc(doc(db, 'liburPengurus', a.id), a);
+      if (currentUser?.role === 'Admin' && addedOrUpdated.length > 0) {
+        logAudit('DATA_CHANGE', `Admin updated libur pengurus for: ${addedOrUpdated.map(u => u.pejuangName).join(', ')}`, currentUser);
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, 'liburPengurus');
+    }
+  };
+
   const handleSaveLocationSettings = async (loc: typeof locationSettings) => {
     setLocationSettings(loc);
     if (currentUser?.role === 'Admin' && loc) {
@@ -760,6 +877,7 @@ export default function App() {
         onLogout={handleLogout}
         leaveRequests={leaveRequests}
         exitPermissions={exitPermissions}
+        liburPengurusList={liburPengurusList}
         izinKeluarApprovers={generalSettings.izinKeluarApprovers}
         cutiApprovers={generalSettings.cutiApprovers}
         notifications={notifications}
@@ -828,6 +946,20 @@ export default function App() {
                 onSaveAccounts={handleSaveAccounts}
               />
             )}
+            {activeTab === 'libur' && (
+              <LiburPengurusView
+                currentUser={currentUser}
+                accounts={accounts}
+                liburPengurusList={liburPengurusList}
+                onSaveLiburPengurus={handleSaveLiburPengurus}
+                onSaveAttendance={handleSaveAttendance}
+                attendance={attendance}
+                appLogoUrl={generalSettings.appLogoUrl}
+                kepalaPondokName={generalSettings.kepalaPondokName}
+                liburApprovers={generalSettings.liburPengurusApprovers}
+                dynamicDivisions={divisions.map(d => d.namaDivisi)}
+              />
+            )}
             {activeTab === 'ubar' && (
               <SlipUbarView
                 currentUser={currentUser}
@@ -890,7 +1022,8 @@ export default function App() {
                 accounts={accounts}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-
+                divisions={divisions}
+                onSaveDivisions={handleSaveDivisions}
                 manhajiyyahClauses={manhajiyyahClauses}
                 onSaveLocationSettings={handleSaveLocationSettings}
                 onSaveSchedules={handleSaveSchedules}

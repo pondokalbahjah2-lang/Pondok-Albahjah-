@@ -11,6 +11,32 @@ async function startServer() {
 
   app.use(express.json());
 
+  // API route for accurate server time (WIB / Asia/Jakarta)
+  app.get("/api/server-time", (req, res) => {
+    const now = new Date();
+    const wibFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = wibFormatter.formatToParts(now);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const wibDate = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+    const wibTime = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+
+    res.json({
+      timestamp: now.getTime(),
+      iso: now.toISOString(),
+      wibDate,
+      wibTime
+    });
+  });
+
   // Cache in-memory to prevent rate-limiting and maximize response speed
   const prayerCache = new Map<string, any>();
 
