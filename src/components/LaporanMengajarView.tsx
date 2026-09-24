@@ -84,27 +84,28 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
 
   // Quick preset dates
   const handlePresetSelect = (preset: 'cutoff-current' | 'cutoff-prev' | 'this-month' | 'last-month') => {
-    const now = getWIBDate();
+    const nowStr = getWIBDate();
+    const nowDate = new Date(nowStr);
     const startCutoff = teachingSettings.cutoffStartDay ?? 21;
     const endCutoff = teachingSettings.cutoffEndDay ?? 20;
 
     if (preset === 'cutoff-current') {
-      const r = calculateCutoffRange(startCutoff, endCutoff, now);
+      const r = calculateCutoffRange(startCutoff, endCutoff, nowDate);
       setStartDate(r.startDate);
       setEndDate(r.endDate);
     } else if (preset === 'cutoff-prev') {
-      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prev = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
       const r = calculateCutoffRange(startCutoff, endCutoff, prev);
       setStartDate(r.startDate);
       setEndDate(r.endDate);
     } else if (preset === 'this-month') {
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+      const y = nowDate.getFullYear();
+      const m = String(nowDate.getMonth() + 1).padStart(2, '0');
+      const lastDay = new Date(y, nowDate.getMonth() + 1, 0).getDate();
       setStartDate(`${y}-${m}-01`);
       setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
     } else if (preset === 'last-month') {
-      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
       const y = lastMonthDate.getFullYear();
       const m = String(lastMonthDate.getMonth() + 1).padStart(2, '0');
       const lastDay = new Date(y, lastMonthDate.getMonth() + 1, 0).getDate();
@@ -120,8 +121,9 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
       endDate,
       unit: selectedUnit,
       pejuangId: selectedPejuangId !== 'Semua' ? selectedPejuangId : undefined,
+      accounts,
     });
-  }, [generateTeachingReport, startDate, endDate, selectedUnit, selectedPejuangId]);
+  }, [generateTeachingReport, startDate, endDate, selectedUnit, selectedPejuangId, accounts]);
 
   // Filtered teachers list for UI
   const filteredTeacherSummaries = useMemo(() => {

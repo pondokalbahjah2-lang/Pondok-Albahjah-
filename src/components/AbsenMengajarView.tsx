@@ -76,7 +76,7 @@ export const AbsenMengajarView: React.FC<AbsenMengajarViewProps> = ({
   } = teachingData;
 
   const [activeSubTab, setActiveSubTab] = useState<'hari-ini' | 'jadwal' | 'badal' | 'riwayat'>('hari-ini');
-  const [currentTimeWIB, setCurrentTimeWIB] = useState(getWIBDate());
+  const [currentTimeWIB, setCurrentTimeWIB] = useState(new Date());
 
   // GPS Watch State
   const [currentLat, setCurrentLat] = useState<number | null>(null);
@@ -107,10 +107,10 @@ export const AbsenMengajarView: React.FC<AbsenMengajarViewProps> = ({
   // Live WIB clock ticking every second
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTimeWIB(getWIBDate());
+      setCurrentTimeWIB(new Date());
     }, 1000);
     return () => clearInterval(timer);
-  }, [getWIBDate]);
+  }, []);
 
   // GPS Watcher
   useEffect(() => {

@@ -24,9 +24,9 @@ import { RefreshCcw, AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { INITIAL_LOCATION_SETTINGS } from './data/mockData';
 import { getLocalDateString } from './utils/dateUtils';
+import { usePulangReminder } from './hooks/usePulangReminder';
 
 export default function App() {
-  console.log('App: Component rendering...');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
 
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
@@ -50,10 +50,8 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
-  
-
-  
-
+  // Register pulang reminder hook
+  usePulangReminder(currentUser, schedules, attendance, divisions);
 
   // GLOBAL PUBLIC SYNC HOOK (No Auth Required)
   useEffect(() => {
@@ -62,7 +60,7 @@ export default function App() {
       if (docSnap.exists()) {
         setGeneralSettings(docSnap.data() as GeneralSettings);
       }
-    }, (err) => console.log('Settings read err'));
+    }, (err) => console.error('Settings read err', err));
 
 
     let firstManhajLoad = true;
@@ -88,7 +86,7 @@ export default function App() {
       }
       setManhajiyyahClauses(snap.docs.map(d => d.data() as ManhajiyyahClause));
       firstManhajLoad = false;
-    }, (err) => console.log('Manhajiyyah read err'));
+    }, (err) => console.error('Manhajiyyah read err', err));
 
     return () => {
       unsubGeneral();
@@ -98,9 +96,7 @@ export default function App() {
 
   // FIREBASE SYNC HOOK
   useEffect(() => {
-    console.log('App: useEffect for Firebase Sync triggered. Current user:', currentUser?.id);
     if (!currentUser) {
-      console.log('App: No currentUser in state, skipping sync.');
       return;
     }
 
@@ -138,9 +134,7 @@ export default function App() {
       unsubLiburNotif(); unsubLiburNotif = () => {};
     };
 
-    console.log('App: Setting up onAuthStateChanged listener');
     const unsubAuth = onAuthStateChanged(auth, async (fUser) => {
-      console.log('App: onAuthStateChanged callback fired. Firebase User:', fUser?.uid);
       cleanupActiveListeners();
       if (fUser) {
         let activeUser = currentUser;
@@ -155,7 +149,6 @@ export default function App() {
           } catch (e) { console.error('Failed to restore user session:', e); }
         }
         if (!activeUser) return;
-        console.log('App: Firebase User is authenticated. Proceeding with sync.');
         const isAd = activeUser.role === 'Admin';
         const uid = activeUser.id;
 
@@ -462,8 +455,6 @@ export default function App() {
       firstLiburNotifLoad = false;
     });
 
-      } else {
-        console.log('App: Firebase User is NULL in onAuthStateChanged.');
       }
     });
 
@@ -558,24 +549,20 @@ export default function App() {
   }, [currentUser, schedules]);
 
   const handleLoginSuccess = (user: UserAccount) => {
-    console.log('App: handleLoginSuccess called. Setting currentUser to:', user.id);
     setCurrentUser(user);
-        setActiveTab(user.role === 'Admin' ? 'dashboard' : 'absensi');
+    setActiveTab(user.role === 'Admin' ? 'dashboard' : 'absensi');
     logAudit('LOGIN', 'User logged in successfully', user);
   };
 
   const handleLogout = () => {
-    console.log('App: handleLogout called.');
     if (currentUser) {
       logAudit('LOGOUT', 'User logged out', currentUser);
     }
     signOut(auth)
-      .then(() => console.log('App: Firebase signOut successful.'))
       .catch((err) => console.error('App: Firebase signOut error:', err))
       .finally(() => {
-        console.log('App: Clearing currentUser state.');
         setCurrentUser(null);
-              });
+      });
   };
 
   // State savers - Write to Firebase
@@ -725,7 +712,6 @@ export default function App() {
 
         for (const a of addedOrUpdated) await setDoc(doc(db, 'schedules', a.id), a);
         for (const a of deleted) {
-          console.log(`[Audit] Deleting schedule document with ID ${a.id}`);
           await deleteDoc(doc(db, 'schedules', a.id));
         }
         if (deleted.length > 0 || addedOrUpdated.length > 0) {
@@ -809,7 +795,6 @@ export default function App() {
         return (b.id || '').localeCompare(a.id || '');
       });
       setKajianRecords(data);
-      console.log('Force synced kajian records, found:', data.length);
       alert('Data Kajian berhasil disinkronisasi paksa dari server.');
     } catch (e) {
       console.error('Error force syncing kajian:', e);
@@ -845,7 +830,6 @@ export default function App() {
 
         for (const a of addedOrUpdated) await setDoc(doc(db, 'manhajiyyahClauses', a.id), a);
         for (const a of deleted) {
-          console.log(`[Audit] Deleting manhajiyyah clause document with ID ${a.id}`);
           await deleteDoc(doc(db, 'manhajiyyahClauses', a.id));
         }
         if (deleted.length > 0 || addedOrUpdated.length > 0) {
@@ -927,7 +911,7 @@ export default function App() {
                 attendance={attendance}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-
+                divisions={divisions}
                 onSaveAttendance={handleSaveAttendance}
                 isLoading={isLoadingData}
               />
@@ -1004,7 +988,7 @@ export default function App() {
                 warningLetters={warningLetters}
                 slipUbarList={slipUbarList}
                 schedules={schedules}
-
+                divisions={divisions}
               />
             )}
             {activeTab === 'settings' && (
@@ -1015,6 +999,7 @@ export default function App() {
                 kepalaPondokName={generalSettings.kepalaPondokName}
                 izinKeluarApprovers={generalSettings.izinKeluarApprovers}
                 cutiApprovers={generalSettings.cutiApprovers}
+                liburPengurusApprovers={generalSettings.liburPengurusApprovers}
                 jenisCutiList={generalSettings.jenisCutiList}
                 broadcastMessage={generalSettings.broadcastMessage}
                 onSaveGeneralSettings={handleSaveGeneralSettings}
@@ -1126,7 +1111,6 @@ export default function App() {
                     let count = 0;
 
                     for (const item of allToDelete) {
-                      console.log(`[Audit] Queueing deletion for ${item.col} document with ID ${item.id}`);
                       // Check if doc exists before deleting if we were doing single deletes, but writeBatch.delete is safe even if doc doesn't exist
                       currentBatch.delete(doc(db, item.col, item.id));
                       count++;
@@ -1141,8 +1125,6 @@ export default function App() {
                     }
 
                     await Promise.all(batches);
-                    
-                    console.log(`[Audit] Batch deletion completed for month ${month}.`);
                     
                     // Add an audit log entry for this major action
                     await logAudit(

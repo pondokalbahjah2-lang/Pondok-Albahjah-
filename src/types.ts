@@ -49,6 +49,8 @@ export interface AttendanceRecord {
   pejuangId: string;
   pejuangName: string;
   subDivisi: string;
+  shiftId?: string;
+  namaShift?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   timeMasuk?: string; // HH:mm
@@ -266,23 +268,29 @@ export interface HolidayRecord {
 
 export interface TeachingLocation {
   id: string;
-  nama: string;
+  nama?: string;
+  name?: string;
   latitude: number;
   longitude: number;
-  radiusMeter: number;
-  unit: string; // e.g. "SMAIQu", "SMPIQu", "SDIQu"
-  isActive: boolean;
-  createdAt: string;
+  radiusMeter?: number;
+  radiusMeters?: number;
+  maxAccuracyMeters?: number;
+  unit?: string; // e.g. "SMAIQu", "SMPIQu", "SDIQu"
+  isActive?: boolean;
+  createdAt?: string;
   updatedAt?: string;
 }
 
 export interface TeachingClass {
   id: string;
-  namaKelas: string; // e.g. "X MIPA 1", "7A Putri"
-  tingkat: string; // e.g. "10", "7"
-  unit: string; // e.g. "SMAIQu", "SMPIQu"
-  isActive: boolean;
-  createdAt: string;
+  namaKelas?: string; // e.g. "X MIPA 1", "7A Putri"
+  name?: string;
+  tingkat?: string; // e.g. "10", "7"
+  gradeLevel?: string;
+  description?: string;
+  unit?: string; // e.g. "SMAIQu", "SMPIQu"
+  isActive?: boolean;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -296,12 +304,16 @@ export interface TeachingSchedule {
   jamSelesai: string; // "09:00"
   classId: string;
   className: string;
-  mapel: string;
+  mapel?: string;
+  subject?: string;
   jumlahJP: number; // e.g. 2, 3
   locationId: string;
   locationName: string;
-  isActive: boolean;
-  createdAt: string;
+  isActive?: boolean;
+  active?: boolean;
+  startDate?: string;
+  endDate?: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -319,19 +331,26 @@ export interface TeachingAttendance {
   date: string; // YYYY-MM-DD
   pejuangId: string; // ID pejuang yang hadir (bisa substitute jika badal)
   pejuangName: string;
-  scheduledPejuangId: string; // ID pengajar sesuai jadwal asli
-  scheduledPejuangName: string;
+  actualPejuangId?: string;
+  actualPejuangName?: string;
+  scheduledPejuangId?: string; // ID pengajar sesuai jadwal asli
+  scheduledPejuangName?: string;
   isBadal: boolean;
   badalSubstitutionId?: string;
   unit: string;
   classId: string;
   className: string;
-  mapel: string;
+  mapel?: string;
+  subject?: string;
   jumlahJP: number;
+  actualJP?: number;
+  jadwalMulai?: string;
+  jadwalSelesai?: string;
   jamMasuk?: string; // "07:32"
   jamPulang?: string; // "09:02"
   status: TeachingAttendanceStatus;
-  lateMinutes: number; // 0 jika tepat waktu
+  lateMinutes?: number; // 0 jika tepat waktu
+  durationMinutes?: number;
   masukLat?: number;
   masukLng?: number;
   masukDistanceMeters?: number;
@@ -339,8 +358,8 @@ export interface TeachingAttendance {
   pulangLng?: number;
   pulangDistanceMeters?: number;
   notes?: string;
-  source: 'GPS';
-  createdAt: string;
+  source?: 'GPS' | 'Koreksi Admin' | 'Manual' | string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
@@ -353,14 +372,18 @@ export interface TeachingSubstitution {
   originalPejuangName: string;
   substitutePejuangId: string;
   substitutePejuangName: string;
-  mapel: string;
+  mapel?: string;
+  subject?: string;
   className: string;
   jamMulai: string;
   jamSelesai: string;
   jumlahJP: number;
   alasan: string;
+  reason?: string;
+  requestedBy?: string;
   status: 'Menunggu Persetujuan' | 'Disetujui' | 'Ditolak' | 'Dibatalkan';
   approvedBy?: string;
+  decidedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;
   createdAt: string;
@@ -369,10 +392,60 @@ export interface TeachingSubstitution {
 
 export interface TeachingSettings {
   toleranceLateMinutes: number; // default 10
+  toleransiTerlambatMenit?: number;
   lockPulangEarlyMinutes: number; // default 5 (tidak boleh pulang sebelum jamSelesai - 5 menit)
   maxLateToleranceMinutes: number; // default 60
   cutOffDay: number; // default 26 (periode cut off 26 s/d 25)
   allowedUnits: string[];
+  masukBukaMenit?: number;
+  pulangBukaMenit?: number;
+  cutoffStartDay?: number;
+  cutoffEndDay?: number;
+}
+
+export interface TeachingReportItem {
+  pejuangId: string;
+  pejuangName: string;
+  nipy?: string;
+  unit: string;
+  namaBank?: string;
+  noRekening?: string;
+  totalScheduledSessions: number;
+  totalPresentSessions: number;
+  totalLateSessions: number;
+  totalAbsentSessions: number;
+  totalPermitSessions: number;
+  totalLateMinutes: number;
+  totalTeachingMinutes: number;
+  totalJP: number;
+  substitutionsGiven: number;
+  substitutionsReceived: number;
+  attendanceRate: number;
+  dailyJP?: Record<string, number>;
+  totalSesiTerjadwal?: number;
+  totalJPTerjadwal?: number;
+  totalJPHadir?: number;
+  totalJPTerlambat?: number;
+  totalJPBadal?: number;
+  totalJPNetto?: number;
+}
+
+export interface TeachingReportSummary {
+  startDate: string;
+  endDate: string;
+  dates: string[];
+  unit: string;
+  teacherSummaries: TeachingReportItem[];
+  detailRecords: any[];
+  totalSessions: number;
+  totalJP: number;
+  totalLateMinutes: number;
+  totalSesiTerjadwal?: number;
+  totalJPTerjadwal?: number;
+  totalJPHadir?: number;
+  totalJPTerlambat?: number;
+  totalJPBadal?: number;
+  totalJPNetto?: number;
 }
 
 export interface TeachingSessionItem {

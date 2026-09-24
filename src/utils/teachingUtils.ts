@@ -9,7 +9,8 @@ import {
   TeachingSessionDetailItem,
   TeachingBadalRekapItem,
   HolidayRecord,
-  UserAccount
+  UserAccount,
+  TeachingSettings
 } from '../types';
 
 export const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'] as const;
@@ -742,3 +743,235 @@ export function computeRekapBadal(
     };
   }).sort((a, b) => a.tanggal.localeCompare(b.tanggal));
 }
+
+/**
+ * Utility untuk menghitung rentang cut-off periode pengajaran
+ */
+export function calculateCutoffRange(arg1?: any, arg2?: any, arg3?: any) {
+  let startDay = 26;
+  let endDay = 25;
+  let baseDate = new Date();
+
+  if (typeof arg1 === 'number' && typeof arg2 === 'number') {
+    startDay = arg1;
+    endDay = arg2;
+    if (arg3) {
+      baseDate = typeof arg3 === 'string' ? new Date(arg3) : arg3;
+    }
+  } else if (typeof arg1 === 'string') {
+    if (arg1.includes('-')) {
+      const parts = arg1.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(y) && !isNaN(m)) baseDate = new Date(y, m - 1, 1);
+    } else {
+      const foundIdx = INDONESIAN_MONTH_NAMES.findIndex(m => arg1.toLowerCase().includes(m.toLowerCase()));
+      if (foundIdx >= 0) {
+        const yrMatch = arg1.match(/\d{4}/);
+        const y = yrMatch ? parseInt(yrMatch[0], 10) : baseDate.getFullYear();
+        baseDate = new Date(y, foundIdx, 1);
+      }
+    }
+    if (typeof arg2 === 'number') {
+      startDay = arg2;
+      endDay = arg2 - 1;
+    }
+  }
+
+  const y = baseDate.getFullYear();
+  const m = baseDate.getMonth(); // 0-indexed
+
+  // Prev month start
+  const prevDate = new Date(y, m - 1, startDay);
+  const curDate = new Date(y, m, endDay);
+
+  const startIso = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
+  const endIso = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
+
+  const dates = getDatesBetween(startIso, endIso);
+
+  return {
+    startDate: startIso,
+    endDate: endIso,
+    dates,
+    label: `${startDay} - ${endDay}`,
+    codeLabel: `${startDay}_${endDay}`
+  };
+}
+
+/**
+ * Mendapatkan semua tanggal antara startDate dan endDate inclusive (YYYY-MM-DD)
+ */
+export function getDatesBetween(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const curr = new Date(startDate);
+  const end = new Date(endDate);
+  while (curr <= end) {
+    const y = curr.getFullYear();
+    const m = String(curr.getMonth() + 1).padStart(2, '0');
+    const d = String(curr.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
+    curr.setDate(curr.getDate() + 1);
+  }
+  return dates;
+}
+
+/**
+ * Format durasi menit ke format string jam dan menit
+ */
+export function formatMenitKeJamMenit(totalMinutes: number): string {
+  if (!totalMinutes || totalMinutes <= 0) return '0j 0m';
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return `${hours}j ${mins}m`;
+}
+
+export const getNamaHariFromDate = getIndonesianDayName;
+export const calculateHaversineDistance = calculateDistanceMeters;
+export const getLocalDateStr = (d?: Date) => {
+  const date = d || new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+export interface SessionEvaluation {
+  phase: 'BELUM_MULAI' | 'SEDANG_BERLANGSUNG' | 'SIAP_PULANG' | 'SELESAI' | 'TERLAMBAT' | 'ALPA' | 'BADAL' | 'IZIN' | 'LIBUR';
+  label: string;
+  badgeColor: string;
+  canClockIn: boolean;
+  canClockOut: boolean;
+  lateMinutes: number;
+  reason?: string;
+}
+
+export function evaluateSessionStatus(
+  schedule: TeachingSchedule,
+  dateStr: string,
+  currentHHmm: string,
+  attendance?: TeachingAttendance,
+  substitution?: TeachingSubstitution,
+  settings?: TeachingSettings
+): SessionEvaluation {
+  const toleranceLateMinutes = settings?.toleransiTerlambatMenit ?? settings?.toleranceLateMinutes ?? 10;
+  const lockPulangEarlyMinutes = settings?.pulangBukaMenit ?? settings?.lockPulangEarlyMinutes ?? 5;
+  const maxLateToleranceMinutes = settings?.maxLateToleranceMinutes ?? 60;
+  const masukBukaMenit = settings?.masukBukaMenit ?? 30;
+
+  const nowMin = timeToMinutes(currentHHmm);
+  const startMin = timeToMinutes(schedule.jamMulai);
+  const endMin = timeToMinutes(schedule.jamSelesai);
+  const earliestPulang = endMin - lockPulangEarlyMinutes;
+  const earliestMasuk = startMin - masukBukaMenit;
+
+  // 1. Sudah ada record kehadiran
+  if (attendance) {
+    if (attendance.jamPulang) {
+      const isLate = attendance.status === 'Terlambat';
+      return {
+        phase: 'SELESAI',
+        label: isLate ? 'Selesai (Terlambat)' : 'Selesai Mengajar',
+        badgeColor: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+        canClockIn: false,
+        canClockOut: false,
+        lateMinutes: attendance.lateMinutes || 0
+      };
+    }
+
+    if (attendance.status === 'Izin' || attendance.status === 'Sakit') {
+      return {
+        phase: 'IZIN',
+        label: attendance.status,
+        badgeColor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+        canClockIn: false,
+        canClockOut: false,
+        lateMinutes: 0
+      };
+    }
+
+    if (attendance.status === 'Alpa') {
+      return {
+        phase: 'ALPA',
+        label: 'Tidak Hadir (Alpa)',
+        badgeColor: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+        canClockIn: false,
+        canClockOut: false,
+        lateMinutes: 0
+      };
+    }
+
+    // Sudah absen masuk tapi belum absen pulang
+    if (nowMin >= earliestPulang) {
+      return {
+        phase: 'SIAP_PULANG',
+        label: 'Siap Absen Pulang',
+        badgeColor: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+        canClockIn: false,
+        canClockOut: true,
+        lateMinutes: attendance.lateMinutes || 0
+      };
+    }
+
+    return {
+      phase: 'SEDANG_BERLANGSUNG',
+      label: attendance.status === 'Terlambat' ? 'Mengajar (Terlambat)' : 'Sedang Mengajar',
+      badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: attendance.lateMinutes || 0
+    };
+  }
+
+  // 2. Belum ada record kehadiran
+  // Terlalu awal (belum masuk jendela buka absen masuk)
+  if (nowMin < earliestMasuk) {
+    return {
+      phase: 'BELUM_MULAI',
+      label: 'Belum Waktunya',
+      badgeColor: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: 0,
+      reason: `Absen masuk dibuka ${masukBukaMenit} menit sebelum jadwal.`
+    };
+  }
+
+  // Sesi sudah lewat jauh (melebihi toleransi maksimal alpa atau lewat jam selesai + 15 menit)
+  const maxLateTime = startMin + maxLateToleranceMinutes;
+  if (nowMin > maxLateTime || nowMin > endMin + 15) {
+    return {
+      phase: 'ALPA',
+      label: 'Tidak Hadir (Alpa)',
+      badgeColor: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: 0,
+      reason: 'Batas toleransi kehadiran telah berakhir.'
+    };
+  }
+
+  // Masih dalam jendela absen masuk
+  const lateMin = computeLateMinutes(currentHHmm, schedule.jamMulai, toleranceLateMinutes);
+  if (lateMin > 0) {
+    return {
+      phase: 'SEDANG_BERLANGSUNG',
+      label: `Terlambat (${lateMin} mnt)`,
+      badgeColor: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      canClockIn: true,
+      canClockOut: false,
+      lateMinutes: lateMin
+    };
+  }
+
+  // Tepat waktu / sebelum jam mulai dalam jendela buka
+  return {
+    phase: nowMin < startMin ? 'BELUM_MULAI' : 'SEDANG_BERLANGSUNG',
+    label: nowMin < startMin ? 'Siap Absen Masuk' : 'Sedang Berlangsung',
+    badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    canClockIn: true,
+    canClockOut: false,
+    lateMinutes: 0
+  };
+}
+
+

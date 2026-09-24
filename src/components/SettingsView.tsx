@@ -68,6 +68,7 @@ interface SettingsViewProps {
   kepalaPondokName?: string;
   izinKeluarApprovers?: string[];
   cutiApprovers?: string[];
+  liburPengurusApprovers?: string[];
   jenisCutiList?: { id: string; name: string; maxDays: number; }[];
   onSaveGeneralSettings?: (gen: { 
     appLogoUrl?: string,
@@ -77,6 +78,7 @@ interface SettingsViewProps {
     kepalaPondokName?: string, 
     izinKeluarApprovers?: string[],
     cutiApprovers?: string[],
+    liburPengurusApprovers?: string[],
     jenisCutiList?: { id: string; name: string; maxDays: number; }[]
   }) => void;
   onDeleteAttendanceByMonth?: (month: string) => Promise<void>;
@@ -106,6 +108,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   kepalaPondokName,
   izinKeluarApprovers = [],
   cutiApprovers = [],
+  liburPengurusApprovers = [],
   jenisCutiList = [],
   onSaveGeneralSettings,
   onDeleteAttendanceByMonth,
@@ -327,9 +330,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const toggleApprover = (type: 'izin' | 'cuti', id: string) => {
+  const toggleApprover = (type: 'izin' | 'cuti' | 'libur', id: string) => {
     if (!onSaveGeneralSettings) return;
-    const currentList = type === 'izin' ? [...izinKeluarApprovers] : [...cutiApprovers];
+    const currentList = type === 'izin' 
+      ? [...izinKeluarApprovers] 
+      : type === 'cuti' 
+      ? [...cutiApprovers] 
+      : [...liburPengurusApprovers];
     const index = currentList.indexOf(id);
     if (index > -1) {
       currentList.splice(index, 1);
@@ -343,8 +350,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     
     if (type === 'izin') {
       onSaveGeneralSettings({ izinKeluarApprovers: currentList });
-    } else {
+    } else if (type === 'cuti') {
       onSaveGeneralSettings({ cutiApprovers: currentList });
+    } else {
+      onSaveGeneralSettings({ liburPengurusApprovers: currentList });
     }
   };
 
@@ -1247,7 +1256,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
                       Pejuang Berwenang Approve Izin Keluar (Maks 20)
@@ -1281,6 +1290,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             type="checkbox"
                             checked={cutiApprovers.includes(acc.id)}
                             onChange={() => toggleApprover('cuti', acc.id)}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                          />
+                          <div className="ml-3">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{acc.name}</p>
+                            <p className="text-[10px] text-slate-500">{acc.subDivisi}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Pejuang Berwenang Approve Libur Pengurus (Maks 20)
+                    </label>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
+                      {accounts.filter(a => a.role === 'Pejuang').map(acc => (
+                        <label key={`libur-${acc.id}`} className="flex items-center p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={liburPengurusApprovers.includes(acc.id)}
+                            onChange={() => toggleApprover('libur', acc.id)}
                             className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                           />
                           <div className="ml-3">

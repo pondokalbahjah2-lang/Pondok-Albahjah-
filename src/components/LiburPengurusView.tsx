@@ -58,14 +58,9 @@ export const LiburPengurusView: React.FC<LiburPengurusViewProps> = ({
   const isAdmin = currentUser.role === 'Admin';
 
   // Check if current user is an approver for a specific record or division
-  const isApprover = (recSubDivisi?: string) => {
+  const isApprover = (_recSubDivisi?: string) => {
     if (isAdmin) return true;
-    if (liburApprovers.includes(currentUser.id) || liburApprovers.includes(currentUser.name)) return true;
-    const isLeader = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
-    if (!isLeader) return false;
-    if (!currentUser.subDivisi) return true;
-    const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi|unit)\s+/i, '').trim();
-    return norm(currentUser.subDivisi) === norm(recSubDivisi);
+    return liburApprovers.includes(currentUser.id) || liburApprovers.includes(currentUser.name);
   };
 
   // Sub-division eligibility check
