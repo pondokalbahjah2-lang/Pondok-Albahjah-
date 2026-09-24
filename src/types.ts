@@ -304,16 +304,16 @@ export interface TeachingSchedule {
   jamSelesai: string; // "09:00"
   classId: string;
   className: string;
-  mapel?: string;
+  mapel: string;
   subject?: string;
   jumlahJP: number; // e.g. 2, 3
   locationId: string;
   locationName: string;
-  isActive?: boolean;
+  isActive: boolean;
   active?: boolean;
   startDate?: string;
   endDate?: string;
-  createdAt?: string;
+  createdAt: string;
   updatedAt?: string;
 }
 
@@ -331,26 +331,22 @@ export interface TeachingAttendance {
   date: string; // YYYY-MM-DD
   pejuangId: string; // ID pejuang yang hadir (bisa substitute jika badal)
   pejuangName: string;
-  actualPejuangId?: string;
   actualPejuangName?: string;
-  scheduledPejuangId?: string; // ID pengajar sesuai jadwal asli
-  scheduledPejuangName?: string;
+  scheduledPejuangId: string; // ID pengajar sesuai jadwal asli
+  scheduledPejuangName: string;
   isBadal: boolean;
   badalSubstitutionId?: string;
   unit: string;
   classId: string;
   className: string;
-  mapel?: string;
+  mapel: string;
   subject?: string;
   jumlahJP: number;
   actualJP?: number;
-  jadwalMulai?: string;
-  jadwalSelesai?: string;
   jamMasuk?: string; // "07:32"
   jamPulang?: string; // "09:02"
   status: TeachingAttendanceStatus;
-  lateMinutes?: number; // 0 jika tepat waktu
-  durationMinutes?: number;
+  lateMinutes: number; // 0 jika tepat waktu
   masukLat?: number;
   masukLng?: number;
   masukDistanceMeters?: number;
@@ -358,8 +354,8 @@ export interface TeachingAttendance {
   pulangLng?: number;
   pulangDistanceMeters?: number;
   notes?: string;
-  source?: 'GPS' | 'Koreksi Admin' | 'Manual' | string;
-  createdAt?: string;
+  source: 'GPS';
+  createdAt: string;
   updatedAt?: string;
 }
 
@@ -372,7 +368,7 @@ export interface TeachingSubstitution {
   originalPejuangName: string;
   substitutePejuangId: string;
   substitutePejuangName: string;
-  mapel?: string;
+  mapel: string;
   subject?: string;
   className: string;
   jamMulai: string;
@@ -380,7 +376,6 @@ export interface TeachingSubstitution {
   jumlahJP: number;
   alasan: string;
   reason?: string;
-  requestedBy?: string;
   status: 'Menunggu Persetujuan' | 'Disetujui' | 'Ditolak' | 'Dibatalkan';
   approvedBy?: string;
   decidedBy?: string;
@@ -397,10 +392,6 @@ export interface TeachingSettings {
   maxLateToleranceMinutes: number; // default 60
   cutOffDay: number; // default 26 (periode cut off 26 s/d 25)
   allowedUnits: string[];
-  masukBukaMenit?: number;
-  pulangBukaMenit?: number;
-  cutoffStartDay?: number;
-  cutoffEndDay?: number;
 }
 
 export interface TeachingReportItem {

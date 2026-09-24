@@ -121,9 +121,8 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
       endDate,
       unit: selectedUnit,
       pejuangId: selectedPejuangId !== 'Semua' ? selectedPejuangId : undefined,
-      accounts,
     });
-  }, [generateTeachingReport, startDate, endDate, selectedUnit, selectedPejuangId, accounts]);
+  }, [generateTeachingReport, startDate, endDate, selectedUnit, selectedPejuangId]);
 
   // Filtered teachers list for UI
   const filteredTeacherSummaries = useMemo(() => {
