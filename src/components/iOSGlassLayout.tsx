@@ -18,6 +18,7 @@ import {
   Sparkles,
   Bell,
   BookOpen,
+  CalendarOff,
   Search,
   Plus,
   Pin,
@@ -25,8 +26,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  CheckCircle2,
-  GraduationCap
+  CheckCircle2
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { getHijriDate, formatMasehiDate } from '../utils/hijriCalendar';
@@ -45,6 +45,7 @@ interface iOSGlassLayoutProps {
   onLogout: () => void;
   leaveRequests?: any[];
   exitPermissions?: any[];
+  liburPengurusList?: any[];
   izinKeluarApprovers?: string[];
   cutiApprovers?: string[];
   children: React.ReactNode;
@@ -62,6 +63,7 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
   onLogout,
   leaveRequests = [],
   exitPermissions = [],
+  liburPengurusList = [],
   izinKeluarApprovers = [],
   cutiApprovers = [],
   children,
@@ -152,15 +154,14 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
 
   const pendingCutiCount = (Array.isArray(leaveRequests) ? leaveRequests : []).filter(l => l && l.status === 'Menunggu Persetujuan' && (isCutiApprover(l.subDivisi, l.pejuangId) || l.pejuangId === currentUser?.id)).length;
   const pendingIzinCount = (Array.isArray(exitPermissions) ? exitPermissions : []).filter(e => e && e.status === 'Menunggu Persetujuan' && (isIzinApprover(e.subDivisi, e.pejuangId) || e.pejuangId === currentUser?.id)).length;
+  const pendingLiburCount = (Array.isArray(liburPengurusList) ? liburPengurusList : []).filter(l => l && l.status === 'Menunggu Persetujuan' && (currentUser?.role === 'Admin' || l.pejuangId === currentUser?.id || l.badalId === currentUser?.id)).length;
 
   const adminNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'kelola-mengajar', label: 'Kelola Mengajar', icon: GraduationCap },
-    { id: 'laporan-mengajar', label: 'Rekap JP Mengajar', icon: FileSpreadsheet },
-    { id: 'absen-mengajar', label: 'Presensi Mengajar', icon: GraduationCap },
     { id: 'izin', label: 'Izin Keluar', icon: CalendarCheck, badge: pendingIzinCount },
     { id: 'absensi', label: 'Absensi GPS', icon: MapPin },
     { id: 'cuti', label: 'Pengajuan Cuti', icon: Calendar, badge: pendingCutiCount },
+    { id: 'libur', label: 'Izin Libur Pengurus', icon: CalendarOff, badge: pendingLiburCount },
     { id: 'ubar', label: 'Slip Ubar', icon: FileText },
     { id: 'sp', label: 'Surat SP & Teguran', icon: AlertOctagon },
     { id: 'kalender', label: 'Kalender Cuti', icon: FileSpreadsheet },
@@ -172,15 +173,10 @@ export const IOSGlassLayout: React.FC<iOSGlassLayoutProps> = ({
   const pendingIzinCountUser = pendingIzinCount;
   const userNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ...(currentUser.isPengajar
-      ? [
-          { id: 'absen-mengajar', label: 'Absen Mengajar', icon: GraduationCap },
-          { id: 'laporan-mengajar', label: 'Rekap JP Saya', icon: FileSpreadsheet },
-        ]
-      : []),
     { id: 'absensi', label: 'Absensi GPS', icon: MapPin },
     { id: 'izin', label: 'Izin Keluar', icon: CalendarCheck, badge: pendingIzinCountUser },
     { id: 'cuti', label: 'Pengajuan Cuti', icon: Calendar, badge: pendingCutiCount },
+    { id: 'libur', label: 'Izin Libur Pengurus', icon: CalendarOff, badge: pendingLiburCount },
     { id: 'ubar', label: 'Slip Ubar', icon: FileText },
     { id: 'sp', label: 'Surat SP & Teguran', icon: AlertOctagon },
     { id: 'kalender', label: 'Kalender Cuti', icon: FileSpreadsheet },

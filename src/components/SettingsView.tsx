@@ -45,6 +45,8 @@ import {
 } from '../utils/vibration';
 import { secondaryAuth, auth } from '../utils/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { DivisiRecord } from '../types';
+import { DivisiManagement } from './DivisiManagement';
 
 interface SettingsViewProps {
   currentUser: UserAccount;
@@ -53,6 +55,8 @@ interface SettingsViewProps {
   schedules: WorkSchedule[];
     manhajiyyahClauses: ManhajiyyahClause[];
   attendance?: AttendanceRecord[];
+  divisions?: DivisiRecord[];
+  onSaveDivisions?: (divisions: DivisiRecord[]) => void;
   onSaveLocationSettings: (settings: LocationSettings) => void;
   onSaveSchedules: (schedules: WorkSchedule[]) => void;
   onSaveAccounts: (accounts: UserAccount[]) => void;
@@ -64,6 +68,7 @@ interface SettingsViewProps {
   kepalaPondokName?: string;
   izinKeluarApprovers?: string[];
   cutiApprovers?: string[];
+  liburPengurusApprovers?: string[];
   jenisCutiList?: { id: string; name: string; maxDays: number; }[];
   onSaveGeneralSettings?: (gen: { 
     appLogoUrl?: string,
@@ -73,6 +78,7 @@ interface SettingsViewProps {
     kepalaPondokName?: string, 
     izinKeluarApprovers?: string[],
     cutiApprovers?: string[],
+    liburPengurusApprovers?: string[],
     jenisCutiList?: { id: string; name: string; maxDays: number; }[]
   }) => void;
   onDeleteAttendanceByMonth?: (month: string) => Promise<void>;
@@ -89,6 +95,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   schedules,
     manhajiyyahClauses,
   attendance = [],
+  divisions = [],
+  onSaveDivisions,
   onSaveLocationSettings,
   onSaveSchedules,
   onSaveAccounts,
@@ -100,6 +108,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   kepalaPondokName,
   izinKeluarApprovers = [],
   cutiApprovers = [],
+  liburPengurusApprovers = [],
   jenisCutiList = [],
   onSaveGeneralSettings,
   onDeleteAttendanceByMonth,
@@ -119,7 +128,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [manCategory, setManCategory] = useState('');
   const [manContent, setManContent] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'profil' | 'lokasi' | 'jadwal' | 'pejuang' | 'manhajiah' | 'backup'>(isAdmin ? 'lokasi' : 'profil');
+  const [activeTab, setActiveTab] = useState<'profil' | 'lokasi' | 'divisi' | 'jadwal' | 'pejuang' | 'manhajiah' | 'backup'>(isAdmin ? 'lokasi' : 'profil');
   const [showEditAbsensi, setShowEditAbsensi] = useState(false);
 
   // Profile settings states & Logo upload
@@ -321,9 +330,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
-  const toggleApprover = (type: 'izin' | 'cuti', id: string) => {
+  const toggleApprover = (type: 'izin' | 'cuti' | 'libur', id: string) => {
     if (!onSaveGeneralSettings) return;
-    const currentList = type === 'izin' ? [...izinKeluarApprovers] : [...cutiApprovers];
+    const currentList = type === 'izin' 
+      ? [...izinKeluarApprovers] 
+      : type === 'cuti' 
+      ? [...cutiApprovers] 
+      : [...liburPengurusApprovers];
     const index = currentList.indexOf(id);
     if (index > -1) {
       currentList.splice(index, 1);
@@ -337,8 +350,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     
     if (type === 'izin') {
       onSaveGeneralSettings({ izinKeluarApprovers: currentList });
-    } else {
+    } else if (type === 'cuti') {
       onSaveGeneralSettings({ cutiApprovers: currentList });
+    } else {
+      onSaveGeneralSettings({ liburPengurusApprovers: currentList });
     }
   };
 
@@ -388,15 +403,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newRole, setNewRole] = useState<'Admin' | 'Pejuang'>('Pejuang');
   const [newSubDivisi, setNewSubDivisi] = useState('SMPIQu');
   const [newAmanah, setNewAmanah] = useState('Musyrif SMPIQu');
+  const [newIsPengajar, setNewIsPengajar] = useState(false);
+  const [newBankName, setNewBankName] = useState('');
+  const [newNomorRekening, setNewNomorRekening] = useState('');
+  const [newNamaRekening, setNewNamaRekening] = useState('');
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newNipy, setNewNipy] = useState('');
   const [newSuratKeputusanUrl, setNewSuratKeputusanUrl] = useState('');
   const [newPkwtStart, setNewPkwtStart] = useState('');
   const [newPkwtEnd, setNewPkwtEnd] = useState('');
-  const [newIsPengajar, setNewIsPengajar] = useState(false);
-  const [newNamaBank, setNewNamaBank] = useState('');
-  const [newNoRekening, setNewNoRekening] = useState('');
   const [pejuangSearchQuery, setPejuangSearchQuery] = useState('');
   const [pejuangCurrentPage, setPejuangCurrentPage] = useState(1);
   const pejuangItemsPerPage = 10;
@@ -417,19 +433,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   const [schTargetType, setSchTargetType] = useState<'Divisi' | 'Individu' | 'Group'>('Divisi');
   const [schTargetName, setSchTargetName] = useState('');
-  const [schSelectedDivisi, setSchSelectedDivisi] = useState('');
+  const [schSelectedDivisi, setSchSelectedDivisi] = useState('Semua Divisi');
+  const [customDivisiInput, setCustomDivisiInput] = useState('');
   const [schJamMasuk, setSchJamMasuk] = useState('04:30');
   const [schJamPulang, setSchJamPulang] = useState('16:00');
+  const [schIsNightShift, setSchIsNightShift] = useState(false);
   const [schHariKerja, setSchHariKerja] = useState<string[]>(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
   const [schPejuangIds, setSchPejuangIds] = useState<string[]>([]);
   const [schDivisiIds, setSchDivisiIds] = useState<string[]>([]);
   const [editScheduleId, setEditScheduleId] = useState('');
-  const [customJamKerja, setCustomJamKerja] = useState<Record<string, { masuk: string, pulang: string }>>({});
+  const [customJamKerja, setCustomJamKerja] = useState<Record<string, { masuk: string, pulang: string; isNightShift?: boolean }>>({});
   const [schTanggalLibur, setSchTanggalLibur] = useState<string[]>([]);
+  const [deleteConfirmSchedule, setDeleteConfirmSchedule] = useState<WorkSchedule | null>(null);
 
   const allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
-  const uniqueDivisions = Array.from(new Set(accounts.map(a => a.subDivisi))).filter(Boolean);
-
+  const defaultDivisions = [
+    'SDIQu',
+    'SMPIQu',
+    'SMAIQu',
+    'Divisi Kepondokan Banat',
+    'Manajemen Kepondokan',
+    'Pengasuhan Putri',
+    'Pengasuhan Putra',
+    'Media & IT',
+    'Sarpras & Logistik',
+    'Keuangan & BMT',
+    'Dapur & Konsumsi',
+    'Klinik & Kesehatan',
+  ];
+  const divisionNamesFromRecords = (divisions || []).map(d => d.namaDivisi).filter(Boolean);
+  const dynamicDivisions = Array.from(new Set([
+    ...divisionNamesFromRecords,
+    ...defaultDivisions,
+    ...accounts.map(a => a.subDivisi).filter(Boolean)
+  ])).sort();
+  const uniqueDivisions = dynamicDivisions;
 
   const handleSaveManhajiyyah = (e: React.FormEvent) => {
     e.preventDefault();
@@ -480,8 +518,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setSchPejuangIds(sch.pejuangIds || []);
     setSchDivisiIds(sch.divisiIds || []);
     setSchTargetName(sch.targetName);
-    setSchJamMasuk(sch.jamMasuk);
-    setSchJamPulang(sch.jamPulang);
+
+    if (sch.targetType === 'Divisi') {
+      const isKnown = dynamicDivisions.includes(sch.targetName) || sch.targetName === 'Semua Divisi';
+      if (isKnown) {
+        setSchSelectedDivisi(sch.targetName);
+        setCustomDivisiInput('');
+      } else {
+        setSchSelectedDivisi('__custom__');
+        setCustomDivisiInput(sch.targetName);
+      }
+    } else {
+      setSchSelectedDivisi('Semua Divisi');
+      setCustomDivisiInput('');
+    }
+
+    setSchJamMasuk(sch.jamMasuk || '04:30');
+    setSchJamPulang(sch.jamPulang || '16:00');
+    setSchIsNightShift(Boolean(sch.isNightShift));
     setSchHariKerja((sch.hariKerja || []).map(h => (h === 'Minggu' ? 'Ahad' : h)));
     setCustomJamKerja(sch.customJamKerja || {});
     setSchTanggalLibur(sch.tanggalLibur || []);
@@ -490,14 +544,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleAddSchedule = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalTargetName = schTargetType === 'Divisi' ? (schSelectedDivisi || schTargetName || 'Semua Divisi') : schTargetName;
+    let finalTargetName = schTargetName;
+    if (schTargetType === 'Divisi') {
+      if (schSelectedDivisi === '__custom__') {
+        finalTargetName = customDivisiInput.trim();
+      } else {
+        finalTargetName = schSelectedDivisi;
+      }
+    }
+
     if (!finalTargetName) {
       alert('Mohon pilih atau isi Divisi / Nama Pejuang target.');
       return;
     }
+
+    if (schHariKerja.length === 0) {
+      alert('Mohon pilih minimal satu hari kerja aktif.');
+      return;
+    }
+
+    // Validation: jam pulang vs jam masuk
+    const [masukH, masukM] = schJamMasuk.split(':').map(Number);
+    const [pulangH, pulangM] = schJamPulang.split(':').map(Number);
+    const masukMins = (masukH || 0) * 60 + (masukM || 0);
+    const pulangMins = (pulangH || 0) * 60 + (pulangM || 0);
+
+    if (pulangMins <= masukMins && !schIsNightShift) {
+      alert('Validasi Gagal: Jam Pulang tidak boleh lebih awal atau sama dengan Jam Masuk, kecuali jika Anda mencentang opsi "Shift Malam / Lintas Hari".');
+      return;
+    }
+
+    // Conflict prevention: prevent two active schedules for the same division/target overlapping on the same days
+    const norm = (s: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
+    const conflict = schedules.find(s => {
+      if (s.id === editScheduleId) return false;
+      if (s.targetType !== schTargetType) return false;
+
+      const isSameTarget = norm(s.targetName) === norm(finalTargetName) ||
+        (schTargetType === 'Divisi' && norm(s.targetId) === norm(finalTargetName));
+
+      if (!isSameTarget) return false;
+
+      const sDays = (s.hariKerja || []).map(h => h === 'Minggu' ? 'Ahad' : h);
+      const overlapping = schHariKerja.filter(h => sDays.includes(h));
+      return overlapping.length > 0;
+    });
+
+    if (conflict) {
+      const conflictDays = (conflict.hariKerja || []).filter(h => schHariKerja.includes(h));
+      alert(`Bentrok Jadwal Terdeteksi!\n\nDivisi/Target "${conflict.targetName}" sudah memiliki jadwal aktif (${conflict.jamMasuk} - ${conflict.jamPulang}) pada hari: ${conflictDays.join(', ')}.\n\nSilakan edit jadwal tersebut atau sesuaikan hari kerja.`);
+      return;
+    }
+
     const targetPejuang = schTargetType === 'Individu' ? accounts.find(a => a.name === finalTargetName) : undefined;
-    
-    
+
     const newSchedule: WorkSchedule = {
       id: editScheduleId || `sch-${Date.now()}`,
       targetType: schTargetType,
@@ -506,6 +606,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       jamMasuk: schJamMasuk,
       jamPulang: schJamPulang,
       hariKerja: schHariKerja,
+      isNightShift: schIsNightShift,
       customJamKerja,
       tanggalLibur: schTanggalLibur,
       pejuangIds: schTargetType === 'Group' ? schPejuangIds : undefined,
@@ -520,13 +621,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setShowAddScheduleModal(false);
     setEditScheduleId('');
     setSchTanggalLibur([]);
-    alert(`Jadwal kerja untuk ${finalTargetName} berhasil ditambahkan dan disimpan!`);
+    alert(`Jadwal kerja untuk ${finalTargetName} berhasil disimpan!`);
   };
 
   const handleDeleteSchedule = (id: string) => {
-    if (confirm('Hapus jadwal ini?')) {
-      onSaveSchedules(schedules.filter(s => s.id !== id));
-    }
+    const schToDelete = schedules.find(s => s.id === id);
+    if (!schToDelete) return;
+    setDeleteConfirmSchedule(schToDelete);
+  };
+
+  const confirmDeleteSchedule = () => {
+    if (!deleteConfirmSchedule) return;
+    onSaveSchedules(schedules.filter(s => s.id !== deleteConfirmSchedule.id));
+    setDeleteConfirmSchedule(null);
   };
 
   // Add new Pejuang Account
@@ -552,12 +659,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           subDivisi: newSubDivisi,
           amanah: newAmanah,
           nipy: newNipy,
-          suratKeputusanUrl: newSuratKeputusanUrl,
-          pkwtStart: newPkwtStart,
-          pkwtEnd: newPkwtEnd,
           isPengajar: newIsPengajar,
-          namaBank: newNamaBank.trim() || undefined,
-          noRekening: newNoRekening.trim() || undefined,
+          bankName: newBankName.trim(),
+          nomorRekening: newNomorRekening.trim(),
+          namaRekening: newNamaRekening.trim(),
+          suratKeputusanUrl: newSuratKeputusanUrl,
+      pkwtStart: newPkwtStart,
+      pkwtEnd: newPkwtEnd,
           email: email
         };
       }
@@ -608,8 +716,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       subDivisi: newSubDivisi,
       amanah: newAmanah,
       isPengajar: newIsPengajar,
-      namaBank: newNamaBank.trim() || undefined,
-      noRekening: newNoRekening.trim() || undefined,
+      bankName: newBankName.trim(),
+      nomorRekening: newNomorRekening.trim(),
+      namaRekening: newNamaRekening.trim(),
       email: email,
     };
 
@@ -620,8 +729,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setNewPassword('User123');
     setNewName('');
     setNewIsPengajar(false);
-    setNewNamaBank('');
-    setNewNoRekening('');
+    setNewBankName('');
+    setNewNomorRekening('');
+    setNewNamaRekening('');
     alert(`Data Pejuang ${newName} (${newRole}) berhasil ditambahkan dan disimpan ke Firestore!`);
   };
 
@@ -731,6 +841,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }`}
               >
                 Lokasi GPS
+              </button>
+              <button
+                onClick={() => setActiveTab('divisi')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === 'divisi'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-emerald-600'
+                }`}
+              >
+                Divisi
               </button>
               <button
                 onClick={() => setActiveTab('jadwal')}
@@ -1136,7 +1256,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
                       Pejuang Berwenang Approve Izin Keluar (Maks 20)
@@ -1170,6 +1290,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             type="checkbox"
                             checked={cutiApprovers.includes(acc.id)}
                             onChange={() => toggleApprover('cuti', acc.id)}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                          />
+                          <div className="ml-3">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{acc.name}</p>
+                            <p className="text-[10px] text-slate-500">{acc.subDivisi}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Pejuang Berwenang Approve Libur Pengurus (Maks 20)
+                    </label>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
+                      {accounts.filter(a => a.role === 'Pejuang').map(acc => (
+                        <label key={`libur-${acc.id}`} className="flex items-center p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                          <input 
+                            type="checkbox"
+                            checked={liburPengurusApprovers.includes(acc.id)}
+                            onChange={() => toggleApprover('libur', acc.id)}
                             className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                           />
                           <div className="ml-3">
@@ -1522,6 +1664,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
+      {/* Tab Content: Kelola Divisi */}
+      {activeTab === 'divisi' && (
+        <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
+          <DivisiManagement
+            currentUser={currentUser}
+            divisions={divisions}
+            accounts={accounts}
+            schedules={schedules}
+            onSaveDivisions={onSaveDivisions || (() => {})}
+            onSaveAccounts={onSaveAccounts}
+            onSaveSchedules={onSaveSchedules}
+          />
+        </div>
+      )}
+
       {/* Tab Content 2: Jam Kerja Divisi */}
       {activeTab === 'jadwal' && (
         <div className="p-6 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl space-y-4">
@@ -1534,9 +1691,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onClick={() => {
                 setEditScheduleId('');
                 setSchTargetType('Divisi');
-                setSchTargetName('');
+                setSchTargetName('Semua Divisi');
+                setSchSelectedDivisi('Semua Divisi');
+                setCustomDivisiInput('');
                 setSchJamMasuk('04:30');
                 setSchJamPulang('16:00');
+                setSchIsNightShift(false);
                 setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']);
                 setSchPejuangIds([]);
                 setSchDivisiIds([]);
@@ -1555,39 +1715,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {schedules.map((sch) => (
               <div
                 key={sch.id}
-                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3 relative"
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3 relative hover:border-emerald-400/50 transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-xs text-emerald-700 dark:text-emerald-300 pr-8">
-                    {sch.targetName}
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 font-bold">
+                  <div className="flex items-center space-x-2 pr-16">
+                    <span className="font-extrabold text-xs text-emerald-700 dark:text-emerald-300">
+                      {sch.targetName}
+                    </span>
+                    {sch.isNightShift && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold flex items-center space-x-1">
+                        <span>🌙 Shift Malam</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 font-bold">
                     {sch.targetType}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleDeleteSchedule(sch.id)}
-                  className="absolute top-3 right-3 p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 transition-colors"
-                  title="Hapus jadwal"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+
+                <div className="absolute top-3 right-3 flex items-center space-x-1">
+                  <button
+                    onClick={() => handleEditSchedule(sch)}
+                    className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
+                    title="Edit Jadwal"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSchedule(sch.id)}
+                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition-colors"
+                    title="Hapus Jadwal"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-slate-400 text-[10px] block">Jam Masuk (Subuh)</span>
+                    <span className="text-slate-400 text-[10px] block">Jam Masuk</span>
                     <strong className="text-slate-800 dark:text-slate-100">{sch.jamMasuk} WIB</strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[10px] block">Jam Pulang / Selesai</span>
+                    <span className="text-slate-400 text-[10px] block">Jam Pulang</span>
                     <strong className="text-slate-800 dark:text-slate-100">{sch.jamPulang} WIB</strong>
                   </div>
                 </div>
 
                 <div>
-                  <span className="text-slate-400 text-[10px] block">Hari Kerja:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {sch.hariKerja.map((h) => {
+                  <span className="text-slate-400 text-[10px] block mb-1">Hari Kerja ({sch.hariKerja?.length || 0} Hari):</span>
+                  <div className="flex flex-wrap gap-1">
+                    {(sch.hariKerja || []).map((h) => {
                       const displayHari = h === 'Minggu' ? 'Ahad' : h;
                       return (
                         <span
@@ -1600,6 +1777,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     })}
                   </div>
                 </div>
+
+                {sch.customJamKerja && Object.keys(sch.customJamKerja).length > 0 && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-500">
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">Jam Khusus: </span>
+                    {Object.entries(sch.customJamKerja).map(([day, val]) => (
+                      <span key={day} className="inline-block mr-2 text-[10px] bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-200/50">
+                        {day}: {val.masuk}-{val.pulang}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1634,16 +1822,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </motion.div>
               <button
-                onClick={() => {
-                  setNewUsername('');
-                  setNewEmail('');
-                  setNewPassword('User123');
-                  setNewName('');
-                  setNewIsPengajar(false);
-                  setNewNamaBank('');
-                  setNewNoRekening('');
-                  setShowAddUserModal(true);
-                }}
+                onClick={() => setShowAddUserModal(true)}
                 className="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5 whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
@@ -1672,14 +1851,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   .map((acc) => (
                   <tr key={acc.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                     <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-100">
-                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
-                        <span>{acc.name}</span>
-                        {acc.isPengajar && (
-                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-extrabold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/40">
-                            Pengajar
-                          </span>
-                        )}
-                      </div>
+                      {acc.name}
                     </td>
                     <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
                       {acc.username}
@@ -1719,9 +1891,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           setNewSuratKeputusanUrl(acc.suratKeputusanUrl || '');
                           setNewPkwtStart(acc.pkwtStart || '');
                           setNewPkwtEnd(acc.pkwtEnd || '');
-                          setNewIsPengajar(!!acc.isPengajar);
-                          setNewNamaBank(acc.namaBank || '');
-                          setNewNoRekening(acc.noRekening || '');
                           setShowEditUserModal(true);
                         }}
                         className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 mr-2"
@@ -1948,46 +2117,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </div>
 
-              {/* Status Pengajar & Rekening */}
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-xs font-bold text-emerald-900 dark:text-emerald-200">Status Pengajar</label>
-                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Aktifkan jika pejuang ini mengampu jam pelajaran dan berhak mengakses menu Absen Mengajar</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={newIsPengajar}
-                    onChange={(e) => setNewIsPengajar(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-300"
-                  />
-                </div>
-                {newIsPengajar && (
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Bank</label>
-                      <input
-                        type="text"
-                        value={newNamaBank}
-                        onChange={(e) => setNewNamaBank(e.target.value)}
-                        placeholder="BSI / BCA / Mandiri"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nomor Rekening</label>
-                      <input
-                        type="text"
-                        value={newNoRekening}
-                        onChange={(e) => setNewNoRekening(e.target.value)}
-                        placeholder="No. Rekening Pejuang"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
@@ -2113,46 +2242,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
               </div>
 
-              {/* Status Pengajar & Rekening */}
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-xs font-bold text-emerald-900 dark:text-emerald-200">Status Pengajar</label>
-                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Aktifkan jika pejuang ini mengampu jam pelajaran dan berhak mengakses menu Absen Mengajar</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={newIsPengajar}
-                    onChange={(e) => setNewIsPengajar(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-300"
-                  />
-                </div>
-                {newIsPengajar && (
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Bank</label>
-                      <input
-                        type="text"
-                        value={newNamaBank}
-                        onChange={(e) => setNewNamaBank(e.target.value)}
-                        placeholder="BSI / BCA / Mandiri"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Nomor Rekening</label>
-                      <input
-                        type="text"
-                        value={newNoRekening}
-                        onChange={(e) => setNewNoRekening(e.target.value)}
-                        placeholder="No. Rekening Pejuang"
-                        className="w-full p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
@@ -2233,7 +2322,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Modal Tambah Jadwal Kerja */}
+      {/* Modal Tambah/Edit Jadwal Kerja */}
       {showAddScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
           <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.6 }}
@@ -2241,7 +2330,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center space-x-2">
                 <Clock className="w-4 h-4 text-emerald-600" />
-                <span>Tambah Jadwal & Jam Kerja Baru</span>
+                <span>{editScheduleId ? 'Edit Jadwal & Jam Kerja' : 'Tambah Jadwal & Jam Kerja Baru'}</span>
               </h3>
               <button
                 type="button"
@@ -2253,12 +2342,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <form onSubmit={handleAddSchedule} className="space-y-4 my-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Target Jadwal</label>
                   <select
                     value={schTargetType}
-                    onChange={(e) => setSchTargetType(e.target.value as 'Divisi' | 'Individu')}
+                    onChange={(e) => {
+                      const newType = e.target.value as 'Divisi' | 'Individu' | 'Group';
+                      setSchTargetType(newType);
+                      if (newType === 'Divisi') {
+                        setSchSelectedDivisi('Semua Divisi');
+                        setSchTargetName('Semua Divisi');
+                      } else if (newType === 'Individu') {
+                        setSchTargetName(accounts[0]?.name || '');
+                      } else {
+                        setSchTargetName('');
+                      }
+                    }}
                     className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                   >
                     <option value="Divisi">Berdasarkan Divisi</option>
@@ -2266,17 +2366,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <option value="Group">Group (Beberapa Pejuang/Divisi)</option>
                   </select>
                 </div>
+
                 <div>
-                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                    {schTargetType === 'Divisi' ? 'Pilih / Nama Divisi' : schTargetType === 'Group' ? 'Nama Group' : 'Pilih Nama Pejuang'}
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    {schTargetType === 'Divisi' ? 'Pilih Divisi' : schTargetType === 'Group' ? 'Nama Group' : 'Pilih Nama Pejuang'}
                   </label>
-                  {schTargetType === 'Divisi' || schTargetType === 'Group' ? (
+                  {schTargetType === 'Divisi' ? (
+                    <div className="space-y-2">
+                      <select
+                        value={schSelectedDivisi}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSchSelectedDivisi(val);
+                          if (val !== '__custom__') {
+                            setSchTargetName(val);
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                      >
+                        <option value="Semua Divisi">Semua Divisi (Umum)</option>
+                        {dynamicDivisions.map(div => (
+                          <option key={div} value={div}>{div}</option>
+                        ))}
+                        <option value="__custom__">+ Input Divisi Baru / Custom...</option>
+                      </select>
+                      {schSelectedDivisi === '__custom__' && (
+                        <input
+                          type="text"
+                          required
+                          value={customDivisiInput}
+                          onChange={(e) => {
+                            setCustomDivisiInput(e.target.value);
+                            setSchTargetName(e.target.value);
+                          }}
+                          placeholder="Ketik nama divisi baru..."
+                          className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-emerald-500/50 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
+                        />
+                      )}
+                    </div>
+                  ) : schTargetType === 'Group' ? (
                     <input
                       type="text"
                       required
                       value={schTargetName}
                       onChange={(e) => setSchTargetName(e.target.value)}
-                      placeholder={schTargetType === 'Group' ? 'Contoh: Tim Proyek A' : 'Contoh: Media / Keuangan / Dapur'}
+                      placeholder="Contoh: Tim Proyek Khusus"
                       className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-white focus:border-emerald-500 outline-none"
                     />
                   ) : (
@@ -2318,7 +2452,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Divisi (Opsional)</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Pilih Divisi Terkait (Opsional)</label>
                     <div className="max-h-32 overflow-y-auto space-y-1 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 custom-scrollbar">
                       {uniqueDivisions.map(div => (
                         <label key={div} className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-200 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded cursor-pointer">
@@ -2339,10 +2473,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 </div>
               )}
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Jam Masuk (Subuh/Pagi)</label>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Jam Masuk</label>
                   <input
                     type="time"
                     required
@@ -2362,9 +2496,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   />
                 </div>
               </div>
-              
+
+              {/* Checkbox Shift Malam / Lintas Hari */}
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-start space-x-2.5">
+                <input
+                  type="checkbox"
+                  id="schIsNightShift"
+                  checked={schIsNightShift}
+                  onChange={(e) => setSchIsNightShift(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                />
+                <label htmlFor="schIsNightShift" className="text-xs text-slate-700 dark:text-slate-200 cursor-pointer leading-snug">
+                  <span className="font-bold block text-slate-800 dark:text-white">🌙 Shift Malam / Lintas Hari</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Centang jika jam kerja dimulai pada malam hari dan jam pulang berada di keesokan hari (melewati pukul 00:00).</span>
+                </label>
+              </div>
+
+              {/* Hari Kerja Aktif dengan Quick Presets */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Hari Kerja Aktif</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Hari Kerja Aktif ({schHariKerja.length} hari)
+                  </label>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      type="button"
+                      onClick={() => setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'])}
+                      className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-200 transition-colors"
+                    >
+                      7 Hari
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'])}
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-300 transition-colors"
+                    >
+                      Sen-Sab
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSchHariKerja(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'])}
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-300 transition-colors"
+                    >
+                      Sen-Jum
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSchHariKerja([])}
+                      className="text-[10px] px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 font-bold hover:bg-rose-200 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'].map((hari) => {
                     const isSelected = schHariKerja.includes(hari);
@@ -2385,7 +2569,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   })}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Custom Jam Kerja Per Hari (Opsional)</label>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
@@ -2458,10 +2642,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   type="submit"
                   className="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all"
                 >
-                  Simpan Jadwal
+                  {editScheduleId ? 'Simpan Perubahan' : 'Simpan Jadwal'}
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Jadwal */}
+      {deleteConfirmSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 border border-rose-500/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-slate-800 dark:text-slate-100">
+            <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center space-x-2 mb-2">
+              <Trash2 className="w-4 h-4 text-rose-500" />
+              <span>Konfirmasi Hapus Jadwal</span>
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+              Apakah Anda yakin ingin menghapus jadwal kerja untuk <strong>{deleteConfirmSchedule.targetName}</strong> ({deleteConfirmSchedule.jamMasuk} - {deleteConfirmSchedule.jamPulang} WIB)?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmSchedule(null)}
+                className="py-2 px-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteSchedule}
+                className="py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition-all"
+              >
+                Hapus Jadwal
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
@@ -2644,7 +2859,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="pt-4 border-t border-rose-200 dark:border-rose-900/50">
                 <h4 className="text-sm font-bold text-rose-800 dark:text-rose-200 mb-2">Optimalisasi Database</h4>
                 <p className="text-xs text-rose-600/80 dark:text-rose-300/70 mb-4">
-                  Bersihkan data 'auditLogs' dan data residu lainnya (Absensi, Izin, Cuti, Slip Ubar) yang usianya lebih dari 3 bulan untuk menjaga performa sistem.
+                  Bersihkan data 'auditLogs' dan data operasional reguler (Absensi Harian, Izin Keluar, Cuti, Slip Ubar) yang usianya lebih dari 3 bulan untuk menjaga performa sistem. <strong>Catatan: Data Mengajar, Jadwal, dan JP tersimpan permanen dan TIDAK AKAN dihapus.</strong>
                 </p>
                 <button
                   type="button"

@@ -178,8 +178,11 @@ export const AbsenMengajarView: React.FC<AbsenMengajarViewProps> = ({
 
     // 1. Direct schedules matching today's day of week
     schedules.forEach((sch) => {
-      if (!sch.active) return;
-      if (sch.hari !== namaHariToday) return;
+      if (!sch.active && !sch.isActive) return;
+      const isHariMatch = Array.isArray(sch.hari)
+        ? sch.hari.includes(namaHariToday)
+        : (sch.hari as unknown as string) === namaHariToday;
+      if (!isHariMatch) return;
 
       // Check effective dates if specified
       if (sch.startDate && todayStr < sch.startDate) return;
@@ -216,6 +219,7 @@ export const AbsenMengajarView: React.FC<AbsenMengajarViewProps> = ({
           sch,
           todayStr,
           currentHHmm,
+          currentUser.id,
           att,
           sub,
           teachingSettings
@@ -284,12 +288,14 @@ export const AbsenMengajarView: React.FC<AbsenMengajarViewProps> = ({
       await submitAbsenMasuk({
         schedule: item.schedule,
         date: todayStr,
+        actualTeacher: currentUser,
+        isBadal: Boolean(item.isSubstituteRole),
+        substitutionId: item.substitution?.id,
         lat: currentLat,
         lng: currentLng,
         accuracy: currentAccuracy || 10,
         distanceMeters: dist,
         isWithinRadius: within,
-        substitution: item.substitution,
         notes: notesInput[item.schedule.id] || '',
       });
 

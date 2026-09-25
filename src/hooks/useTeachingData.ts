@@ -22,11 +22,13 @@ import {
   TeachingAttendance,
   TeachingSubstitution,
   TeachingSubstitutionStatus,
+  TeachingReportSummary,
 } from '../types';
 import {
   DEFAULT_TEACHING_SETTINGS,
   getNamaHariFromDate,
   parseHHmmToMinutes,
+  generateTeachingReport as generateTeachingReportHelper,
 } from '../utils/teachingUtils';
 
 export function useTeachingData(currentUser: UserAccount | null) {
@@ -305,7 +307,7 @@ export function useTeachingData(currentUser: UserAccount | null) {
   };
 
   // Save Settings
-  const saveTeachingSettings = async (settings: TeachingSettings) => {
+  const saveTeachingSettings = async (settings: Partial<TeachingSettings>) => {
     try {
       await setDoc(doc(db, 'settings', 'teaching'), settings, { merge: true });
       await logAuditAction('UPDATE_TEACHING_SETTINGS', 'Memperbarui pengaturan absensi mengajar');
@@ -606,6 +608,29 @@ export function useTeachingData(currentUser: UserAccount | null) {
     }
   };
 
+  const generateTeachingReport = useCallback(
+    (params: {
+      startDate: string;
+      endDate: string;
+      unit?: string;
+      pejuangId?: string;
+      accounts?: UserAccount[];
+    }): TeachingReportSummary => {
+      return generateTeachingReportHelper({
+        startDate: params.startDate,
+        endDate: params.endDate,
+        unit: params.unit,
+        pejuangId: params.pejuangId,
+        accounts: params.accounts || [],
+        schedules,
+        attendances,
+        substitutions,
+        teachingSettings,
+      });
+    },
+    [schedules, attendances, substitutions, teachingSettings]
+  );
+
   return {
     locations,
     classes,
@@ -633,5 +658,6 @@ export function useTeachingData(currentUser: UserAccount | null) {
     requestSubstitution,
     respondSubstitution,
     cancelSubstitution,
+    generateTeachingReport,
   };
 }

@@ -68,6 +68,7 @@ export const HAPTIC_PATTERNS = {
    * Light Tap for interactive UI elements:
    */
   LIGHT_TAP: [40],
+  LIGHT: [40],
 };
 
 const VIBRATION_STORAGE_KEY = 'albahjah_vibration_enabled';

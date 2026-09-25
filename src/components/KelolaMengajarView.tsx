@@ -116,13 +116,26 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
   // Today's Live Sessions
   const todayLiveSessions = useMemo(() => {
     return schedules
-      .filter((s) => s.active && s.hari === namaHariToday)
+      .filter((s) => {
+        if (!s.active && !s.isActive) return false;
+        return Array.isArray(s.hari)
+          ? s.hari.includes(namaHariToday)
+          : (s.hari as unknown as string) === namaHariToday;
+      })
       .map((s) => {
         const att = attendances.find((a) => a.scheduleId === s.id && a.date === todayStr);
         const sub = substitutions.find(
           (sub) => sub.scheduleId === s.id && sub.date === todayStr && sub.status !== 'Dibatalkan'
         );
-        const evaluation = evaluateSessionStatus(s, todayStr, currentHHmm, att, sub, teachingSettings);
+        const evaluation = evaluateSessionStatus(
+          s,
+          todayStr,
+          currentHHmm,
+          currentUser.id,
+          att,
+          sub,
+          teachingSettings
+        );
         return {
           schedule: s,
           attendance: att,
@@ -131,7 +144,7 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
         };
       })
       .sort((a, b) => a.schedule.jamMulai.localeCompare(b.schedule.jamMulai));
-  }, [schedules, namaHariToday, attendances, todayStr, substitutions, currentHHmm, teachingSettings]);
+  }, [schedules, namaHariToday, attendances, todayStr, substitutions, currentHHmm, currentUser.id, teachingSettings]);
 
   // Stats for Today Monitoring
   const todayStats = useMemo(() => {
@@ -151,7 +164,9 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
   const filteredSchedules = useMemo(() => {
     return schedules.filter((s) => {
       const matchUnit = filterUnit === 'Semua' || s.unit === filterUnit;
-      const matchHari = filterHari === 'Semua' || s.hari === filterHari;
+      const matchHari =
+        filterHari === 'Semua' ||
+        (Array.isArray(s.hari) ? s.hari.includes(filterHari) : (s.hari as unknown as string) === filterHari);
       const matchSearch =
         !searchSchedule.trim() ||
         s.pejuangName.toLowerCase().includes(searchSchedule.toLowerCase()) ||
@@ -180,8 +195,11 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
         id: `${session.schedule.id}_${todayStr}`,
         scheduleId: session.schedule.id,
         date: todayStr,
+        hari: namaHariToday,
         pejuangId: session.schedule.pejuangId,
         pejuangName: session.schedule.pejuangName,
+        scheduledPejuangId: session.schedule.pejuangId,
+        scheduledPejuangName: session.schedule.pejuangName,
         actualPejuangId: session.substitution?.status === 'Disetujui'
           ? session.substitution.substitutePejuangId
           : session.schedule.pejuangId,
@@ -195,11 +213,15 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
         subject: session.schedule.subject,
         jumlahJP: session.schedule.jumlahJP,
         actualJP: session.schedule.jumlahJP,
+        locationId: session.schedule.locationId,
+        locationName: session.schedule.locationName,
         jadwalMulai: session.schedule.jamMulai,
         jadwalSelesai: session.schedule.jamSelesai,
         jamMasuk: session.schedule.jamMulai,
         jamPulang: session.schedule.jamSelesai,
         status: 'Hadir',
+        lateMinutes: 0,
+        durationMinutes: (session.schedule.jumlahJP || 1) * 45,
         source: 'Koreksi Admin',
       };
       setSelectedAttendanceForKoreksi(draft);
@@ -1197,12 +1219,14 @@ function ScheduleFormModal({
       classId: classes[0]?.id || '',
       className: classes[0]?.name || '',
       subject: '',
-      hari: 'Senin',
+      hari: ['Senin'],
       jamMulai: '07:30',
       jamSelesai: '09:00',
       jumlahJP: 2,
       locationId: locations[0]?.id || '',
       locationName: locations[0]?.name || '',
+      berlakuMulai: '2026-01-01',
+      isActive: true,
       active: true,
     };
   });
@@ -1228,15 +1252,18 @@ function ScheduleFormModal({
       classId: formData.classId || '',
       className: selectedClass?.name || formData.className || '',
       subject: formData.subject.trim(),
-      hari: formData.hari as any,
+      hari: Array.isArray(formData.hari) ? formData.hari : [formData.hari || 'Senin'],
       jamMulai: formData.jamMulai || '07:30',
       jamSelesai: formData.jamSelesai || '09:00',
       jumlahJP: Number(formData.jumlahJP) || 2,
       locationId: formData.locationId,
       locationName: selectedLoc?.name || formData.locationName || '',
-      active: formData.active !== false,
-      startDate: formData.startDate || undefined,
-      endDate: formData.endDate || undefined,
+      berlakuMulai: formData.berlakuMulai || formData.startDate || '2026-01-01',
+      berlakuSampai: formData.berlakuSampai || formData.endDate || undefined,
+      isActive: formData.isActive !== false && formData.active !== false,
+      active: formData.active !== false && formData.isActive !== false,
+      startDate: formData.startDate || formData.berlakuMulai || undefined,
+      endDate: formData.endDate || formData.berlakuSampai || undefined,
     };
 
     setIsSaving(true);
@@ -1482,6 +1509,7 @@ function ClassFormModal({
               unit: unit.trim(),
               gradeLevel: gradeLevel.trim() || undefined,
               description: description.trim() || undefined,
+              isActive: item ? item.isActive : true,
             });
           }}
           className="space-y-3 text-xs"
@@ -1611,6 +1639,7 @@ function LocationFormModal({
               longitude: Number(longitude),
               radiusMeters: Number(radiusMeters),
               maxAccuracyMeters: Number(maxAccuracyMeters),
+              isActive: item ? item.isActive : true,
             });
           }}
           className="space-y-3 text-xs"

@@ -36,6 +36,7 @@ import {
   calculateCutoffRange,
   getDatesBetween,
   formatMenitKeJamMenit,
+  generateTeachingReport as generateTeachingReportUtil,
 } from '../utils/teachingUtils';
 import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
 
@@ -115,13 +116,38 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
 
   // Generate Report Data
   const reportData: TeachingReportSummary = useMemo(() => {
-    return generateTeachingReport({
+    if (typeof generateTeachingReport === 'function') {
+      return generateTeachingReport({
+        startDate,
+        endDate,
+        unit: selectedUnit,
+        pejuangId: selectedPejuangId !== 'Semua' ? selectedPejuangId : undefined,
+        accounts,
+      });
+    }
+    return generateTeachingReportUtil({
       startDate,
       endDate,
       unit: selectedUnit,
       pejuangId: selectedPejuangId !== 'Semua' ? selectedPejuangId : undefined,
+      accounts,
+      schedules,
+      attendances,
+      substitutions,
+      teachingSettings,
     });
-  }, [generateTeachingReport, startDate, endDate, selectedUnit, selectedPejuangId]);
+  }, [
+    generateTeachingReport,
+    startDate,
+    endDate,
+    selectedUnit,
+    selectedPejuangId,
+    accounts,
+    schedules,
+    attendances,
+    substitutions,
+    teachingSettings,
+  ]);
 
   // Filtered teachers list for UI
   const filteredTeacherSummaries = useMemo(() => {
@@ -155,7 +181,7 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
   // EXPORT TO EXCEL (.XLSX) WITH EXCELJS
   const handleExportExcel = async () => {
     setIsExportingExcel(true);
-    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT);
+    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT_TAP);
 
     try {
       const workbook = new ExcelJS.Workbook();
@@ -396,7 +422,7 @@ export const LaporanMengajarView: React.FC<LaporanMengajarViewProps> = ({
   // EXPORT TO PDF WITH JSPDF & AUTO-TABLE
   const handleExportPDF = () => {
     setIsExportingPDF(true);
-    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT);
+    triggerHapticFeedback(HAPTIC_PATTERNS.LIGHT_TAP);
 
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');

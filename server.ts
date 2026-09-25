@@ -11,39 +11,29 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API route for accurate server time (WIB Asia/Jakarta)
-  app.get("/api/server-time", (_req, res) => {
+  // API route for accurate server time (WIB / Asia/Jakarta)
+  app.get("/api/server-time", (req, res) => {
     const now = new Date();
-    const wibFormatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Jakarta",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
+    const wibFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
     });
     const parts = wibFormatter.formatToParts(now);
-    const getPart = (type: string) => parts.find(p => p.type === type)?.value || "";
-    const y = getPart("year");
-    const m = getPart("month");
-    const d = getPart("day");
-    const hh = getPart("hour");
-    const mm = getPart("minute");
-    const ss = getPart("second");
-
-    const wibDate = `${y}-${m}-${d}`;
-    const wibTime = `${hh}:${mm}:${ss}`;
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const wibDate = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+    const wibTime = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 
     res.json({
-      serverEpoch: now.getTime(),
+      timestamp: now.getTime(),
       iso: now.toISOString(),
       wibDate,
-      wibTime,
-      hour: parseInt(hh, 10),
-      minute: parseInt(mm, 10),
-      second: parseInt(ss, 10)
+      wibTime
     });
   });
 

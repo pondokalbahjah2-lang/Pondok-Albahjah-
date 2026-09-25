@@ -5,6 +5,9 @@ import {
   TeachingSubstitution,
   UserAccount,
   TeachingLocation,
+  TeachingReportSummary,
+  TeachingTeacherSummary,
+  TeachingReportItem,
 } from '../types';
 
 export const DEFAULT_TEACHING_SETTINGS: TeachingSettings = {
@@ -662,4 +665,235 @@ export function calculateCutoffRange(
 export function getDatesBetween(startDate: string, endDate: string): string[] {
   return getDatesInRange(startDate, endDate);
 }
+
+export interface GenerateTeachingReportOptions {
+  startDate: string;
+  endDate: string;
+  unit?: string;
+  pejuangId?: string;
+  accounts?: UserAccount[];
+  schedules?: TeachingSchedule[];
+  attendances?: TeachingAttendance[];
+  substitutions?: TeachingSubstitution[];
+  teachingSettings?: TeachingSettings;
+}
+
+/**
+ * Generates the full TeachingReportSummary object used by LaporanMengajarView
+ */
+export function generateTeachingReport({
+  startDate,
+  endDate,
+  unit = 'Semua',
+  pejuangId,
+  accounts = [],
+  schedules = [],
+  attendances = [],
+  substitutions = [],
+  teachingSettings = DEFAULT_TEACHING_SETTINGS,
+}: GenerateTeachingReportOptions): TeachingReportSummary {
+  const dates = getDatesInRange(startDate, endDate);
+
+  // Map to store teacher metadata
+  const teacherMap = new Map<string, {
+    id: string;
+    name: string;
+    nipy: string;
+    unit: string;
+    namaBank: string;
+    noRekening: string;
+    isPengajar: boolean;
+  }>();
+
+  accounts.forEach((acc) => {
+    teacherMap.set(acc.id, {
+      id: acc.id,
+      name: acc.name,
+      nipy: acc.nipy || '',
+      unit: acc.subDivisi || 'Umum',
+      namaBank: acc.namaBank || '',
+      noRekening: acc.noRekening || '',
+      isPengajar: !!acc.isPengajar,
+    });
+  });
+
+  schedules.forEach((s) => {
+    if (s.pejuangId && !teacherMap.has(s.pejuangId)) {
+      teacherMap.set(s.pejuangId, {
+        id: s.pejuangId,
+        name: s.pejuangName || s.pejuangId,
+        nipy: '',
+        unit: s.unit || 'Umum',
+        namaBank: '',
+        noRekening: '',
+        isPengajar: true,
+      });
+    }
+  });
+
+  attendances.forEach((a) => {
+    if (a.pejuangId && !teacherMap.has(a.pejuangId)) {
+      teacherMap.set(a.pejuangId, {
+        id: a.pejuangId,
+        name: a.pejuangName || a.actualPejuangName || a.pejuangId,
+        nipy: '',
+        unit: a.unit || 'Umum',
+        namaBank: '',
+        noRekening: '',
+        isPengajar: true,
+      });
+    }
+    if (a.scheduledPejuangId && !teacherMap.has(a.scheduledPejuangId)) {
+      teacherMap.set(a.scheduledPejuangId, {
+        id: a.scheduledPejuangId,
+        name: a.scheduledPejuangName || a.pejuangName || a.scheduledPejuangId,
+        nipy: '',
+        unit: a.unit || 'Umum',
+        namaBank: '',
+        noRekening: '',
+        isPengajar: true,
+      });
+    }
+  });
+
+  // Filter eligible teachers
+  let eligible = Array.from(teacherMap.values()).filter((t) => {
+    const hasSchedule = schedules.some((s) => s.pejuangId === t.id && s.isActive);
+    const hasAttendance = attendances.some(
+      (a) => (a.pejuangId === t.id || a.scheduledPejuangId === t.id) &&
+             a.date >= startDate && a.date <= endDate
+    );
+    return t.isPengajar || hasSchedule || hasAttendance;
+  });
+
+  if (pejuangId && pejuangId !== 'Semua') {
+    eligible = eligible.filter((t) => t.id === pejuangId);
+  }
+
+  if (unit && unit !== 'Semua') {
+    eligible = eligible.filter((t) => {
+      if (t.unit === unit) return true;
+      const unitSchedule = schedules.some((s) => s.pejuangId === t.id && s.unit === unit);
+      const unitAtt = attendances.some(
+        (a) => (a.pejuangId === t.id || a.scheduledPejuangId === t.id) && a.unit === unit
+      );
+      return unitSchedule || unitAtt;
+    });
+  }
+
+  // Build detailRecords
+  const inRangeAttendances = attendances.filter(
+    (a) => a.date >= startDate && a.date <= endDate
+  );
+
+  const detailRecords: TeachingReportItem[] = inRangeAttendances.map((att) => ({
+    id: att.id,
+    date: att.date,
+    unit: att.unit || 'Umum',
+    className: att.className || '-',
+    subject: att.subject || '-',
+    pejuangId: att.scheduledPejuangId || att.pejuangId,
+    pejuangName: att.scheduledPejuangName || att.pejuangName,
+    actualPejuangId: att.pejuangId || att.actualPejuangId || '',
+    actualPejuangName: att.actualPejuangName || att.pejuangName,
+    jamMasuk: att.jamMasuk,
+    jamPulang: att.jamPulang,
+    jumlahJP: att.jumlahJP || 1,
+    actualJP: att.actualJP ?? att.jumlahJP ?? 1,
+    status: att.status || 'Hadir',
+    isBadal: !!att.isBadal,
+    source: att.source || 'GPS',
+  }));
+
+  // Build teacher summaries
+  const teacherSummaries: TeachingTeacherSummary[] = eligible.map((t) => {
+    const teacherSchedules = schedules.filter((s) => s.pejuangId === t.id && s.isActive);
+
+    let totalSesiTerjadwal = 0;
+    let totalJPTerjadwal = 0;
+
+    for (const d of dates) {
+      for (const s of teacherSchedules) {
+        if (isScheduleActiveOnDate(s, d, teachingSettings)) {
+          if (unit && unit !== 'Semua' && s.unit && s.unit !== unit) {
+            continue;
+          }
+          totalSesiTerjadwal++;
+          totalJPTerjadwal += (s.jumlahJP || 1);
+        }
+      }
+    }
+
+    let totalJPHadir = 0;
+    let totalJPTerlambat = 0;
+    let totalJPBadal = 0;
+
+    // Attendances where this teacher actually taught
+    inRangeAttendances.forEach((a) => {
+      if (a.pejuangId === t.id) {
+        if (unit && unit !== 'Semua' && a.unit && a.unit !== unit) {
+          return;
+        }
+        const jp = a.actualJP ?? a.jumlahJP ?? 1;
+        if (a.isBadal) {
+          totalJPBadal += jp;
+        } else if (a.status === 'Terlambat') {
+          totalJPTerlambat += jp;
+        } else if (a.status === 'Hadir') {
+          totalJPHadir += jp;
+        }
+      }
+    });
+
+    const totalJPNetto = totalJPHadir + totalJPTerlambat + totalJPBadal;
+
+    return {
+      pejuangId: t.id,
+      pejuangName: t.name,
+      nipy: t.nipy,
+      unit: t.unit,
+      namaBank: t.namaBank,
+      noRekening: t.noRekening,
+      totalSesiTerjadwal,
+      totalJPTerjadwal,
+      totalJPHadir,
+      totalJPTerlambat,
+      totalJPBadal,
+      totalJPNetto,
+    };
+  });
+
+  // Sort teachers alphabetically
+  teacherSummaries.sort((a, b) => a.pejuangName.localeCompare(b.pejuangName));
+
+  let sumSesi = 0;
+  let sumJPSch = 0;
+  let sumHadir = 0;
+  let sumTelat = 0;
+  let sumBadal = 0;
+  let sumNetto = 0;
+
+  teacherSummaries.forEach((t) => {
+    sumSesi += t.totalSesiTerjadwal;
+    sumJPSch += t.totalJPTerjadwal;
+    sumHadir += t.totalJPHadir;
+    sumTelat += t.totalJPTerlambat;
+    sumBadal += t.totalJPBadal;
+    sumNetto += t.totalJPNetto;
+  });
+
+  return {
+    startDate,
+    endDate,
+    totalSesiTerjadwal: sumSesi,
+    totalJPTerjadwal: sumJPSch,
+    totalJPHadir: sumHadir,
+    totalJPTerlambat: sumTelat,
+    totalJPBadal: sumBadal,
+    totalJPNetto: sumNetto,
+    teacherSummaries,
+    detailRecords,
+  };
+}
+
 

@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { UserAccount, WorkSchedule, AttendanceRecord } from '../types';
+import { UserAccount, WorkSchedule, AttendanceRecord, DivisiRecord } from '../types';
 import { getLocalDateString } from '../utils/dateUtils';
+import { getEffectiveWorkHours } from '../utils/shiftUtils';
 
 export function usePulangReminder(
   currentUser: UserAccount | null,
   schedules: WorkSchedule[],
-  attendance: AttendanceRecord[]
+  attendance: AttendanceRecord[],
+  divisions: DivisiRecord[] = []
 ) {
   const hasReminded = useRef(false);
 
@@ -26,14 +28,11 @@ export function usePulangReminder(
         return;
       }
 
-      // Find applicable schedule
-      let activeSchedule = schedules.find((s) => s.targetType === 'Individu' && s.targetId === currentUser.id);
-      if (!activeSchedule) {
-        activeSchedule = schedules.find((s) => s.targetType === 'Divisi' && s.targetId === currentUser.subDivisi);
-      }
+      // Use helper to get effective work hours (supports 2-shift division & schedule fallback)
+      const effectiveWork = getEffectiveWorkHours(currentUser, divisions, schedules);
 
-      if (activeSchedule && activeSchedule.jamPulang) {
-        const [hourStr, minStr] = activeSchedule.jamPulang.split(':');
+      if (effectiveWork && effectiveWork.jamPulang) {
+        const [hourStr, minStr] = effectiveWork.jamPulang.split(':');
         const targetTime = new Date(now);
         targetTime.setHours(parseInt(hourStr, 10), parseInt(minStr, 10), 0, 0);
 
@@ -45,19 +44,20 @@ export function usePulangReminder(
           hasReminded.current = true;
           
           // Trigger browser notification if permitted
-          if (Notification.permission === 'granted') {
-            new Notification('Pengingat Absen Pulang', {
-              body: 'Waktu pulang kerja tersisa 30 menit lagi. Jangan lupa untuk melakukan absen pulang di sistem.',
-              icon: '/vite.svg'
-            });
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification('Pengingat Absen Pulang', {
+                body: `Waktu pulang kerja (${effectiveWork.jamPulang}) tersisa 30 menit lagi. Jangan lupa untuk melakukan absen pulang di sistem.`,
+                icon: '/vite.svg'
+              });
+            } catch (err) {
+              console.warn('Notification error:', err);
+            }
           }
-          
-          // Fallback to in-app alert or custom event if needed
-          // But since they might not be actively looking, standard Notification is best
         }
       }
     }, 60000); // check every minute
 
     return () => clearInterval(interval);
-  }, [currentUser, schedules, attendance]);
+  }, [currentUser, schedules, attendance, divisions]);
 }
