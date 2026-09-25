@@ -44,7 +44,6 @@ import { getDailyClauseIndex } from '../utils/hijriCalendar';
 import { PrayerTimesWidget } from './PrayerTimesWidget';
 import { AdminQRGenerator } from './AdminQRGenerator';
 import { MonthlyShiftProgressSection } from './MonthlyShiftProgressSection';
-import { D3RealtimeSummaryChart } from './D3RealtimeSummaryChart';
 
 interface DashboardViewProps {
   kajianRecords?: KajianRecord[];
@@ -455,19 +454,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return exitPermissions.filter(e => e.tanggalKeluar <= todayDateStr && e.tanggalIzinSampai >= todayDateStr && e.status === 'Disetujui');
   }, [exitPermissions, todayDateStr]);
 
-  // Real-time summary counts for top dashboard cards & D3 chart
-  const activeAttendanceToday = React.useMemo(() => {
-    return attendance.filter(a => a.date === todayDateStr && (a.status === 'Hadir' || a.status === 'Terlambat')).length;
-  }, [attendance, todayDateStr]);
-
-  const pendingLeaveRequestsCount = React.useMemo(() => {
-    return leaveRequests.filter(l => l.status === 'Menunggu Persetujuan').length;
-  }, [leaveRequests]);
-
-  const pendingExitPermitsCount = React.useMemo(() => {
-    return exitPermissions.filter(e => e.status === 'Menunggu Persetujuan').length;
-  }, [exitPermissions]);
-
   // Total Jam Kerja Efektif Bulanan (Bulan Ini)
   const efektifBulanan = React.useMemo(() => {
     const currentMonthPrefix = todayDateStr.substring(0, 7); // YYYY-MM
@@ -832,124 +818,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </header>
-
-      {/* Real-time Summary Widget with D3.js Chart & Interactive Cards */}
-      <section className="space-y-4">
-        {/* Three Interactive Cards at top */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Card 1: Active Attendance Today */}
-          <div
-            onClick={() => onNavigate('absensi')}
-            role="button"
-            tabIndex={0}
-            className="group cursor-pointer p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-emerald-500/30 hover:border-emerald-500/70 shadow-lg hover:shadow-emerald-500/10 transition-all transform hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-                Active Attendance Today
-              </span>
-              <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shadow-sm">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-800 dark:text-slate-100">
-                {activeAttendanceToday}
-              </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                / {pejuangList.length || accounts.length} Pejuang Aktif
-              </span>
-            </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Presensi Masuk Real-Time
-              </span>
-              <span className="text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 flex items-center gap-0.5 font-bold transition-colors">
-                Buka <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </div>
-
-          {/* Card 2: Pending Leave Requests */}
-          <div
-            onClick={() => onNavigate('cuti')}
-            role="button"
-            tabIndex={0}
-            className="group cursor-pointer p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-purple-500/30 hover:border-purple-500/70 shadow-lg hover:shadow-purple-500/10 transition-all transform hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider">
-                Pending Leave Requests
-              </span>
-              <div className="p-2.5 rounded-2xl bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
-                <CalendarDays className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-800 dark:text-slate-100">
-                {pendingLeaveRequestsCount}
-              </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Pengajuan Menunggu
-              </span>
-            </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span className={`font-bold flex items-center gap-1.5 ${pendingLeaveRequestsCount > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`}>
-                {pendingLeaveRequestsCount > 0 ? '⏳ Butuh Persetujuan' : 'Antrean Bersih'}
-              </span>
-              <span className="text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 flex items-center gap-0.5 font-bold transition-colors">
-                Kelola <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </div>
-
-          {/* Card 3: Pending Exit Permits */}
-          <div
-            onClick={() => onNavigate('izin')}
-            role="button"
-            tabIndex={0}
-            className="group cursor-pointer p-5 rounded-3xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl border border-sky-500/30 hover:border-sky-500/70 shadow-lg hover:shadow-sky-500/10 transition-all transform hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-black text-sky-800 dark:text-sky-300 uppercase tracking-wider">
-                Pending Exit Permits
-              </span>
-              <div className="p-2.5 rounded-2xl bg-sky-500/20 text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform shadow-sm">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-800 dark:text-slate-100">
-                {pendingExitPermitsCount}
-              </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Permohonan Menunggu
-              </span>
-            </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span className={`font-bold flex items-center gap-1.5 ${pendingExitPermitsCount > 0 ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'}`}>
-                {pendingExitPermitsCount > 0 ? '🔔 Menunggu Verifikasi' : 'Tidak Ada Antrean'}
-              </span>
-              <span className="text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400 flex items-center gap-0.5 font-bold transition-colors">
-                Kelola <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* D3.js Real-time Summary Chart */}
-        <D3RealtimeSummaryChart
-          activeAttendanceToday={activeAttendanceToday}
-          pendingLeaveRequests={pendingLeaveRequestsCount}
-          pendingExitPermits={pendingExitPermitsCount}
-          onSelectCategory={(category) => {
-            if (category === 'attendance') onNavigate('absensi');
-            else if (category === 'leave') onNavigate('cuti');
-            else if (category === 'permit') onNavigate('izin');
-          }}
-        />
-      </section>
 
       {/* Prayer Times Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

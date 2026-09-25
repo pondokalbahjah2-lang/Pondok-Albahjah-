@@ -76,7 +76,8 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
   };
 
   const isExplicitIzinApprover = currentUser.role === 'Admin' || isUserInList(izinKeluarApprovers, currentUser);
-  const isAnyIzinApprover = isExplicitIzinApprover;
+  const isLeaderIzinApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isAnyIzinApprover = isExplicitIzinApprover || isLeaderIzinApprover;
 
   const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
 
@@ -89,8 +90,14 @@ export const IzinKeluarView: React.FC<IzinKeluarViewProps> = ({
     return '';
   };
 
-  const isApprover = (_recSubDivisi?: string, _pejuangId?: string) => {
-    return isExplicitIzinApprover;
+  const isApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitIzinApprover) return true;
+    if (!isLeaderIzinApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    const targetDiv = norm(getRecordSubDivisi(recSubDivisi, pejuangId));
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
   const filteredRecords = exitPermissions.filter((rec) => {

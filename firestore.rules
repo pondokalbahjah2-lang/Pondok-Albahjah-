@@ -100,20 +100,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // divisi collection
-    match /divisi/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // liburPengurus collection
-    match /liburPengurus/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isAdmin();
-    }
-
 
     // kajian collection
     match /kajian/{docId} {
@@ -127,64 +113,49 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    // notifications collection
+    match /notifications/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // teachingLocations collection
+    match /teachingLocations/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingClasses collection
+    match /teachingClasses/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingSchedules collection
+    match /teachingSchedules/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // teachingAttendance collection
+    match /teachingAttendance/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // teachingSubstitutions collection
+    match /teachingSubstitutions/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
     match /auditLogs/{docId} {
       allow read: if isAdmin();
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
-    }
-
-    // ==========================================
-    // TEACHING (MENGAJAR & JP) COLLECTIONS
-    // ==========================================
-
-    match /teachingLocations/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /teachingClasses/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /teachingSchedules/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /settings/teaching {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /teachingAttendance/{docId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.pejuangId == request.auth.uid || resource.data.scheduledPejuangId == request.auth.uid));
-      allow create: if isSignedIn() &&
-        request.resource.data.pejuangId == request.auth.uid &&
-        docId == (request.resource.data.scheduleId + '_' + request.resource.data.date) &&
-        request.resource.data.source == 'GPS';
-      allow update: if isAdmin() || (
-        isSignedIn() &&
-        resource.data.pejuangId == request.auth.uid &&
-        request.resource.data.jamMasuk == resource.data.jamMasuk &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.pejuangId == resource.data.pejuangId &&
-        request.resource.data.scheduleId == resource.data.scheduleId
-      );
-      allow delete: if isAdmin();
-    }
-
-    match /teachingSubstitutions/{docId} {
-      allow read: if isAdmin() || (isSignedIn() && (resource.data.originalPejuangId == request.auth.uid || resource.data.substitutePejuangId == request.auth.uid));
-      allow create: if isSignedIn() &&
-        request.resource.data.originalPejuangId == request.auth.uid &&
-        request.resource.data.status == 'Menunggu Persetujuan';
-      allow update: if isAdmin() || (
-        isSignedIn() &&
-        resource.data.originalPejuangId == request.auth.uid &&
-        request.resource.data.status == 'Dibatalkan'
-      );
-      allow delete: if isAdmin();
     }
   }
 }

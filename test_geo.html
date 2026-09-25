@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <button onclick="getLoc()">Get Location</button>
+  <div id="out"></div>
+  <script>
+    function getLoc() {
+      navigator.geolocation.getCurrentPosition(
+        p => document.getElementById('out').innerText = p.coords.latitude + ", " + p.coords.longitude + " (Accuracy: " + p.coords.accuracy + "m)",
+        e => document.getElementById('out').innerText = "Error: " + e.message,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+  </script>
+</body>
+</html>

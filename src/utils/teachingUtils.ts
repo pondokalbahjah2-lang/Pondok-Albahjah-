@@ -1,101 +1,585 @@
 import {
   TeachingSchedule,
+  TeachingSettings,
   TeachingAttendance,
   TeachingSubstitution,
+  UserAccount,
   TeachingLocation,
-  TeachingSessionItem,
-  JPPengajarSummary,
-  AttendanceRekapItem,
-  TeachingSessionDetailItem,
-  TeachingBadalRekapItem,
-  HolidayRecord,
-  UserAccount
 } from '../types';
 
-export const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'] as const;
+export const DEFAULT_TEACHING_SETTINGS: TeachingSettings = {
+  masukBukaMenit: 15,
+  toleransiTerlambatMenit: 5,
+  pulangBukaMenit: 10,
+  pulangTutupMenit: 60,
+  menitPerJP: 45,
+  cutoffHari: 25,
+  hitungJPLupaPulang: true,
+  defaultRadiusMeters: 100,
+  defaultMaxAccuracyMeters: 50,
+  tanggalLibur: [],
+};
 
-export const INDONESIAN_MONTH_NAMES = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-];
-
-export const INDONESIAN_MONTH_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+export const NAMA_HARI_LIST = [
+  'Ahad',
+  'Senin',
+  'Selasa',
+  'Rabu',
+  'Kamis',
+  'Jumat',
+  'Sabtu',
 ];
 
 /**
- * Mendapatkan nama hari bahasa Indonesia dari tanggal YYYY-MM-DD
+ * Returns Indonesian day name: Ahad, Senin, Selasa, Rabu, Kamis, Jumat, Sabtu
  */
-export function getIndonesianDayName(dateStr: string): 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu' | 'Ahad' {
+export function getNamaHariFromDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   const d = new Date(year, month - 1, day);
-  const dayIndex = d.getDay(); // 0 = Ahad/Minggu, 1 = Senin, ...
-  const map: Record<number, 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu' | 'Ahad'> = {
-    0: 'Ahad',
-    1: 'Senin',
-    2: 'Selasa',
-    3: 'Rabu',
-    4: 'Kamis',
-    5: 'Jumat',
-    6: 'Sabtu'
-  };
-  return map[dayIndex] || 'Senin';
+  return NAMA_HARI_LIST[d.getDay()];
 }
 
 /**
- * Format string tanggal YYYY-MM-DD ke format tampilan Indonesia
+ * Converts "HH:mm" to total minutes since 00:00
  */
-export function formatIndoDate(dateStr: string, withDay = false): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const mName = INDONESIAN_MONTH_NAMES[month - 1] || '';
-  if (withDay) {
-    const dName = getIndonesianDayName(dateStr);
-    return `${dName}, ${day} ${mName} ${year}`;
-  }
-  return `${day} ${mName} ${year}`;
-}
-
-/**
- * Konversi "HH:mm" ke total menit dari tengah malam
- */
-export function timeToMinutes(timeStr: string): number {
-  if (!timeStr) return 0;
+export function parseHHmmToMinutes(timeStr: string): number {
+  if (!timeStr || !timeStr.includes(':')) return 0;
   const [h, m] = timeStr.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
 /**
- * Konversi menit ke format "HH:mm" atau "X jam Y mnt"
+ * Converts minutes since midnight back to "HH:mm"
  */
-export function minutesToDurationStr(minutes: number): string {
-  if (minutes <= 0) return '0 mnt';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h > 0 && m > 0) return `${h} jam ${m} mnt`;
-  if (h > 0) return `${h} jam`;
-  return `${m} mnt`;
+export function formatMinutesToHHmm(minutes: number): string {
+  const normalized = Math.max(0, Math.min(23 * 60 + 59, Math.floor(minutes)));
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 /**
- * Menghitung selisih keterlambatan dalam menit
+ * Calculates start and end dates for a payroll / JP cutoff period.
+ * Example for cutoffHari = 25:
+ * For month "2026-08" (or any date in August after 25th):
+ * - If input is "2026-08": start is "2026-07-26", end is "2026-08-25"
+ * - If input is "2026-08-10": start is "2026-07-26", end is "2026-08-25"
+ * - If input is "2026-08-28": start is "2026-08-26", end is "2026-09-25"
  */
-export function computeLateMinutes(jamMasuk: string, jamMulai: string, toleranceMinutes = 10): number {
-  const masukMin = timeToMinutes(jamMasuk);
-  const mulaiMin = timeToMinutes(jamMulai);
-  const diff = masukMin - mulaiMin;
-  if (diff > toleranceMinutes) {
-    return diff;
+export function computeCutoffPeriod(
+  dateOrMonth: string,
+  cutoffHari: number = 25
+): { startDate: string; endDate: string; label: string } {
+  let targetYear: number;
+  let targetMonth: number; // 1-12
+
+  if (dateOrMonth.length === 7) {
+    // "YYYY-MM"
+    const [y, m] = dateOrMonth.split('-').map(Number);
+    targetYear = y;
+    targetMonth = m;
+  } else {
+    // "YYYY-MM-DD"
+    const [y, m, d] = dateOrMonth.split('-').map(Number);
+    if (d <= cutoffHari) {
+      targetYear = y;
+      targetMonth = m;
+    } else {
+      // Moves to next month's cutoff window
+      if (m === 12) {
+        targetYear = y + 1;
+        targetMonth = 1;
+      } else {
+        targetYear = y;
+        targetMonth = m + 1;
+      }
+    }
   }
-  return 0;
+
+  // End date is targetYear-targetMonth-cutoffHari
+  const endD = String(cutoffHari).padStart(2, '0');
+  const endM = String(targetMonth).padStart(2, '0');
+  const endDate = `${targetYear}-${endM}-${endD}`;
+
+  // Start date is previous month (cutoffHari + 1)
+  let startYear = targetYear;
+  let startMonth = targetMonth - 1;
+  if (startMonth === 0) {
+    startMonth = 12;
+    startYear -= 1;
+  }
+  const startD = String(cutoffHari + 1).padStart(2, '0');
+  const startM = String(startMonth).padStart(2, '0');
+  const startDate = `${startYear}-${startM}-${startD}`;
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const label = `Periode ${cutoffHari + 1} ${monthNames[startMonth - 1]} ${startYear} s/d ${cutoffHari} ${monthNames[targetMonth - 1]} ${targetYear}`;
+
+  return { startDate, endDate, label };
 }
 
 /**
- * Menghitung jarak haversine dalam meter
+ * Returns all date strings YYYY-MM-DD between startDate and endDate inclusive
  */
-export function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3; // metres
+export function getDatesInRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const [sY, sM, sD] = startDate.split('-').map(Number);
+  const [eY, eM, eD] = endDate.split('-').map(Number);
+
+  const cur = new Date(sY, sM - 1, sD);
+  const end = new Date(eY, eM - 1, eD);
+
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
+ * Checks if a schedule applies to a specific date
+ */
+export function isScheduleActiveOnDate(
+  schedule: TeachingSchedule,
+  dateStr: string,
+  settings: TeachingSettings = DEFAULT_TEACHING_SETTINGS
+): boolean {
+  if (!schedule.isActive) return false;
+  if (schedule.berlakuMulai > dateStr) return false;
+  if (schedule.berlakuSampai && schedule.berlakuSampai < dateStr) return false;
+  if (settings.tanggalLibur?.includes(dateStr)) return false;
+
+  const hariName = getNamaHariFromDate(dateStr);
+  return schedule.hari.includes(hariName);
+}
+
+/**
+ * Detects conflicts when creating/updating a schedule
+ */
+export function checkScheduleConflict(
+  schedules: TeachingSchedule[],
+  newSched: Partial<TeachingSchedule>,
+  ignoreId?: string
+): { hasConflict: boolean; reason?: string } {
+  if (!newSched.pejuangId || !newSched.hari || !newSched.jamMulai || !newSched.jamSelesai) {
+    return { hasConflict: false };
+  }
+
+  const newStart = parseHHmmToMinutes(newSched.jamMulai);
+  const newEnd = parseHHmmToMinutes(newSched.jamSelesai);
+  if (newEnd <= newStart) {
+    return { hasConflict: true, reason: 'Jam selesai harus lebih akhir dari jam mulai' };
+  }
+
+  for (const s of schedules) {
+    if (ignoreId && s.id === ignoreId) continue;
+    if (!s.isActive) continue;
+
+    // Check date range overlap
+    const newMulai = newSched.berlakuMulai || '2000-01-01';
+    const newSampai = newSched.berlakuSampai || '2099-12-31';
+    const sMulai = s.berlakuMulai || '2000-01-01';
+    const sSampai = s.berlakuSampai || '2099-12-31';
+
+    const dateOverlap = newMulai <= sSampai && newSampai >= sMulai;
+    if (!dateOverlap) continue;
+
+    // Check shared days
+    const commonDays = s.hari.filter(h => newSched.hari?.includes(h));
+    if (commonDays.length === 0) continue;
+
+    const sStart = parseHHmmToMinutes(s.jamMulai);
+    const sEnd = parseHHmmToMinutes(s.jamSelesai);
+    const timeOverlap = Math.max(newStart, sStart) < Math.min(newEnd, sEnd);
+
+    if (timeOverlap) {
+      // If same teacher
+      if (s.pejuangId === newSched.pejuangId) {
+        return {
+          hasConflict: true,
+          reason: `Konflik jadwal pengajar: ${s.pejuangName} sudah memiliki jadwal di kelas ${s.className} (${s.subject}) pada hari [${commonDays.join(', ')}] pukul ${s.jamMulai}-${s.jamSelesai}.`,
+        };
+      }
+      // If same class
+      if (newSched.classId && s.classId === newSched.classId) {
+        return {
+          hasConflict: true,
+          reason: `Konflik kelas: Kelas ${s.className} sudah dipakai untuk ${s.subject} oleh ${s.pejuangName} pada hari [${commonDays.join(', ')}] pukul ${s.jamMulai}-${s.jamSelesai}.`,
+        };
+      }
+    }
+  }
+
+  return { hasConflict: false };
+}
+
+/**
+ * Evaluates session status on a given date and time
+ */
+export type SessionInteractiveState =
+  | 'BELUM_WAKTUNYA'
+  | 'BISA_ABSEN_MASUK'
+  | 'SEDANG_MENGAJAR'
+  | 'BISA_ABSEN_PULANG'
+  | 'SELESAI'
+  | 'TERLEWAT'
+  | 'DIBADALKAN';
+
+export interface SessionStatusEvaluation {
+  state: SessionInteractiveState;
+  phase: string;
+  label: string;
+  badgeColor: string; // Tailwind class
+  canAbsenMasuk: boolean;
+  canAbsenPulang: boolean;
+  canClockIn: boolean;
+  canClockOut: boolean;
+  lateMinutes: number;
+  substitution?: TeachingSubstitution;
+  attendance?: TeachingAttendance;
+  isCurrentUserTeacher: boolean; // is current user either original or active badal
+}
+
+export function evaluateSessionStatus(
+  schedule: TeachingSchedule,
+  dateStr: string,
+  currentTimeHHmm: string,
+  currentUserId: string,
+  attendanceRecord?: TeachingAttendance,
+  activeSubstitution?: TeachingSubstitution,
+  settings: TeachingSettings = DEFAULT_TEACHING_SETTINGS,
+  location?: TeachingLocation
+): SessionStatusEvaluation {
+  const curMinutes = parseHHmmToMinutes(currentTimeHHmm);
+  const startMinutes = parseHHmmToMinutes(schedule.jamMulai);
+  const endMinutes = parseHHmmToMinutes(schedule.jamSelesai);
+
+  const masukBukaMenit = schedule.tolerance?.masukBukaMenit ?? settings.masukBukaMenit ?? 15;
+  const toleransiTerlambatMenit = schedule.tolerance?.toleransiTerlambatMenit ?? settings.toleransiTerlambatMenit ?? 5;
+  const pulangBukaMenit = schedule.tolerance?.pulangBukaMenit ?? settings.pulangBukaMenit ?? 10;
+  const pulangTutupMenit = schedule.tolerance?.pulangTutupMenit ?? settings.pulangTutupMenit ?? 60;
+
+  const masukOpenTime = startMinutes - masukBukaMenit;
+  const pulangOpenTime = endMinutes - pulangBukaMenit;
+  const pulangCloseTime = endMinutes + pulangTutupMenit;
+
+  // Check if substitute exists
+  const hasApprovedBadal = activeSubstitution && activeSubstitution.status === 'Disetujui';
+  const isOriginalTeacher = schedule.pejuangId === currentUserId;
+  const isBadalTeacher = hasApprovedBadal && activeSubstitution.substitutePejuangId === currentUserId;
+  const isAssignedToCurrentUser = isBadalTeacher || (isOriginalTeacher && !hasApprovedBadal);
+
+  // If badaled to someone else
+  if (hasApprovedBadal && isOriginalTeacher) {
+    return {
+      state: 'DIBADALKAN',
+      phase: 'DIBADALKAN',
+      label: `Dibadalkan oleh ${activeSubstitution.substitutePejuangName}`,
+      badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300',
+      canAbsenMasuk: false,
+      canAbsenPulang: false,
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: 0,
+      substitution: activeSubstitution,
+      attendance: attendanceRecord,
+      isCurrentUserTeacher: false,
+    };
+  }
+
+  // If already finished (jamPulang recorded)
+  if (attendanceRecord && attendanceRecord.jamPulang) {
+    return {
+      state: 'SELESAI',
+      phase: 'SELESAI',
+      label: 'Selesai Mengajar',
+      badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300',
+      canAbsenMasuk: false,
+      canAbsenPulang: false,
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: attendanceRecord.lateMinutes || 0,
+      substitution: activeSubstitution,
+      attendance: attendanceRecord,
+      isCurrentUserTeacher: isAssignedToCurrentUser,
+    };
+  }
+
+  // If already clocked in, waiting for clock out
+  if (attendanceRecord && attendanceRecord.jamMasuk && !attendanceRecord.jamPulang) {
+    if (curMinutes < pulangOpenTime) {
+      return {
+        state: 'SEDANG_MENGAJAR',
+        phase: 'SEDANG_MENGAJAR',
+        label: 'Sedang Mengajar',
+        badgeColor: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border-sky-300',
+        canAbsenMasuk: false,
+        canAbsenPulang: false,
+        canClockIn: false,
+        canClockOut: false,
+        lateMinutes: attendanceRecord.lateMinutes || 0,
+        substitution: activeSubstitution,
+        attendance: attendanceRecord,
+        isCurrentUserTeacher: isAssignedToCurrentUser,
+      };
+    } else if (curMinutes <= pulangCloseTime) {
+      return {
+        state: 'BISA_ABSEN_PULANG',
+        phase: 'BISA_ABSEN_PULANG',
+        label: 'Bisa Absen Pulang',
+        badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-300 animate-pulse',
+        canAbsenMasuk: false,
+        canAbsenPulang: isAssignedToCurrentUser,
+        canClockIn: false,
+        canClockOut: isAssignedToCurrentUser,
+        lateMinutes: attendanceRecord.lateMinutes || 0,
+        substitution: activeSubstitution,
+        attendance: attendanceRecord,
+        isCurrentUserTeacher: isAssignedToCurrentUser,
+      };
+    } else {
+      // Past pulang close time without clock out
+      return {
+        state: 'SELESAI',
+        phase: 'SELESAI',
+        label: 'Selesai (Lupa Absen Pulang)',
+        badgeColor: 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border-orange-300',
+        canAbsenMasuk: false,
+        canAbsenPulang: false,
+        canClockIn: false,
+        canClockOut: false,
+        lateMinutes: attendanceRecord.lateMinutes || 0,
+        substitution: activeSubstitution,
+        attendance: attendanceRecord,
+        isCurrentUserTeacher: isAssignedToCurrentUser,
+      };
+    }
+  }
+
+  // Not clocked in yet
+  if (curMinutes < masukOpenTime) {
+    const minsUntilOpen = masukOpenTime - curMinutes;
+    return {
+      state: 'BELUM_WAKTUNYA',
+      phase: 'BELUM_WAKTUNYA',
+      label: minsUntilOpen > 60
+        ? `Buka ${formatMinutesToHHmm(masukOpenTime)}`
+        : `Buka dlm ${minsUntilOpen} menit`,
+      badgeColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300',
+      canAbsenMasuk: false,
+      canAbsenPulang: false,
+      canClockIn: false,
+      canClockOut: false,
+      lateMinutes: 0,
+      substitution: activeSubstitution,
+      attendance: attendanceRecord,
+      isCurrentUserTeacher: isAssignedToCurrentUser,
+    };
+  }
+
+  if (curMinutes <= endMinutes) {
+    const late = Math.max(0, curMinutes - (startMinutes + toleransiTerlambatMenit));
+    return {
+      state: 'BISA_ABSEN_MASUK',
+      phase: 'BISA_ABSEN_MASUK',
+      label: late > 0 ? `Bisa Absen (Terlambat ${late}m)` : 'Bisa Absen Masuk',
+      badgeColor: late > 0
+        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300'
+        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300',
+      canAbsenMasuk: isAssignedToCurrentUser,
+      canAbsenPulang: false,
+      canClockIn: isAssignedToCurrentUser,
+      canClockOut: false,
+      lateMinutes: late,
+      substitution: activeSubstitution,
+      attendance: attendanceRecord,
+      isCurrentUserTeacher: isAssignedToCurrentUser,
+    };
+  }
+
+  // Past schedule end time without clock in
+  return {
+    state: 'TERLEWAT',
+    phase: 'TERLEWAT',
+    label: 'Tidak Masuk / Terlewat',
+    badgeColor: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300',
+    canAbsenMasuk: false,
+    canAbsenPulang: false,
+    canClockIn: false,
+    canClockOut: false,
+    lateMinutes: 0,
+    substitution: activeSubstitution,
+    attendance: attendanceRecord,
+    isCurrentUserTeacher: isAssignedToCurrentUser,
+  };
+}
+
+/**
+ * Report data row structure for Laporan Mengajar
+ */
+export interface TeachingReportRow {
+  pejuangId: string;
+  namaPengajar: string;
+  nipy: string;
+  namaBank: string;
+  noRekening: string;
+  unit: string;
+  subject: string; // MAPEL
+  dailyJP: Record<string, {
+    jp: number;
+    status: 'Hadir' | 'Terlambat' | 'Badal' | 'Alpa' | 'Izin' | 'Sakit' | 'Libur' | '-';
+    tooltip?: string;
+    isBadal?: boolean;
+    badalFor?: string;
+    details?: TeachingAttendance[];
+  }>;
+  totalJP: number;
+  totalHadir: number;
+  totalTerlambat: number;
+  totalBadal: number;
+  totalSesi: number;
+}
+
+/**
+ * Generates the multi-day JP summary report matching the attached Al-Bahjah Excel specification
+ */
+export function generateTeachingReportData(
+  teachers: UserAccount[],
+  schedules: TeachingSchedule[],
+  attendanceList: TeachingAttendance[],
+  substitutions: TeachingSubstitution[],
+  dateList: string[],
+  settings: TeachingSettings = DEFAULT_TEACHING_SETTINGS
+): TeachingReportRow[] {
+  // Only users who teach or have schedules/attendance
+  const eligibleTeachers = teachers.filter(t => 
+    t.isPengajar || 
+    schedules.some(s => s.pejuangId === t.id) ||
+    attendanceList.some(a => a.pejuangId === t.id)
+  );
+
+  const rows: TeachingReportRow[] = [];
+
+  for (const teacher of eligibleTeachers) {
+    const teacherSchedules = schedules.filter(s => s.pejuangId === teacher.id && s.isActive);
+    const uniqueSubjects = Array.from(new Set(teacherSchedules.map(s => s.subject).filter(Boolean)));
+    const subjectLabel = uniqueSubjects.length > 0 ? uniqueSubjects.join(', ') : (teacher.amanah || 'Pengajar');
+
+    const dailyJP: TeachingReportRow['dailyJP'] = {};
+    let totalJP = 0;
+    let totalHadir = 0;
+    let totalTerlambat = 0;
+    let totalBadal = 0;
+    let totalSesi = 0;
+
+    for (const dateStr of dateList) {
+      // Find attendances done by this teacher on this date
+      const attendances = attendanceList.filter(a => a.pejuangId === teacher.id && a.date === dateStr);
+
+      if (attendances.length > 0) {
+        let dayJP = 0;
+        let hasBadal = false;
+        let hasLate = false;
+        const detailsText: string[] = [];
+
+        for (const att of attendances) {
+          totalSesi++;
+          const jp = att.jumlahJP || 0;
+          dayJP += jp;
+          if (att.isBadal) {
+            hasBadal = true;
+            totalBadal++;
+            detailsText.push(`${att.subject} (${att.className}): ${jp} JP (Badal u/ ${att.scheduledPejuangName})`);
+          } else {
+            if (att.status === 'Terlambat') {
+              hasLate = true;
+              totalTerlambat++;
+            } else {
+              totalHadir++;
+            }
+            detailsText.push(`${att.subject} (${att.className}): ${jp} JP (${att.status})`);
+          }
+        }
+
+        totalJP += dayJP;
+        dailyJP[dateStr] = {
+          jp: dayJP,
+          status: hasBadal ? 'Badal' : (hasLate ? 'Terlambat' : 'Hadir'),
+          tooltip: detailsText.join('\n'),
+          isBadal: hasBadal,
+          details: attendances,
+        };
+      } else {
+        // Check if teacher had schedules scheduled for this day
+        const daySchedules = teacherSchedules.filter(s => isScheduleActiveOnDate(s, dateStr, settings));
+        if (daySchedules.length > 0) {
+          // Check if any was badaled to another person
+          const daySubs = substitutions.filter(
+            sub => sub.date === dateStr && sub.originalPejuangId === teacher.id && sub.status === 'Disetujui'
+          );
+          if (daySubs.length > 0) {
+            dailyJP[dateStr] = {
+              jp: 0,
+              status: 'Badal',
+              tooltip: `Dibadalkan kepada: ${daySubs.map(s => s.substitutePejuangName).join(', ')}`,
+            };
+          } else {
+            // Did not attend
+            dailyJP[dateStr] = {
+              jp: 0,
+              status: 'Alpa',
+              tooltip: `Jadwal tidak dihadiri: ${daySchedules.map(s => `${s.subject} (${s.className})`).join(', ')}`,
+            };
+          }
+        } else {
+          dailyJP[dateStr] = {
+            jp: 0,
+            status: '-',
+          };
+        }
+      }
+    }
+
+    rows.push({
+      pejuangId: teacher.id,
+      namaPengajar: teacher.name,
+      nipy: teacher.nipy || '-',
+      namaBank: teacher.namaBank || '-',
+      noRekening: teacher.noRekening || '-',
+      unit: teacher.subDivisi || 'Al-Bahjah',
+      subject: subjectLabel,
+      dailyJP,
+      totalJP,
+      totalHadir,
+      totalTerlambat,
+      totalBadal,
+      totalSesi,
+    });
+  }
+
+  // Sort rows alphabetically by teacher name
+  rows.sort((a, b) => a.namaPengajar.localeCompare(b.namaPengajar));
+
+  return rows;
+}
+
+/**
+ * Calculates geodesic distance between two GPS coordinates in meters
+ */
+export function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371e3; // Earth radius in meters
   const phi1 = (lat1 * Math.PI) / 180;
   const phi2 = (lat2 * Math.PI) / 180;
   const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
@@ -110,732 +594,72 @@ export function calculateDistanceMeters(lat1: number, lon1: number, lat2: number
 }
 
 /**
- * Memeriksa bentrok jadwal mengajar
+ * Format local date YYYY-MM-DD
  */
-export function checkScheduleConflict(
-  newSchedule: TeachingSchedule,
-  existingSchedules: TeachingSchedule[]
-): { hasConflict: boolean; reason?: string } {
-  const newStart = timeToMinutes(newSchedule.jamMulai);
-  const newEnd = timeToMinutes(newSchedule.jamSelesai);
-
-  for (const sch of existingSchedules) {
-    if (sch.id === newSchedule.id) continue;
-    if (!sch.isActive) continue;
-    if (sch.hari !== newSchedule.hari) continue;
-
-    const schStart = timeToMinutes(sch.jamMulai);
-    const schEnd = timeToMinutes(sch.jamSelesai);
-
-    // Cek apakah waktu tumpang tindih
-    const overlaps = Math.max(newStart, schStart) < Math.min(newEnd, schEnd);
-    if (!overlaps) continue;
-
-    // 1. Bentrok Pengajar yang sama di jam yang sama
-    if (sch.pejuangId === newSchedule.pejuangId) {
-      return {
-        hasConflict: true,
-        reason: `Pengajar ${sch.pejuangName} sudah memiliki jadwal mengajar pada hari ${sch.hari} pukul ${sch.jamMulai}-${sch.jamSelesai} di kelas ${sch.className} (${sch.mapel})`
-      };
-    }
-
-    // 2. Bentrok Kelas yang sama di jam yang sama
-    if (sch.classId === newSchedule.classId) {
-      return {
-        hasConflict: true,
-        reason: `Kelas ${sch.className} sudah terjadwal pelajaran ${sch.mapel} bersama ${sch.pejuangName} pada hari ${sch.hari} pukul ${sch.jamMulai}-${sch.jamSelesai}`
-      };
-    }
-  }
-
-  return { hasConflict: false };
-}
-
-export interface PeriodCutOffInfo {
-  periodeLabel: string; // e.g. "Agustus 2026"
-  codeLabel: string; // e.g. "26Jul-25Agu2026"
-  formattedRange: string; // e.g. "26 Juli - 25 Agustus 2026"
-  dates: string[]; // List of YYYY-MM-DD
-  prevMonthName: string; // "Juli"
-  prevMonthDates: string[]; // ['2026-07-26', ..., '2026-07-31']
-  currMonthName: string; // "Agustus"
-  currMonthDates: string[]; // ['2026-08-01', ..., '2026-08-25']
-  year: number;
-  monthNumber: number; // 1-12
-}
-
-/**
- * Menghitung periode cut-off (26 bulan lalu s/d 25 bulan berjalan)
- * Contoh: "Agustus 2026" -> 26 Juli 2026 sampai 25 Agustus 2026
- */
-export function computeCutOffPeriod(periodeStr: string, cutOffDay = 26): PeriodCutOffInfo {
-  let targetYear = new Date().getFullYear();
-  let targetMonth = new Date().getMonth() + 1; // 1-12
-
-  if (periodeStr) {
-    const parts = periodeStr.trim().split(' ');
-    if (parts.length >= 2) {
-      const mIdx = INDONESIAN_MONTH_NAMES.findIndex(
-        m => m.toLowerCase() === parts[0].toLowerCase()
-      );
-      if (mIdx !== -1) {
-        targetMonth = mIdx + 1;
-      }
-      const y = parseInt(parts[1], 10);
-      if (!isNaN(y)) {
-        targetYear = y;
-      }
-    }
-  }
-
-  // Bulan lalu
-  let prevYear = targetYear;
-  let prevMonth = targetMonth - 1;
-  if (prevMonth === 0) {
-    prevMonth = 12;
-    prevYear = targetYear - 1;
-  }
-
-  const prevMonthName = INDONESIAN_MONTH_NAMES[prevMonth - 1];
-  const currMonthName = INDONESIAN_MONTH_NAMES[targetMonth - 1];
-
-  // Jumlah hari di bulan lalu
-  const daysInPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
-
-  const prevMonthDates: string[] = [];
-  for (let d = cutOffDay; d <= daysInPrevMonth; d++) {
-    const mStr = String(prevMonth).padStart(2, '0');
-    const dStr = String(d).padStart(2, '0');
-    prevMonthDates.push(`${prevYear}-${mStr}-${dStr}`);
-  }
-
-  const currMonthDates: string[] = [];
-  const endDay = cutOffDay - 1; // e.g. 25
-  for (let d = 1; d <= endDay; d++) {
-    const mStr = String(targetMonth).padStart(2, '0');
-    const dStr = String(d).padStart(2, '0');
-    currMonthDates.push(`${targetYear}-${mStr}-${dStr}`);
-  }
-
-  const allDates = [...prevMonthDates, ...currMonthDates];
-
-  const prevShort = INDONESIAN_MONTH_SHORT[prevMonth - 1];
-  const currShort = INDONESIAN_MONTH_SHORT[targetMonth - 1];
-  const codeLabel = `${cutOffDay}${prevShort}-${endDay}${currShort}${targetYear}`;
-  const formattedRange = `${cutOffDay} ${prevMonthName} - ${endDay} ${currMonthName} ${targetYear}`;
-
-  return {
-    periodeLabel: `${currMonthName} ${targetYear}`,
-    codeLabel,
-    formattedRange,
-    dates: allDates,
-    prevMonthName,
-    prevMonthDates,
-    currMonthName,
-    currMonthDates,
-    year: targetYear,
-    monthNumber: targetMonth
-  };
-}
-
-/**
- * Menyusun sesi mengajar untuk suatu tanggal tertentu
- */
-export function resolveSessionsForDate(
-  date: string,
-  schedules: TeachingSchedule[],
-  attendances: TeachingAttendance[],
-  substitutions: TeachingSubstitution[],
-  holidays: HolidayRecord[],
-  currentTimeWib?: { date: string; time: string },
-  toleranceMinutes = 10,
-  lockPulangEarlyMinutes = 5
-): TeachingSessionItem[] {
-  const dayName = getIndonesianDayName(date);
-  const matchingSchedules = schedules.filter(s => s.isActive && s.hari === dayName);
-
-  const nowWibDate = currentTimeWib?.date || new Date().toISOString().split('T')[0];
-  const nowWibTime = currentTimeWib?.time || new Date().toTimeString().slice(0, 5);
-  const nowMinutes = timeToMinutes(nowWibTime);
-
-  const isHoliday = holidays.some(h => h.tanggal === date);
-
-  return matchingSchedules.map(sch => {
-    const attendance = attendances.find(a => a.scheduleId === sch.id && a.date === date);
-    const substitution = substitutions.find(
-      s => s.scheduleId === sch.id && s.date === date && s.status === 'Disetujui'
-    );
-
-    const isBadal = !!substitution;
-    const effectivePejuangId = isBadal ? substitution.substitutePejuangId : sch.pejuangId;
-    const effectivePejuangName = isBadal ? substitution.substitutePejuangName : sch.pejuangName;
-
-    const isToday = date === nowWibDate;
-    const isPast = date < nowWibDate;
-    const isFuture = date > nowWibDate;
-
-    const startMinutes = timeToMinutes(sch.jamMulai);
-    const endMinutes = timeToMinutes(sch.jamSelesai);
-
-    let computedStatus: TeachingSessionItem['computedStatus'] = 'Terjadwal';
-
-    if (attendance) {
-      computedStatus = attendance.status;
-      // Deteksi lupa absen pulang jika sudah lewat jam selesai di hari lampau atau malam ini
-      if (!attendance.jamPulang && (isPast || (isToday && nowMinutes > endMinutes + 60))) {
-        computedStatus = 'Lupa Absen Pulang';
-      }
-    } else if (isHoliday) {
-      computedStatus = 'Libur';
-    } else if (isPast) {
-      computedStatus = 'Alpa';
-    } else if (isToday) {
-      if (nowMinutes > endMinutes + toleranceMinutes) {
-        computedStatus = 'Alpa';
-      } else if (nowMinutes < startMinutes - 30) {
-        computedStatus = 'Belum Waktunya';
-      } else {
-        computedStatus = 'Terjadwal';
-      }
-    } else {
-      computedStatus = 'Terjadwal';
-    }
-
-    // Hitung tombol Absen Masuk & Pulang
-    let canAbsenMasuk = false;
-    let canAbsenPulang = false;
-    let reasonDisabledMasuk = '';
-    let reasonDisabledPulang = '';
-
-    if (!isToday) {
-      reasonDisabledMasuk = 'Absen hanya dapat dilakukan pada tanggal jadwal (Hari ini).';
-      reasonDisabledPulang = 'Absen hanya dapat dilakukan pada tanggal jadwal (Hari ini).';
-    } else if (attendance?.jamMasuk) {
-      reasonDisabledMasuk = `Sudah absen masuk (${attendance.jamMasuk}).`;
-      if (attendance.jamPulang) {
-        reasonDisabledPulang = `Sudah absen pulang (${attendance.jamPulang}).`;
-      } else {
-        // Cek lock jam pulang
-        const earliestPulang = endMinutes - lockPulangEarlyMinutes;
-        if (nowMinutes < earliestPulang) {
-          reasonDisabledPulang = `Absen pulang terkunci sampai pukul ${minutesToDurationStr(earliestPulang)} (minimal ${lockPulangEarlyMinutes} menit sebelum jam selesai).`;
-        } else {
-          canAbsenPulang = true;
-        }
-      }
-    } else {
-      // Belum absen masuk
-      const earliestMasuk = startMinutes - 30; // 30 menit sebelum mulai
-      if (nowMinutes < earliestMasuk) {
-        reasonDisabledMasuk = `Absen masuk dibuka 30 menit sebelum jadwal (${sch.jamMulai}).`;
-      } else if (nowMinutes > endMinutes + 30) {
-        reasonDisabledMasuk = 'Waktu sesi mengajar telah berakhir.';
-      } else {
-        canAbsenMasuk = true;
-      }
-      reasonDisabledPulang = 'Harap lakukan absen masuk terlebih dahulu.';
-    }
-
-    return {
-      schedule: sch,
-      date,
-      hari: dayName,
-      isToday,
-      isPast,
-      effectivePejuangId,
-      effectivePejuangName,
-      isBadal,
-      substitution,
-      attendance,
-      computedStatus,
-      canAbsenMasuk,
-      canAbsenPulang,
-      reasonDisabledMasuk,
-      reasonDisabledPulang
-    };
-  });
-}
-
-/**
- * Menghitung Grid Rekap JP per Pengajar & Mapel untuk Periode Cut-Off
- */
-export function computeJPPengajarGrid(
-  unit: string,
-  periodInfo: PeriodCutOffInfo,
-  schedules: TeachingSchedule[],
-  attendances: TeachingAttendance[],
-  substitutions: TeachingSubstitution[],
-  holidays: HolidayRecord[],
-  teachers: UserAccount[]
-): JPPengajarSummary[] {
-  // Ambil jadwal aktif unit ini
-  const unitSchedules = schedules.filter(s => s.isActive && (unit === 'Semua Unit' || s.unit === unit));
-  if (unitSchedules.length === 0) return [];
-
-  // Map pengajar + mapel pairs
-  // Kunci unik: `${effectivePejuangId}_${mapel}`
-  interface TeacherMapelGroup {
-    pejuangId: string;
-    pejuangName: string;
-    mapel: string;
-    unit: string;
-    dailyJP: Record<string, number>;
-  }
-
-  const groupMap = new Map<string, TeacherMapelGroup>();
-
-  // Inisialisasi dari jadwal asli
-  for (const sch of unitSchedules) {
-    const key = `${sch.pejuangId}_${sch.mapel}_${sch.unit}`;
-    if (!groupMap.has(key)) {
-      groupMap.set(key, {
-        pejuangId: sch.pejuangId,
-        pejuangName: sch.pejuangName,
-        mapel: sch.mapel,
-        unit: sch.unit,
-        dailyJP: {}
-      });
-    }
-  }
-
-  // Juga tambahkan kemungkinan badal ke groupMap
-  for (const sub of substitutions) {
-    if (sub.status === 'Disetujui' && (unit === 'Semua Unit' || sub.unit === unit)) {
-      const key = `${sub.substitutePejuangId}_${sub.mapel}_${sub.unit}`;
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          pejuangId: sub.substitutePejuangId,
-          pejuangName: sub.substitutePejuangName,
-          mapel: sub.mapel,
-          unit: sub.unit,
-          dailyJP: {}
-        });
-      }
-    }
-  }
-
-  // Loop setiap tanggal pada periode
-  for (const dateStr of periodInfo.dates) {
-    const dayName = getIndonesianDayName(dateStr);
-    const daySchedules = unitSchedules.filter(s => s.hari === dayName);
-
-    for (const sch of daySchedules) {
-      // Cek apakah ada badal yang disetujui pada tanggal ini
-      const approvedBadal = substitutions.find(
-        sub => sub.scheduleId === sch.id && sub.date === dateStr && sub.status === 'Disetujui'
-      );
-
-      // Siapa yang berhak menerima JP: jika badal disetujui -> pengganti, jika tidak -> pengajar asli
-      const recipientId = approvedBadal ? approvedBadal.substitutePejuangId : sch.pejuangId;
-      const recipientName = approvedBadal ? approvedBadal.substitutePejuangName : sch.pejuangName;
-      const key = `${recipientId}_${sch.mapel}_${sch.unit}`;
-
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          pejuangId: recipientId,
-          pejuangName: recipientName,
-          mapel: sch.mapel,
-          unit: sch.unit,
-          dailyJP: {}
-        });
-      }
-
-      // Cari record absensi jika ada
-      const att = attendances.find(a => a.scheduleId === sch.id && a.date === dateStr);
-      let earnedJP = 0;
-
-      if (att) {
-        // Jika ada record absensi dan status Hadir/Terlambat, hitung JP
-        if (att.status === 'Hadir' || att.status === 'Terlambat') {
-          // Gunakan snapshot jumlahJP di absensi jika ada, untuk menjamin historisitas
-          earnedJP = att.jumlahJP ?? sch.jumlahJP;
-        }
-      }
-
-      const group = groupMap.get(key)!;
-      group.dailyJP[dateStr] = (group.dailyJP[dateStr] || 0) + earnedJP;
-    }
-  }
-
-  // Ubah ke array dan hitung totalJP
-  const result: JPPengajarSummary[] = [];
-  let no = 1;
-
-  // Urutkan berdasarkan Nama Pengajar lalu Mapel
-  const sortedGroups = Array.from(groupMap.values()).sort((a, b) => {
-    const comp = a.pejuangName.localeCompare(b.pejuangName);
-    if (comp !== 0) return comp;
-    return a.mapel.localeCompare(b.mapel);
-  });
-
-  for (const item of sortedGroups) {
-    let totalJP = 0;
-    for (const d of periodInfo.dates) {
-      totalJP += item.dailyJP[d] || 0;
-    }
-
-    result.push({
-      no: no++,
-      pejuangId: item.pejuangId,
-      pejuangName: item.pejuangName,
-      mapel: item.mapel,
-      unit: item.unit,
-      dailyJP: item.dailyJP,
-      totalJP
-    });
-  }
-
-  return result;
-}
-
-/**
- * Menghitung Rekap Kehadiran Mengajar per Pengajar (Sheet 2)
- */
-export function computeAttendanceRekap(
-  unit: string,
-  periodInfo: PeriodCutOffInfo,
-  schedules: TeachingSchedule[],
-  attendances: TeachingAttendance[],
-  substitutions: TeachingSubstitution[],
-  holidays: HolidayRecord[],
-  teachers: UserAccount[]
-): AttendanceRekapItem[] {
-  const unitSchedules = schedules.filter(s => s.isActive && (unit === 'Semua Unit' || s.unit === unit));
-  const holidayDates = new Set(holidays.map(h => h.tanggal));
-
-  // Ambil semua pengajar unik dari jadwal unit ini
-  const teacherIds = new Set<string>();
-  unitSchedules.forEach(s => teacherIds.add(s.pejuangId));
-  substitutions.forEach(s => {
-    if (s.status === 'Disetujui' && (unit === 'Semua Unit' || s.unit === unit)) {
-      teacherIds.add(s.substitutePejuangId);
-    }
-  });
-
-  const nowWibDate = new Date().toISOString().split('T')[0];
-  const nowWibTime = new Date().toTimeString().slice(0, 5);
-  const nowMinutes = timeToMinutes(nowWibTime);
-
-  const result: AttendanceRekapItem[] = [];
-
-  for (const tid of teacherIds) {
-    const teacherAcc = teachers.find(t => t.id === tid);
-    const teacherName = teacherAcc?.name || unitSchedules.find(s => s.pejuangId === tid)?.pejuangName || tid;
-
-    let totalSesiTerjadwal = 0;
-    let hadir = 0;
-    let terlambat = 0;
-    let alpa = 0;
-    let izinSakit = 0;
-    let totalMenitTerlambat = 0;
-    let totalJamMengajar = 0; // dalam desimal jam
-    let totalJP = 0;
-    let badalDiberikan = 0;
-    let badalDiterima = 0;
-
-    for (const dateStr of periodInfo.dates) {
-      if (holidayDates.has(dateStr)) continue; // Libur tidak dihitung alpa
-
-      const dayName = getIndonesianDayName(dateStr);
-      const daySchedules = unitSchedules.filter(s => s.hari === dayName);
-
-      for (const sch of daySchedules) {
-        const approvedBadal = substitutions.find(
-          sub => sub.scheduleId === sch.id && sub.date === dateStr && sub.status === 'Disetujui'
-        );
-
-        const isOriginal = sch.pejuangId === tid;
-        const isSubstitute = approvedBadal?.substitutePejuangId === tid;
-
-        if (!isOriginal && !isSubstitute) continue;
-
-        // Hitung badal diberikan & diterima
-        if (isOriginal && approvedBadal) {
-          badalDiberikan++;
-          // Sesi dibadalkan ke orang lain, pengajar asli tidak kena alpa
-          continue;
-        }
-
-        if (isSubstitute) {
-          badalDiterima++;
-        }
-
-        totalSesiTerjadwal++;
-
-        const att = attendances.find(a => a.scheduleId === sch.id && a.date === dateStr);
-        const startMin = timeToMinutes(sch.jamMulai);
-        const endMin = timeToMinutes(sch.jamSelesai);
-        const durationHours = (endMin - startMin) / 60;
-
-        if (att) {
-          if (att.status === 'Hadir') {
-            hadir++;
-            totalJP += att.jumlahJP ?? sch.jumlahJP;
-            totalJamMengajar += durationHours;
-          } else if (att.status === 'Terlambat') {
-            terlambat++;
-            totalMenitTerlambat += att.lateMinutes || 0;
-            totalJP += att.jumlahJP ?? sch.jumlahJP;
-            totalJamMengajar += durationHours;
-          } else if (att.status === 'Izin' || att.status === 'Sakit') {
-            izinSakit++;
-          } else if (att.status === 'Alpa') {
-            alpa++;
-          } else if (att.status === 'Lupa Absen Pulang') {
-            hadir++;
-            totalJP += att.jumlahJP ?? sch.jumlahJP;
-            totalJamMengajar += durationHours;
-          }
-        } else {
-          // Belum ada absen
-          const isPast = dateStr < nowWibDate;
-          const isTodayPast = dateStr === nowWibDate && nowMinutes > endMin + 15;
-          if (isPast || isTodayPast) {
-            alpa++;
-          }
-        }
-      }
-    }
-
-    const persenKehadiran = totalSesiTerjadwal > 0
-      ? Math.round(((hadir + terlambat) / totalSesiTerjadwal) * 100)
-      : 0;
-
-    result.push({
-      pejuangId: tid,
-      pejuangName: teacherName,
-      unit,
-      totalSesiTerjadwal,
-      hadir,
-      terlambat,
-      alpa,
-      izinSakit,
-      totalMenitTerlambat,
-      totalJamMengajar: Number(totalJamMengajar.toFixed(1)),
-      totalJP,
-      badalDiberikan,
-      badalDiterima,
-      persenKehadiran
-    });
-  }
-
-  return result.sort((a, b) => a.pejuangName.localeCompare(b.pejuangName));
-}
-
-/**
- * Menghitung Detail Sesi Mengajar (Sheet 3)
- */
-export function computeDetailSesi(
-  unit: string,
-  periodInfo: PeriodCutOffInfo,
-  schedules: TeachingSchedule[],
-  attendances: TeachingAttendance[],
-  substitutions: TeachingSubstitution[],
-  holidays: HolidayRecord[],
-  locations: TeachingLocation[]
-): TeachingSessionDetailItem[] {
-  const unitSchedules = schedules.filter(s => s.isActive && (unit === 'Semua Unit' || s.unit === unit));
-  const holidayDates = new Set(holidays.map(h => h.tanggal));
-  const nowWibDate = new Date().toISOString().split('T')[0];
-  const nowWibTime = new Date().toTimeString().slice(0, 5);
-  const nowMinutes = timeToMinutes(nowWibTime);
-
-  const result: TeachingSessionDetailItem[] = [];
-
-  for (const dateStr of periodInfo.dates) {
-    const isHoliday = holidayDates.has(dateStr);
-    const dayName = getIndonesianDayName(dateStr);
-    const daySchedules = unitSchedules.filter(s => s.hari === dayName);
-
-    for (const sch of daySchedules) {
-      const approvedBadal = substitutions.find(
-        sub => sub.scheduleId === sch.id && sub.date === dateStr && sub.status === 'Disetujui'
-      );
-      const isBadal = !!approvedBadal;
-
-      const effectiveTeacherName = isBadal ? approvedBadal.substitutePejuangName : sch.pejuangName;
-      const att = attendances.find(a => a.scheduleId === sch.id && a.date === dateStr);
-
-      const startMin = timeToMinutes(sch.jamMulai);
-      const endMin = timeToMinutes(sch.jamSelesai);
-      const durationStr = minutesToDurationStr(endMin - startMin);
-
-      let status = 'Terjadwal';
-      let terlambatMenit = 0;
-      let jamMasuk = '-';
-      let jamPulang = '-';
-      let jarakMasukMeter: number | string = '-';
-      let catatan = '';
-
-      if (att) {
-        status = att.status;
-        jamMasuk = att.jamMasuk || '-';
-        jamPulang = att.jamPulang || '-';
-        terlambatMenit = att.lateMinutes || 0;
-        jarakMasukMeter = att.masukDistanceMeters != null ? `${att.masukDistanceMeters} m` : '-';
-        catatan = att.notes || '';
-      } else if (isHoliday) {
-        status = 'Libur';
-      } else if (dateStr < nowWibDate || (dateStr === nowWibDate && nowMinutes > endMin + 15)) {
-        status = 'Alpa';
-      }
-
-      result.push({
-        tanggal: dateStr,
-        hari: dayName,
-        unit: sch.unit,
-        pengajar: effectiveTeacherName,
-        kelas: sch.className,
-        mapel: sch.mapel,
-        jp: att?.jumlahJP ?? sch.jumlahJP,
-        lokasi: sch.locationName || 'Kampus Al-Bahjah',
-        jadwalMulaiSelesai: `${sch.jamMulai} - ${sch.jamSelesai}`,
-        jamMasuk,
-        jamPulang,
-        durasi: durationStr,
-        status,
-        terlambatMenit,
-        jarakMasukMeter,
-        badal: isBadal ? 'Ya' : 'Tidak',
-        pengajarAsli: sch.pejuangName,
-        catatan
-      });
-    }
-  }
-
-  // Urutkan berdasarkan tanggal ASC, lalu jadwal mulai
-  return result.sort((a, b) => {
-    const dComp = a.tanggal.localeCompare(b.tanggal);
-    if (dComp !== 0) return dComp;
-    return a.jadwalMulaiSelesai.localeCompare(b.jadwalMulaiSelesai);
-  });
-}
-
-/**
- * Menghitung Rekap Badal Mengajar (Sheet 4)
- */
-export function computeRekapBadal(
-  unit: string,
-  periodInfo: PeriodCutOffInfo,
-  substitutions: TeachingSubstitution[],
-  schedules: TeachingSchedule[]
-): TeachingBadalRekapItem[] {
-  const datesSet = new Set(periodInfo.dates);
-  const relevantBadal = substitutions.filter(
-    sub => datesSet.has(sub.date) && (unit === 'Semua Unit' || sub.unit === unit)
-  );
-
-  return relevantBadal.map(sub => {
-    const sch = schedules.find(s => s.id === sub.scheduleId);
-    return {
-      tanggal: sub.date,
-      unit: sub.unit,
-      kelas: sub.className,
-      mapel: sub.mapel,
-      jp: sub.jumlahJP,
-      jadwal: `${sub.jamMulai} - ${sub.jamSelesai}`,
-      pengajarAsli: sub.originalPejuangName,
-      pengajarPengganti: sub.substitutePejuangName,
-      alasan: sub.alasan || '-',
-      status: sub.status,
-      disetujuiOleh: sub.approvedBy || '-'
-    };
-  }).sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-}
-
-/**
- * Utility untuk menghitung rentang cut-off periode pengajaran
- */
-export function calculateCutoffRange(arg1?: any, arg2?: any, arg3?: any) {
-  let startDay = 26;
-  let endDay = 25;
-  let baseDate = new Date();
-
-  if (typeof arg1 === 'number' && typeof arg2 === 'number') {
-    startDay = arg1;
-    endDay = arg2;
-    if (arg3) {
-      baseDate = typeof arg3 === 'string' ? new Date(arg3) : arg3;
-    }
-  } else if (typeof arg1 === 'string') {
-    if (arg1.includes('-')) {
-      const parts = arg1.split('-');
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      if (!isNaN(y) && !isNaN(m)) baseDate = new Date(y, m - 1, 1);
-    } else {
-      const foundIdx = INDONESIAN_MONTH_NAMES.findIndex(m => arg1.toLowerCase().includes(m.toLowerCase()));
-      if (foundIdx >= 0) {
-        const yrMatch = arg1.match(/\d{4}/);
-        const y = yrMatch ? parseInt(yrMatch[0], 10) : baseDate.getFullYear();
-        baseDate = new Date(y, foundIdx, 1);
-      }
-    }
-    if (typeof arg2 === 'number') {
-      startDay = arg2;
-      endDay = arg2 - 1;
-    }
-  }
-
-  const y = baseDate.getFullYear();
-  const m = baseDate.getMonth(); // 0-indexed
-
-  // Prev month start
-  const prevDate = new Date(y, m - 1, startDay);
-  const curDate = new Date(y, m, endDay);
-
-  const startIso = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
-  const endIso = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}-${String(curDate.getDate()).padStart(2, '0')}`;
-
-  const dates = getDatesBetween(startIso, endIso);
-
-  return {
-    startDate: startIso,
-    endDate: endIso,
-    dates,
-    label: `${startDay} - ${endDay}`,
-    codeLabel: `${startDay}_${endDay}`
-  };
-}
-
-/**
- * Mendapatkan semua tanggal antara startDate dan endDate inclusive (YYYY-MM-DD)
- */
-export function getDatesBetween(startDate: string, endDate: string): string[] {
-  const dates: string[] = [];
-  const curr = new Date(startDate);
-  const end = new Date(endDate);
-  while (curr <= end) {
-    const y = curr.getFullYear();
-    const m = String(curr.getMonth() + 1).padStart(2, '0');
-    const d = String(curr.getDate()).padStart(2, '0');
-    dates.push(`${y}-${m}-${d}`);
-    curr.setDate(curr.getDate() + 1);
-  }
-  return dates;
-}
-
-/**
- * Format durasi menit ke format string jam dan menit
- */
-export function formatMenitKeJamMenit(totalMinutes: number): string {
-  if (!totalMinutes || totalMinutes <= 0) return '0j 0m';
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  return `${hours}j ${mins}m`;
-}
-
-export const getNamaHariFromDate = getIndonesianDayName;
-export const calculateHaversineDistance = calculateDistanceMeters;
-export const getLocalDateStr = (d?: Date) => {
-  const date = d || new Date();
+export function getLocalDateStr(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-export function evaluateSessionStatus(..._args: any[]): any {
-  return 'Terjadwal';
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
+/**
+ * Format minutes into readable "X Jam Y Menit"
+ */
+export function formatMenitKeJamMenit(totalMinutes: number): string {
+  if (!totalMinutes || totalMinutes <= 0) return '0 Menit';
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h > 0 && m > 0) return `${h} Jam ${m} Menit`;
+  if (h > 0) return `${h} Jam`;
+  return `${m} Menit`;
+}
+
+/**
+ * Calculate cutoff date range (e.g. 21 of previous month to 20 of current month)
+ */
+export function calculateCutoffRange(
+  startDay: number = 21,
+  endDay: number = 20,
+  referenceDate: Date = new Date()
+): { startDate: string; endDate: string; label: string } {
+  const ref = new Date(referenceDate);
+  const currentDay = ref.getDate();
+  const currentMonth = ref.getMonth();
+  const currentYear = ref.getFullYear();
+
+  let startYear = currentYear;
+  let startMonth = currentMonth;
+  let endYear = currentYear;
+  let endMonth = currentMonth;
+
+  if (currentDay >= startDay) {
+    // We are past cutoff start day, so period is this month startDay -> next month endDay
+    endMonth = currentMonth + 1;
+    if (endMonth > 11) {
+      endMonth = 0;
+      endYear = currentYear + 1;
+    }
+  } else {
+    // We are before startDay, so period is previous month startDay -> this month endDay
+    startMonth = currentMonth - 1;
+    if (startMonth < 0) {
+      startMonth = 11;
+      startYear = currentYear - 1;
+    }
+  }
+
+  const startDate = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+  const endDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+  const label = `${startDate} s/d ${endDate}`;
+
+  return { startDate, endDate, label };
+}
+
+/**
+ * Returns list of dates between startDate and endDate
+ */
+export function getDatesBetween(startDate: string, endDate: string): string[] {
+  return getDatesInRange(startDate, endDate);
+}
 

@@ -120,7 +120,8 @@ export const CutiView: React.FC<CutiViewProps> = ({
   };
 
   const isExplicitCutiApprover = currentUser.role === 'Admin' || isUserInList(cutiApprovers, currentUser);
-  const isAnyCutiApprover = isExplicitCutiApprover;
+  const isLeaderCutiApprover = Boolean((currentUser.amanah || '').toLowerCase().match(/ketua|kepala|manajer|manager|koordinator/));
+  const isAnyCutiApprover = isExplicitCutiApprover || isLeaderCutiApprover;
 
   const norm = (s?: string) => (s || '').toLowerCase().replace(/^(divisi|sub\s*divisi)\s+/i, '').trim();
 
@@ -133,8 +134,14 @@ export const CutiView: React.FC<CutiViewProps> = ({
     return '';
   };
 
-  const isCutiApprover = (_recSubDivisi?: string, _pejuangId?: string) => {
-    return isExplicitCutiApprover;
+  const isCutiApprover = (recSubDivisi?: string, pejuangId?: string) => {
+    if (isExplicitCutiApprover) return true;
+    if (!isLeaderCutiApprover) return false;
+    const userDiv = norm(currentUser.subDivisi);
+    if (!userDiv) return true;
+    const targetDiv = norm(getRecordSubDivisi(recSubDivisi, pejuangId));
+    if (!targetDiv) return true;
+    return userDiv === targetDiv || userDiv.includes(targetDiv) || targetDiv.includes(userDiv);
   };
 
   // Filtered requests

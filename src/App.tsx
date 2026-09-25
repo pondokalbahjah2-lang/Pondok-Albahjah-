@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppNotification, UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings, DivisiRecord, LiburPengurusRecord } from './types';
+import { AppNotification, UserAccount, AttendanceRecord, ExitPermissionRecord, LeaveRequestRecord, WarningLetterRecord, SlipUbarRecord, WorkSchedule, LocationSettings, ManhajiyyahClause, KajianRecord, GeneralSettings } from './types';
 import { Storage as AppStorage } from './utils/storage';
 import { IOSGlassLayout } from './components/iOSGlassLayout';
 import { LoginView } from './components/LoginView';
@@ -7,7 +7,6 @@ import { DashboardView } from './components/DashboardView';
 import { IzinKeluarView } from './components/IzinKeluarView';
 import { AbsensiView } from './components/AbsensiView';
 import { CutiView } from './components/CutiView';
-import { LiburPengurusView } from './components/LiburPengurusView';
 import { SlipUbarView } from './components/SlipUbarView';
 import { SuratTeguranView } from './components/SuratTeguranView';
 import { KalenderView } from './components/KalenderView';
@@ -15,6 +14,10 @@ import { LaporanView } from './components/LaporanView';
 import { SettingsView } from './components/SettingsView';
 import { AuditLogView, AuditLogEntry } from './components/AuditLogView';
 import { KajianView } from './components/KajianView';
+import { AbsenMengajarView } from './components/AbsenMengajarView';
+import { KelolaMengajarView } from './components/KelolaMengajarView';
+import { LaporanMengajarView } from './components/LaporanMengajarView';
+import { useTeachingData } from './hooks/useTeachingData';
 import { db, auth, handleFirestoreError, OperationType } from './utils/firebase';
 import { collection, onSnapshot, query, where, setDoc, doc, getDocs, limit, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -24,9 +27,9 @@ import { RefreshCcw, AlertTriangle, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { INITIAL_LOCATION_SETTINGS } from './data/mockData';
 import { getLocalDateString } from './utils/dateUtils';
-import { usePulangReminder } from './hooks/usePulangReminder';
 
 export default function App() {
+  console.log('App: Component rendering...');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
 
   const [accounts, setAccounts] = useState<UserAccount[]>([]);
@@ -36,8 +39,6 @@ export default function App() {
   const [warningLetters, setWarningLetters] = useState<WarningLetterRecord[]>([]);
   const [slipUbarList, setSlipUbarList] = useState<SlipUbarRecord[]>([]);
   const [schedules, setSchedules] = useState<WorkSchedule[]>([]);
-  const [divisions, setDivisions] = useState<DivisiRecord[]>([]);
-  const [liburPengurusList, setLiburPengurusList] = useState<LiburPengurusRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({});
   const [locationSettings, setLocationSettings] = useState<LocationSettings | null>(null);
@@ -50,8 +51,12 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
-  // Register pulang reminder hook
-  usePulangReminder(currentUser, schedules, attendance, divisions);
+  const teachingHook = useTeachingData(currentUser);
+
+  
+
+  
+
 
   // GLOBAL PUBLIC SYNC HOOK (No Auth Required)
   useEffect(() => {
@@ -60,7 +65,7 @@ export default function App() {
       if (docSnap.exists()) {
         setGeneralSettings(docSnap.data() as GeneralSettings);
       }
-    }, (err) => console.error('Settings read err', err));
+    }, (err) => console.log('Settings read err'));
 
 
     let firstManhajLoad = true;
@@ -86,21 +91,24 @@ export default function App() {
       }
       setManhajiyyahClauses(snap.docs.map(d => d.data() as ManhajiyyahClause));
       firstManhajLoad = false;
-    }, (err) => console.error('Manhajiyyah read err', err));
+    }, (err) => console.log('Manhajiyyah read err'));
 
     return () => {
       unsubGeneral();
-      unsubManhaj();
+      
+      
     };
   }, [currentUser?.role]); // re-bind when role changes so the notification logic uses correct role
 
   // FIREBASE SYNC HOOK
   useEffect(() => {
+    console.log('App: useEffect for Firebase Sync triggered. Current user:', currentUser?.id);
     if (!currentUser) {
+      console.log('App: No currentUser in state, skipping sync.');
       return;
     }
 
-    let unsubKajian = () => {};
+        let unsubKajian = () => {};
     let unsubCutiNotif = () => {};
     let unsubIzinNotif = () => {};
     let unsubUsers = () => {};
@@ -110,32 +118,14 @@ export default function App() {
     let unsubLeave = () => {};
     let unsubWarn = () => {};
     let unsubSlip = () => {};
+
     let unsubSchedules = () => {};
     let unsubLoc = () => {};
-    let unsubDivisi = () => {};
-    let unsubLiburPengurus = () => {};
-    let unsubLiburNotif = () => {};
+    let unsubManhaj = () => {};
 
-    const cleanupActiveListeners = () => {
-      unsubKajian(); unsubKajian = () => {};
-      unsubCutiNotif(); unsubCutiNotif = () => {};
-      unsubIzinNotif(); unsubIzinNotif = () => {};
-      unsubUsers(); unsubUsers = () => {};
-      unsubNotif(); unsubNotif = () => {};
-      unsubAtt(); unsubAtt = () => {};
-      unsubExit(); unsubExit = () => {};
-      unsubLeave(); unsubLeave = () => {};
-      unsubWarn(); unsubWarn = () => {};
-      unsubSlip(); unsubSlip = () => {};
-      unsubSchedules(); unsubSchedules = () => {};
-      unsubLoc(); unsubLoc = () => {};
-      unsubDivisi(); unsubDivisi = () => {};
-      unsubLiburPengurus(); unsubLiburPengurus = () => {};
-      unsubLiburNotif(); unsubLiburNotif = () => {};
-    };
-
+    console.log('App: Setting up onAuthStateChanged listener');
     const unsubAuth = onAuthStateChanged(auth, async (fUser) => {
-      cleanupActiveListeners();
+      console.log('App: onAuthStateChanged callback fired. Firebase User:', fUser?.uid);
       if (fUser) {
         let activeUser = currentUser;
         if (!activeUser) {
@@ -149,6 +139,7 @@ export default function App() {
           } catch (e) { console.error('Failed to restore user session:', e); }
         }
         if (!activeUser) return;
+        console.log('App: Firebase User is authenticated. Proceeding with sync.');
         const isAd = activeUser.role === 'Admin';
         const uid = activeUser.id;
 
@@ -374,93 +365,38 @@ export default function App() {
       firstIzinLoad = false;
     });
 
-    // Sync Divisi
-    unsubDivisi = onSnapshot(collection(db, 'divisi'), (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as DivisiRecord));
-      if (snap.empty && isAd) {
-        const defaultDivNames = [
-          'SMPIQu', 'SMAIQu', 'Divisi Kepondokan Banat', 'Manajemen Kepondokan',
-          'Pengasuhan Putri', 'Pengasuhan Putra', 'Media & IT', 'Sarpras & Logistik',
-          'Keuangan & BMT', 'Dapur & Konsumsi', 'Klinik & Kesehatan'
-        ];
-        defaultDivNames.forEach((nama, idx) => {
-          const seedId = `div-${Date.now()}-${idx}`;
-          const seedDoc: DivisiRecord = {
-            id: seedId,
-            namaDivisi: nama,
-            deskripsi: `Unit operasional ${nama} Pondok Pesantren Al-Bahjah Cirebon 1`,
-            warnaLabel: '#059669',
-            iconName: 'Building2',
-            anggotaIds: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          setDoc(doc(db, 'divisi', seedId), seedDoc);
-        });
-      }
-      setDivisions(data);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'divisi'));
-
-    // Sync Libur Pengurus
-    const liburQ = isAd 
-      ? query(collection(db, 'liburPengurus'), limit(3000)) 
-      : query(collection(db, 'liburPengurus'), where('pejuangId', '==', uid));
-    let firstLiburLoad = true;
-    unsubLiburPengurus = onSnapshot(liburQ, (snap) => {
-      let data = snap.docs.map(d => ({ id: d.id, ...d.data() } as LiburPengurusRecord));
-      data = data.sort((a, b) => (b.tanggalMulai || b.id || '').localeCompare(a.tanggalMulai || a.id || ''));
-      if (!firstLiburLoad && !isAd) {
-        snap.docChanges().forEach(change => {
-          if (change.type === 'modified') {
-            const newData = change.doc.data() as LiburPengurusRecord;
-            if (newData.pejuangId === uid && (newData.status === 'Disetujui' || newData.status === 'Ditolak')) {
-              const msg = `Pembaruan Izin Libur Pengurus: Pengajuan Anda telah ${newData.status}`;
-              if (Notification.permission === 'granted') {
-                new Notification('Status Libur Pengurus', { body: msg });
-              } else {
-                alert(msg);
-              }
-            }
+    // Sync Manhajiyyah Clauses
+        let firstManhajLoad = true;
+        unsubManhaj = onSnapshot(collection(db, 'manhajiyyahClauses'), (snap) => {
+          if (!firstManhajLoad && !isAd) {
+             snap.docChanges().forEach(change => {
+               if (change.type === 'added' || change.type === 'modified') {
+                 const newData = change.doc.data();
+                 const msg = change.type === 'added' 
+                   ? `Admin telah menambahkan Klausul Manhajiyyah baru: ${newData.title}`
+                   : `Admin telah memperbarui Klausul Manhajiyyah: ${newData.title}`;
+                 if (Notification.permission === 'granted') {
+                   new Notification('Pembaruan Manhajiyyah', { body: msg });
+                 } else {
+                   alert(`Pemberitahuan: ${msg}`);
+                 }
+               }
+             });
           }
-        });
-      }
-      firstLiburLoad = false;
-      setLiburPengurusList(data);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, 'liburPengurus'));
-
-    // Sync Libur Pengurus Notifications for Admin and Badal
-    let firstLiburNotifLoad = true;
-    unsubLiburNotif = onSnapshot(collection(db, 'liburPengurus'), (snap) => {
-      if (!firstLiburNotifLoad) {
-        snap.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const newData = change.doc.data() as LiburPengurusRecord;
-            if (newData.status === 'Menunggu Persetujuan') {
-              const isBadal = newData.badalId === currentUser?.id;
-              const isAdminUser = currentUser?.role === 'Admin';
-              if ((isAdminUser || isBadal) && newData.pejuangId !== currentUser?.id) {
-                const msg = isBadal 
-                  ? `Anda ditunjuk sebagai Badal Libur oleh ${newData.pejuangName} pada ${newData.tanggalMulai}`
-                  : `Pengajuan Libur Pengurus Baru dari ${newData.pejuangName} (${newData.subDivisi})`;
-                if (Notification.permission === 'granted') {
-                  new Notification('Al-Bahjah Sistem', { body: msg });
-                } else {
-                  alert(msg);
-                }
-              }
-            }
-          }
-        });
-      }
-      firstLiburNotifLoad = false;
-    });
-
+          firstManhajLoad = false;
+          setManhajiyyahClauses(snap.docs.map(d => d.data() as ManhajiyyahClause));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, 'manhajiyyahClauses'));
+      } else {
+        console.log('App: Firebase User is NULL in onAuthStateChanged.');
       }
     });
 
     return () => {
       unsubAuth();
-      cleanupActiveListeners();
+      unsubUsers(); unsubNotif(); unsubAtt(); unsubExit(); unsubLeave(); unsubWarn(); unsubSlip(); unsubKajian();
+      unsubSchedules(); unsubLoc(); unsubManhaj();
+       unsubCutiNotif(); unsubIzinNotif();
+      
     };
   }, [currentUser]);
 
@@ -549,20 +485,24 @@ export default function App() {
   }, [currentUser, schedules]);
 
   const handleLoginSuccess = (user: UserAccount) => {
+    console.log('App: handleLoginSuccess called. Setting currentUser to:', user.id);
     setCurrentUser(user);
-    setActiveTab(user.role === 'Admin' ? 'dashboard' : 'absensi');
+        setActiveTab(user.role === 'Admin' ? 'dashboard' : 'absensi');
     logAudit('LOGIN', 'User logged in successfully', user);
   };
 
   const handleLogout = () => {
+    console.log('App: handleLogout called.');
     if (currentUser) {
       logAudit('LOGOUT', 'User logged out', currentUser);
     }
     signOut(auth)
+      .then(() => console.log('App: Firebase signOut successful.'))
       .catch((err) => console.error('App: Firebase signOut error:', err))
       .finally(() => {
+        console.log('App: Clearing currentUser state.');
         setCurrentUser(null);
-      });
+              });
   };
 
   // State savers - Write to Firebase
@@ -712,50 +652,13 @@ export default function App() {
 
         for (const a of addedOrUpdated) await setDoc(doc(db, 'schedules', a.id), a);
         for (const a of deleted) {
+          console.log(`[Audit] Deleting schedule document with ID ${a.id}`);
           await deleteDoc(doc(db, 'schedules', a.id));
         }
         if (deleted.length > 0 || addedOrUpdated.length > 0) {
           await logAudit('UPDATE_SCHEDULES', `Admin updated/deleted schedules. Added/Updated: ${addedOrUpdated.length}, Deleted: ${deleted.length}`, currentUser);
         }
       } catch (e) { handleFirestoreError(e, OperationType.WRITE, 'schedules'); }
-    }
-  };
-
-  const handleSaveDivisions = async (divs: DivisiRecord[]) => {
-    setDivisions(divs);
-    if (currentUser?.role === 'Admin') {
-      try {
-        const addedOrUpdated = divs.filter(a => {
-          const existing = divisions.find(d => d.id === a.id);
-          return !existing || JSON.stringify(existing) !== JSON.stringify(a);
-        });
-        const deleted = divisions.filter(d => !divs.find(item => item.id === d.id));
-
-        for (const a of addedOrUpdated) await setDoc(doc(db, 'divisi', a.id), a);
-        for (const d of deleted) await deleteDoc(doc(db, 'divisi', d.id));
-
-        if (addedOrUpdated.length > 0 || deleted.length > 0) {
-          await logAudit('UPDATE_DIVISI', `Admin updated divisions. Total: ${divs.length}`, currentUser);
-        }
-      } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, 'divisi');
-      }
-    }
-  };
-
-  const handleSaveLiburPengurus = async (list: LiburPengurusRecord[]) => {
-    const addedOrUpdated = list.filter(a => {
-      const existing = liburPengurusList.find(ex => ex.id === a.id);
-      return !existing || JSON.stringify(existing) !== JSON.stringify(a);
-    });
-    setLiburPengurusList(list);
-    try {
-      for (const a of addedOrUpdated) await setDoc(doc(db, 'liburPengurus', a.id), a);
-      if (currentUser?.role === 'Admin' && addedOrUpdated.length > 0) {
-        logAudit('DATA_CHANGE', `Admin updated libur pengurus for: ${addedOrUpdated.map(u => u.pejuangName).join(', ')}`, currentUser);
-      }
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, 'liburPengurus');
     }
   };
 
@@ -795,6 +698,7 @@ export default function App() {
         return (b.id || '').localeCompare(a.id || '');
       });
       setKajianRecords(data);
+      console.log('Force synced kajian records, found:', data.length);
       alert('Data Kajian berhasil disinkronisasi paksa dari server.');
     } catch (e) {
       console.error('Error force syncing kajian:', e);
@@ -830,6 +734,7 @@ export default function App() {
 
         for (const a of addedOrUpdated) await setDoc(doc(db, 'manhajiyyahClauses', a.id), a);
         for (const a of deleted) {
+          console.log(`[Audit] Deleting manhajiyyah clause document with ID ${a.id}`);
           await deleteDoc(doc(db, 'manhajiyyahClauses', a.id));
         }
         if (deleted.length > 0 || addedOrUpdated.length > 0) {
@@ -861,7 +766,6 @@ export default function App() {
         onLogout={handleLogout}
         leaveRequests={leaveRequests}
         exitPermissions={exitPermissions}
-        liburPengurusList={liburPengurusList}
         izinKeluarApprovers={generalSettings.izinKeluarApprovers}
         cutiApprovers={generalSettings.cutiApprovers}
         notifications={notifications}
@@ -893,6 +797,27 @@ export default function App() {
                 schedules={schedules}
               />
             )}
+            {activeTab === 'absen-mengajar' && (
+              <AbsenMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
+              />
+            )}
+            {activeTab === 'kelola-mengajar' && (
+              <KelolaMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
+              />
+            )}
+            {activeTab === 'laporan-mengajar' && (
+              <LaporanMengajarView
+                currentUser={currentUser}
+                accounts={accounts}
+                teachingHook={teachingHook}
+              />
+            )}
             {activeTab === 'izin' && (
               <IzinKeluarView
                 currentUser={currentUser}
@@ -911,7 +836,7 @@ export default function App() {
                 attendance={attendance}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-                divisions={divisions}
+
                 onSaveAttendance={handleSaveAttendance}
                 isLoading={isLoadingData}
               />
@@ -928,20 +853,6 @@ export default function App() {
                 cutiApprovers={generalSettings.cutiApprovers}
                 jenisCutiList={generalSettings.jenisCutiList}
                 onSaveAccounts={handleSaveAccounts}
-              />
-            )}
-            {activeTab === 'libur' && (
-              <LiburPengurusView
-                currentUser={currentUser}
-                accounts={accounts}
-                liburPengurusList={liburPengurusList}
-                onSaveLiburPengurus={handleSaveLiburPengurus}
-                onSaveAttendance={handleSaveAttendance}
-                attendance={attendance}
-                appLogoUrl={generalSettings.appLogoUrl}
-                kepalaPondokName={generalSettings.kepalaPondokName}
-                liburApprovers={generalSettings.liburPengurusApprovers}
-                dynamicDivisions={divisions.map(d => d.namaDivisi)}
               />
             )}
             {activeTab === 'ubar' && (
@@ -988,7 +899,7 @@ export default function App() {
                 warningLetters={warningLetters}
                 slipUbarList={slipUbarList}
                 schedules={schedules}
-                divisions={divisions}
+
               />
             )}
             {activeTab === 'settings' && (
@@ -999,7 +910,6 @@ export default function App() {
                 kepalaPondokName={generalSettings.kepalaPondokName}
                 izinKeluarApprovers={generalSettings.izinKeluarApprovers}
                 cutiApprovers={generalSettings.cutiApprovers}
-                liburPengurusApprovers={generalSettings.liburPengurusApprovers}
                 jenisCutiList={generalSettings.jenisCutiList}
                 broadcastMessage={generalSettings.broadcastMessage}
                 onSaveGeneralSettings={handleSaveGeneralSettings}
@@ -1007,8 +917,7 @@ export default function App() {
                 accounts={accounts}
                 locationSettings={locationSettings || INITIAL_LOCATION_SETTINGS}
                 schedules={schedules}
-                divisions={divisions}
-                onSaveDivisions={handleSaveDivisions}
+
                 manhajiyyahClauses={manhajiyyahClauses}
                 onSaveLocationSettings={handleSaveLocationSettings}
                 onSaveSchedules={handleSaveSchedules}
@@ -1111,6 +1020,7 @@ export default function App() {
                     let count = 0;
 
                     for (const item of allToDelete) {
+                      console.log(`[Audit] Queueing deletion for ${item.col} document with ID ${item.id}`);
                       // Check if doc exists before deleting if we were doing single deletes, but writeBatch.delete is safe even if doc doesn't exist
                       currentBatch.delete(doc(db, item.col, item.id));
                       count++;
@@ -1125,6 +1035,8 @@ export default function App() {
                     }
 
                     await Promise.all(batches);
+                    
+                    console.log(`[Audit] Batch deletion completed for month ${month}.`);
                     
                     // Add an audit log entry for this major action
                     await logAudit(

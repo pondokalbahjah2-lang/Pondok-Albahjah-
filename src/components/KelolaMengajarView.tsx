@@ -632,8 +632,8 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      if (confirm(`Hapus kelas ${(c as any).namaKelas || (c as any).name}?`)) {
-                        await deleteClass(c.id);
+                      if (confirm(`Hapus kelas ${c.name}?`)) {
+                        await deleteClass(c.id, c.name);
                       }
                     }}
                     className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/30 text-rose-500"
@@ -709,8 +709,8 @@ export const KelolaMengajarView: React.FC<KelolaMengajarViewProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      if (confirm(`Hapus lokasi ${(loc as any).nama || (loc as any).name}?`)) {
-                        await deleteLocation(loc.id);
+                      if (confirm(`Hapus lokasi ${loc.name}?`)) {
+                        await deleteLocation(loc.id, loc.name);
                       }
                     }}
                     className="p-1.5 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/30 text-rose-500"

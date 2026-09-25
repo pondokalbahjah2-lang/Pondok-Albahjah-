@@ -23,20 +23,15 @@ import {
   AttendanceRecord,
   LocationSettings,
   WorkSchedule,
-  DivisiRecord,
 } from '../types';
 import { calculateDistanceMeters } from '../utils/storage';
 import { triggerHapticFeedback, HAPTIC_PATTERNS } from '../utils/vibration';
-import { getEffectiveWorkHours, resolveUserSchedule } from '../utils/shiftUtils';
-
-export { resolveUserSchedule };
 
 interface AbsensiViewProps {
   currentUser: UserAccount;
   attendance: AttendanceRecord[];
   locationSettings: LocationSettings;
   schedules: WorkSchedule[];
-  divisions?: DivisiRecord[];
   onSaveAttendance: (records: AttendanceRecord[]) => void;
   isLoading?: boolean;
 }
@@ -46,7 +41,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   attendance,
   locationSettings,
   schedules,
-  divisions = [],
   onSaveAttendance,
   isLoading,
 }) => {
@@ -54,7 +48,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
   const [currentLng, setCurrentLng] = useState<number | null>(null);
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const warnedMissingShiftRef = useRef(false);
   const [locError, setLocError] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [notes, setNotes] = useState('');
@@ -432,9 +425,11 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       // Check work schedule for jam pulang
       const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const currDay = hariMap[new Date().getDay()];
-      const effectiveWork = getEffectiveWorkHours(currentUser, divisions, schedules, currDay);
-      const jamPulang = effectiveWork.jamPulang;
-      const jamMasuk = effectiveWork.jamMasuk;
+      const userSchedule = schedules.find(
+        (s) => s.targetId === currentUser.id || s.targetId === currentUser.subDivisi || (s.targetType === 'Group' && s.pejuangIds?.includes(currentUser.id))
+      ) || schedules[0];
+      const jamPulang = userSchedule?.customJamKerja?.[currDay]?.pulang || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.pulang : undefined) || userSchedule?.jamPulang || "16:00";
+      const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
       
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schPulangH, schPulangM] = jamPulang.split(':').map(Number);
@@ -442,7 +437,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       
       let pulangNotes = todayRecord!.notes;
       
-      const isNightShift = effectiveWork.isNightShift;
+      const isNightShift = schPulangH < schMasukH;
       const effectiveSchPulangH = isNightShift ? schPulangH + 24 : schPulangH;
       const effectiveCurrH = (isNightShift && currH < schMasukH) ? currH + 24 : currH;
       
@@ -455,6 +450,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       if (diffPulangMins > 0) {
         pulangNotes = (pulangNotes ? pulangNotes + ' | ' : '') + 'Pulang Lebih Awal';
       }
+
 
       // Clock out
       const updatedRecord = {
@@ -482,53 +478,39 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       return;
     }
 
-    // Check work schedule using latest division/user assignment
+    // Check work schedule
+    const userSchedule = schedules.find(
+      (s) => s.targetName.includes(currentUser.subDivisi) || s.targetId === currentUser.id
+    ) || schedules[0];
+    
     const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const currDay = hariMap[new Date().getDay()];
-    const effectiveWork = getEffectiveWorkHours(currentUser, divisions, schedules, currDay);
-    const jamMasuk = effectiveWork.jamMasuk;
-    const jamPulang = effectiveWork.jamPulang;
+    const jamMasuk = userSchedule?.customJamKerja?.[currDay]?.masuk || (currDay === 'Ahad' ? userSchedule?.customJamKerja?.['Minggu']?.masuk : undefined) || userSchedule?.jamMasuk || "08:00";
 
     let finalStatus: AttendanceRecord['status'] = attendanceStatus;
 
     if (attendanceStatus === 'Hadir') {
       const [currH, currM] = timeStr.replace('.', ':').split(':').map(Number);
       const [schH, schM] = jamMasuk.split(':').map(Number);
-      const isNightShift = effectiveWork.isNightShift;
-
-      const effectiveCurrMins = (isNightShift && currH < 12) ? (currH + 24) * 60 + currM : currH * 60 + currM;
-      const effectiveSchMins = schH * 60 + schM;
-
-      const diffMasukMins = effectiveSchMins - effectiveCurrMins;
+      const diffMasukMins = (schH * 60 + schM) - (currH * 60 + currM);
       if (diffMasukMins > 60) {
         triggerHapticFeedback(HAPTIC_PATTERNS.WARNING, { audioType: 'warning' });
         alert(`Absen ditolak: Anda hanya dapat absen masuk maksimal 1 jam sebelum shift dimulai (${jamMasuk}).`);
         return;
       }
 
-      const effectiveTol = effectiveWork.source === 'divisi-shift' ? (effectiveWork.toleransiMenit || 0) : 0;
-      if (effectiveCurrMins > effectiveSchMins + effectiveTol) {
+      if ((currH * 60 + currM) > (schH * 60 + schM)) {
         finalStatus = 'Terlambat';
       }
     }
-
-    let effectiveNotes = notes;
-    if (effectiveWork.missingShiftAssignment) {
-      const missingMsg = 'Shift belum ditetapkan admin, memakai Shift 1';
-      effectiveNotes = effectiveNotes ? `${effectiveNotes} | ${missingMsg}` : missingMsg;
-    }
-    const finalNotes = effectiveNotes || `Absensi melalui sistem web app (${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})`;
 
     const newRecord: AttendanceRecord = {
       id: `att-${Date.now()}`,
       pejuangId: currentUser.id,
       pejuangName: currentUser.name,
       subDivisi: currentUser.subDivisi,
-      shiftId: effectiveWork.source === 'divisi-shift' ? effectiveWork.shiftId : undefined,
-      namaShift: effectiveWork.source === 'divisi-shift' ? effectiveWork.namaShift : undefined,
       date: dateStr,
       time: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : timeStr),
-      timeMasuk: (finalStatus === 'Libur' || finalStatus === 'Sakit') ? undefined : timeStr,
       timePulang: finalStatus === 'Libur' ? 'Libur' : (finalStatus === 'Sakit' ? 'Sakit' : undefined),
       photoUrl: "", // Removed photo
       latitude: currentLat || 0,
@@ -536,7 +518,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
       distanceFromPondok: distanceMeters || 0,
       status: finalStatus,
       isWithinRadius: isWithinRadius,
-      notes: finalNotes,
+      notes: notes || `Absensi melalui sistem web app (${isWithinRadius ? 'Dalam Radius' : 'Luar Radius'})`,
       suratSakitUrl: attendanceStatus === 'Sakit' && suratSakitUrl ? suratSakitUrl : undefined,
     };
 
@@ -621,58 +603,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
           </h2>
 
           <form onSubmit={handleSubmitAttendance} className="space-y-4">
-            {/* Active Schedule Badge */}
-            {(() => {
-              const hariMap = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-              const dayName = hariMap[new Date().getDay()];
-              const effectiveWork = getEffectiveWorkHours(currentUser, divisions, schedules, dayName);
-              const jMasuk = effectiveWork.jamMasuk;
-              const jPulang = effectiveWork.jamPulang;
-              const isNight = effectiveWork.isNightShift;
-              const labelJadwal = effectiveWork.namaShift
-                ? `${currentUser.subDivisi} - ${effectiveWork.namaShift}`
-                : (resolveUserSchedule(currentUser, schedules)?.targetName || currentUser.subDivisi);
-
-              if (effectiveWork.missingShiftAssignment && !warnedMissingShiftRef.current) {
-                warnedMissingShiftRef.current = true;
-                console.warn(`[Absensi] Shift belum ditetapkan admin untuk ${currentUser.name}, memakai Shift 1`);
-              }
-
-              return (
-                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex flex-col gap-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">Jadwal ({labelJadwal}):</div>
-                        <div className="font-extrabold text-slate-800 dark:text-slate-100 flex items-center space-x-1.5">
-                          <span>{jMasuk} - {jPulang} WIB</span>
-                          {isNight && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold">
-                              🌙 Shift Malam
-                            </span>
-                          )}
-                          {effectiveWork.source === 'divisi-shift' && effectiveWork.toleransiMenit > 0 && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-medium">
-                              Tol: +{effectiveWork.toleransiMenit} mnt
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                      {dayName}
-                    </span>
-                  </div>
-                  {effectiveWork.missingShiftAssignment && (
-                    <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-800/50">
-                      Shift belum ditetapkan admin, memakai Shift 1
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
             {/* Status Option */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
@@ -868,7 +798,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                   <th className="py-2.5 px-3">Foto (Masuk/Pulang)</th>
                   <th className="py-2.5 px-3">Nama Pejuang</th>
                   <th className="py-2.5 px-3">Waktu (Masuk - Pulang)</th>
-                  <th className="py-2.5 px-3">Shift</th>
                   <th className="py-2.5 px-3">Jarak dari Pondok</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Keterangan</th>
@@ -894,9 +823,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                         <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
                       </td>
                       <td className="py-2.5 px-3">
-                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
-                      </td>
-                      <td className="py-2.5 px-3">
                         <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
                       </td>
                       <td className="py-2.5 px-3">
@@ -906,7 +832,7 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                   ))
                 ) : myAttendance.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                    <td colSpan={6} className="py-8 text-center text-slate-400 italic">
                       Belum ada catatan presensi kehadiran.
                     </td>
                   </tr>
@@ -952,15 +878,6 @@ export const AbsensiView: React.FC<AbsensiViewProps> = ({
                       <td className="py-2.5 px-3 font-medium text-slate-700 dark:text-slate-300">
                         <div className="font-bold whitespace-nowrap">{rec.time} {rec.timePulang ? `- ${rec.timePulang}` : ''} WIB</div>
                         <div className="text-[10px] text-slate-400">{rec.date}</div>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        {rec.namaShift ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            {rec.namaShift}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-medium">-</span>
-                        )}
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">

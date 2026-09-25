@@ -160,9 +160,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
     quoteIndexRef.current = 0;
     const fullText = `"${quoteTarget}"`;
 
-    let interval: any = null;
     const typeTimer = setTimeout(() => {
-      interval = setInterval(() => {
+      const interval = setInterval(() => {
         if (quoteIndexRef.current < fullText.length) {
           quoteIndexRef.current++;
           setTypedQuote(fullText.slice(0, quoteIndexRef.current));
@@ -170,12 +169,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
           clearInterval(interval);
         }
       }, 20);
+      return () => clearInterval(interval);
     }, 600);
 
-    return () => {
-      clearTimeout(typeTimer);
-      if (interval) clearInterval(interval);
-    };
+    return () => clearTimeout(typeTimer);
   }, [appShown, quoteTarget, prefersReduced]);
 
   // Spotlight mouse tracking on glass containers

@@ -40,7 +40,6 @@ import {
   LeaveRequestRecord,
   WarningLetterRecord,
   SlipUbarRecord,
-  DivisiRecord,
 } from '../types';
 
 
@@ -61,8 +60,7 @@ interface LaporanViewProps {
   warningLetters: WarningLetterRecord[];
   slipUbarList: SlipUbarRecord[];
   schedules?: any[];
-  divisions?: DivisiRecord[];
-}
+  }
 
 export const LaporanView: React.FC<LaporanViewProps> = ({
   currentUser,
@@ -73,8 +71,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   warningLetters,
   slipUbarList,
   schedules,
-  divisions = [],
-}) => {
+  }) => {
   const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [reportEndDate, setReportEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [selectedPejuangId, setSelectedPejuangId] = useState<string>(
@@ -90,20 +87,6 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
   const uniqueDivisions = Array.from(new Set(accounts.filter(a => a.subDivisi).map(a => a.subDivisi)));
   const uniqueAmanah = Array.from(new Set(accounts.filter(a => a.amanah).map(a => a.amanah)));
-  const uniqueShiftNames = React.useMemo(() => {
-    const set = new Set<string>();
-    attendance.forEach(a => {
-      if (a.namaShift) set.add(a.namaShift);
-    });
-    divisions.forEach(d => {
-      if (d.hasTwoShifts && d.shifts) {
-        d.shifts.forEach(s => {
-          if (s.namaShift) set.add(s.namaShift);
-        });
-      }
-    });
-    return Array.from(set);
-  }, [attendance, divisions]);
   
   const overallChartData = React.useMemo(() => {
     let hadir = 0, telat = 0, sakit = 0, cuti = 0, libur = 0, izinKeluar = 0, izinTdkMasuk = 0;
@@ -161,20 +144,11 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       return false;
     }
 
-    // Filter by shift (schedule ID or shift name)
+    // Filter by shift (shiftFilter uses schedule targetId)
     if (shiftFilter) {
-      if (shiftFilter.startsWith('shift:')) {
-        const targetShift = shiftFilter.replace('shift:', '');
-        const hasAtt = attendance.some(att => att.pejuangId === a.id && att.namaShift === targetShift);
-        const matchesAssigned = a.assignedShiftId && divisions.some(d => d.shifts?.some(s => s.id === a.assignedShiftId && s.namaShift === targetShift));
-        if (!hasAtt && !matchesAssigned) {
-          return false;
-        }
-      } else {
-        const userSchedule = (schedules || []).find(s => s.targetId === a.id || s.targetId === a.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(a.id) || s.divisiIds?.includes(a.subDivisi))));
-        if (!userSchedule || userSchedule.id !== shiftFilter) {
-          return false;
-        }
+      const userSchedule = (schedules || []).find(s => s.targetId === a.id || s.targetId === a.subDivisi || (s.targetType === 'Group' && (s.pejuangIds?.includes(a.id) || s.divisiIds?.includes(a.subDivisi))));
+      if (!userSchedule || userSchedule.id !== shiftFilter) {
+        return false;
       }
     }
 
@@ -275,17 +249,6 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         l.totalHari,
         `"${l.alasan}"`,
         l.status,
-      ]),
-      [''],
-      ['DETAIL LOG PRESENSI HARIAN'],
-      ['Tanggal', 'Jam Masuk', 'Jam Pulang', 'Shift', 'Status', 'Keterangan'],
-      ...userAtt.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((a) => [
-        a.date,
-        ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time,
-        ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang || '-'),
-        a.namaShift || '-',
-        a.status,
-        `"${(a.notes || '-').replace(/"/g, '""')}"`,
       ]),
     ];
 
@@ -605,13 +568,12 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       a.date,
       ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time,
       ['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLogicalAttendanceDateStr(accounts.find(u => u.id === a.pejuangId)) ? 'Tidak Absen Pulang' : '-')),
-      a.namaShift || '-',
       a.status,
       (a.notes || '-') + (a.suratSakitUrl ? ' (Ada Surat Sakit)' : '')
     ]);
     autoTable(doc, {
       startY: finalY + 5,
-      head: [['Tanggal', 'Jam Masuk', 'Jam Pulang', 'Shift', 'Status', 'Keterangan']],
+      head: [['Tanggal', 'Jam Masuk', 'Jam Pulang', 'Status', 'Keterangan']],
       body: attBody,
       theme: 'grid',
       headStyles: { fillColor: [39, 174, 96] },
@@ -802,14 +764,9 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                 className="w-full sm:w-1/3 p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="">Semua Shift/Jadwal</option>
-                {uniqueShiftNames.map((sn, idx) => (
-                  <option key={`sn-${idx}`} value={`shift:${sn}`}>
-                    Shift: {sn}
-                  </option>
-                ))}
                 {(schedules || []).map((s) => (
                   <option key={s.id} value={s.id}>
-                    Jadwal: {s.targetName} ({s.jamMasuk} - {s.jamPulang})
+                    {s.targetName} ({s.jamMasuk} - {s.jamPulang})
                   </option>
                 ))}
               </select>
@@ -970,7 +927,6 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                   <th className="p-2.5">Tanggal</th>
                   <th className="p-2.5">Jam Masuk</th>
                   <th className="p-2.5">Jam Pulang</th>
-                  <th className="p-2.5">Shift</th>
                   <th className="p-2.5">Status</th>
                   <th className="p-2.5">Keterangan</th>
                 </tr>
@@ -978,7 +934,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {userAtt.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-4 text-center italic text-slate-400">
+                    <td colSpan={5} className="p-4 text-center italic text-slate-400">
                       Tidak ada rekaman presensi.
                     </td>
                   </tr>
@@ -988,15 +944,6 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                       <td className="p-2.5 font-medium">{a.date}</td>
                       <td className="p-2.5 font-bold text-emerald-600">{['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : a.time}</td>
                       <td className="p-2.5 font-bold text-amber-600">{['Sakit', 'Libur', 'Cuti'].includes(a.status) ? a.status : (a.timePulang ? a.timePulang : (a.date < getLogicalAttendanceDateStr(accounts.find(u => u.id === a.pejuangId)) ? 'Tidak Absen Pulang' : '-'))}</td>
-                      <td className="p-2.5 font-medium text-slate-600 dark:text-slate-300">
-                        {a.namaShift ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            {a.namaShift}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
                       <td className="p-2.5">
                         <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold ${
                           a.status === 'Hadir' ? 'bg-emerald-100 text-emerald-700' :
